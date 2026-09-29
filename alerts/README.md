@@ -1,6 +1,5 @@
 # alerts
 
-**Task:** Task 3  
 **Status:** planned
 
 ## Purpose

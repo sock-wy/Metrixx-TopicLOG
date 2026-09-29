@@ -1,6 +1,5 @@
 # config
 
-**Task:** Shared by Task 1 (playbook) and Task 6 (scoring)  
 **Status:** w0 draft
 
 ## Purpose

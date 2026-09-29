@@ -1,6 +1,5 @@
 # schema
 
-**Task:** Shared  
 **Status:** v0 draft (columns will change once eToro is integrated)
 
 ## Purpose

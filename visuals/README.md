@@ -1,6 +1,5 @@
 # visuals
 
-**Task:** Task 5  
 **Status:** planned
 
 ## Purpose

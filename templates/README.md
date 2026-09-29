@@ -1,6 +1,5 @@
 # templates
 
-**Task:** Task 2  
 **Status:** scope to be confirmed
 
 ## Purpose
