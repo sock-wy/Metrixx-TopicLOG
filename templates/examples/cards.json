@@ -1,0 +1,65 @@
+{
+  "_note": "Illustrative prices only. Each card is a config object; see templates/README.md for the params each strategy takes.",
+  "cards": [
+    {
+      "id": "aapl_long_straddle",
+      "strategy": "long_straddle",
+      "underlying": "AAPL",
+      "spot": 250,
+      "params": { "strike": 250, "call_premium": 6.10, "put_premium": 5.80 }
+    },
+    {
+      "id": "aapl_bull_call_spread",
+      "strategy": "bull_call_spread",
+      "underlying": "AAPL",
+      "spot": 250,
+      "params": { "long_strike": 250, "short_strike": 260, "long_premium": 6.10, "short_premium": 2.35 }
+    },
+    {
+      "id": "aapl_bear_put_spread",
+      "strategy": "bear_put_spread",
+      "underlying": "AAPL",
+      "spot": 250,
+      "params": { "long_strike": 250, "short_strike": 240, "long_premium": 5.80, "short_premium": 2.20 }
+    },
+    {
+      "id": "aapl_iron_condor",
+      "strategy": "iron_condor",
+      "underlying": "AAPL",
+      "spot": 250,
+      "params": {
+        "put_long": 235, "put_short": 240, "call_short": 260, "call_long": 265,
+        "put_long_premium": 0.95, "put_short_premium": 1.85,
+        "call_short_premium": 2.35, "call_long_premium": 1.20
+      }
+    },
+    {
+      "id": "aapl_covered_call",
+      "strategy": "covered_call",
+      "underlying": "AAPL",
+      "spot": 250,
+      "params": { "entry": 250, "strike": 260, "premium": 2.35, "shares": 100 }
+    },
+    {
+      "id": "aapl_updown_binary",
+      "strategy": "polymarket_step",
+      "underlying": "AAPL",
+      "spot": 250,
+      "title": "AAPL · Up or Down today (prediction market)",
+      "params": { "strike": 250, "price": 0.55, "stake": 610, "direction": "above" }
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "aapl_updown_vs_call",
+      "underlying": "AAPL",
+      "spot": 250,
+      "title": "AAPL · $610 on UP vs $610 on a call",
+      "subtitle": "Same cost, different payoff: binary YES @ 0.55 vs 250 call @ 6.10",
+      "members": [
+        { "label": "UP contract", "strategy": "polymarket_step", "params": { "strike": 250, "price": 0.55, "stake": 610 } },
+        { "label": "250 call", "strategy": "long_call", "params": { "strike": 250, "premium": 6.10 } }
+      ]
+    }
+  ]
+}

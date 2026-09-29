@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metrixx Card Library</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script src="cards/metrixx-cards.js"></script>
+<style>
+  :root { --bg:#0B1118; --panel:#0F1620; --ink:#E6ECF2; --muted:#8FA0B3; --line:#1E2835; --accent:#58A6FF; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 Inter,"Helvetica Neue",Arial,sans-serif; }
+  main { max-width:1360px; margin:0 auto; padding:28px 20px 60px; display:flex; flex-direction:column; gap:28px; }
+  h1 { margin:0; font-size:26px; }
+  p { margin:0; color:var(--muted); max-width:70ch; }
+  code { font-family:"IBM Plex Mono",Menlo,monospace; font-size:13px; color:var(--ink); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(560px,1fr)); gap:18px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:6px; overflow:hidden; min-width:0; }
+  .card .id { font-family:"IBM Plex Mono",Menlo,monospace; font-size:12px; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--line); }
+  .plot { width:100%; aspect-ratio:16/9; position:relative; overflow:hidden; }
+  .plot .frame { position:absolute; top:0; left:0; transform-origin:0 0; }
+  .editor { display:grid; grid-template-columns:minmax(0,420px) minmax(0,1fr); gap:18px; }
+  textarea { width:100%; min-height:360px; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:6px;
+    padding:12px; font:13px/1.5 "IBM Plex Mono",Menlo,monospace; resize:vertical; }
+  button { font:inherit; background:var(--accent); color:#06121F; border:0; border-radius:4px; padding:8px 14px; cursor:pointer; font-weight:600; }
+  .err { color:#E5604D; font-family:"IBM Plex Mono",Menlo,monospace; font-size:13px; min-height:1.5em; }
+  @media (max-width:900px){ .editor{grid-template-columns:1fr} .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Metrixx card library</h1>
+    <p>Every card below is one config object in <code>examples/cards.json</code>, rendered by <code>cards/metrixx-cards.js</code>. The same figures export to PNG for video with <code>visuals/</code>.</p>
+  </header>
+
+  <section>
+    <p style="margin-bottom:10px">Try a card: edit the config and render.</p>
+    <div class="editor">
+      <div>
+        <textarea id="cfg" spellcheck="false"></textarea>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+          <button id="render" type="button">Render</button>
+          <span class="err" id="err"></span>
+        </div>
+      </div>
+      <div class="card"><div class="id">live</div><div class="plot" id="live"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <p style="margin-bottom:10px">Examples (illustrative prices).</p>
+    <div class="grid" id="gallery"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  const C = window.MetrixxCards;
+  const plotCfg = { displayModeBar: false };
+  // Render at the exact export size (THEME.width x THEME.height) and scale the
+  // frame down to fit, so the preview matches the video frame pixel for pixel.
+  function fit(el) {
+    const f = el.querySelector('.frame');
+    if (f) f.style.transform = 'scale(' + (el.clientWidth / C.THEME.width) + ')';
+  }
+  function draw(el, fig) {
+    let f = el.querySelector('.frame');
+    if (!f) { f = document.createElement('div'); f.className = 'frame'; el.appendChild(f); }
+    Plotly.react(f, fig.data, fig.layout, plotCfg);
+    fit(el);
+  }
+  window.addEventListener('resize', () => document.querySelectorAll('.plot').forEach(fit));
+  function build(cfg) { return cfg.members ? C.buildComparison(cfg) : C.buildCard(cfg); }
+
+  const starter = {
+    strategy: 'long_straddle', underlying: 'NVDA', spot: 180,
+    params: { strike: 180, call_premium: 7.4, put_premium: 7.1 }
+  };
+  const ta = document.getElementById('cfg');
+  ta.value = JSON.stringify(starter, null, 2);
+  function renderLive() {
+    const err = document.getElementById('err');
+    try { draw(document.getElementById('live'), build(JSON.parse(ta.value))); err.textContent = ''; }
+    catch (e) { err.textContent = e.message; }
+  }
+  document.getElementById('render').addEventListener('click', renderLive);
+  renderLive();
+
+  fetch('examples/cards.json').then(r => r.json()).then(deck => {
+    const gal = document.getElementById('gallery');
+    for (const cfg of [].concat(deck.comparisons || [], deck.cards || [])) {
+      const card = document.createElement('div'); card.className = 'card';
+      card.innerHTML = '<div class="id"></div><div class="plot"></div>';
+      card.querySelector('.id').textContent = cfg.id;
+      gal.appendChild(card);
+      draw(card.querySelector('.plot'), build(cfg));
+    }
+  }).catch(() => {
+    document.getElementById('gallery').innerHTML =
+      '<p>Could not load examples/cards.json. Serve the repo over HTTP (e.g. <code>python3 -m http.server</code> from the repo root) instead of opening the file directly.</p>';
+  });
+})();
+</script>
+</body>
+</html>

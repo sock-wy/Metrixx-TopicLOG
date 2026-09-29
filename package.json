@@ -1,0 +1,11 @@
+{
+  "name": "metrixx-topiclog",
+  "private": true,
+  "description": "Metrixx Topic Log: playbook, scoring config, card library and video export",
+  "scripts": {
+    "test": "node --test templates/cards/cards.test.js",
+    "build:figures": "node visuals/build_figures.js",
+    "export:png": "python3 visuals/export_png.py",
+    "render": "npm run build:figures && npm run export:png"
+  }
+}

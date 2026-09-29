@@ -16,7 +16,7 @@ flowchart LR
     C --> D[(2_topic_log)]
     D --> E[alerts<br/>Excel flags]
     D --> F[playbook<br/>daily pick]
-    F --> G[templates<br/>episode production]
+    F --> G[templates<br/>payoff cards]
     G --> H[visuals<br/>Plotly → Shotstack]
     F --> I[(3_episode_log)]
     I -. weekly review .-> K
@@ -36,8 +36,8 @@ Data moves left to right once a day. The dotted line is the review loop: results
 | [`ingestion/`](ingestion/) | Collectors running continuously on the VPS; write raw snapshots. | planned |
 | [`scoring/`](scoring/) | Computes `demand_score`, tier and rank from snapshots + config; writes Sheet 2. | planned |
 | [`alerts/`](alerts/) | Conditional flags and colour rules in the Excel view of the Topic Log. | planned |
-| [`templates/`](templates/) | Production template for each episode, deployed to production. | scope TBD |
-| [`visuals/`](visuals/) | Plotly charts of Topic Log data rendered for Shotstack video. | planned |
+| [`templates/`](templates/) | Card library: one Plotly template for option and prediction-market payoff cards, each card a config object. | v0 |
+| [`visuals/`](visuals/) | Export pipeline: card figures → PNG (Kaleido) for Shotstack. Price panel (Lightweight Charts) to come. | v0 |
 
 Each folder has its own `README.md` with the module's inputs, outputs, dependencies and usage. Keep that file current when the module changes.
 
@@ -47,11 +47,10 @@ Each folder has its own `README.md` with the module's inputs, outputs, dependenc
 ingestion ──► scoring ──► alerts
                  │
                  └──────► visuals
-playbook, config, schema: in place, updated as the others land
-templates: scope to be confirmed
+playbook, config, schema, templates: in place, updated as the others land
 ```
 
-Scoring needs day-over-day deltas, which need ingestion running continuously. Alerts and visuals read scoring output.
+Scoring needs day-over-day deltas, which need ingestion running continuously. Alerts read scoring output. Visuals render cards from `templates/`; picking cards automatically from the day's angle waits on scoring.
 
 ---
 
@@ -105,6 +104,7 @@ The modules fall into three layers:
 | See the procedure and try the weights interactively | open [`playbook/index.html`](playbook/index.html) in a browser |
 | Check or change a threshold or weight | [`config/weights_w0.yaml`](config/weights_w0.yaml), then [`config/CHANGELOG.md`](config/CHANGELOG.md) |
 | Look up what a column means | [`schema/README.md`](schema/README.md) |
+| Preview or render payoff cards | [`templates/README.md`](templates/README.md), then `npm run render` |
 | Work on a module | that module's `README.md` |
 
 ---
@@ -124,6 +124,6 @@ Metrixx-TopicLOG/
 ├── ingestion/             VPS collectors
 ├── scoring/               demand_score
 ├── alerts/                Excel alerts
-├── templates/             production template
+├── templates/             card library (payoff charts)
 └── visuals/               Plotly → Shotstack
 ```
