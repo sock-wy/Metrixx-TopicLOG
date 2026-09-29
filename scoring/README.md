@@ -1,6 +1,5 @@
 # scoring
 
-**Task:** Task 6  
 **Status:** planned
 
 ## Purpose

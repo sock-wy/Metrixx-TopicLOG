@@ -1,6 +1,5 @@
 # ingestion
 
-**Task:** Task 4  
 **Status:** planned
 
 ## Purpose
