@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------
 # Single source of truth for every tunable number in the playbook.
 # Any change to this file = new weights_version (copy to weights_w1.yaml,
-# edit, bump `version`, and add an entry to CHANGELOG.md).
+# edit, bump `version`, and add an entry to config/CHANGELOG.md).
 # Never edit a version that has already been used to select an episode.
 
 version: w0

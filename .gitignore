@@ -1,0 +1,17 @@
+# secrets
+.env
+*.env
+
+# raw data stays on the VPS / database
+data/
+*.parquet
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# os / editors
+.DS_Store
+.vscode/
+.idea/
