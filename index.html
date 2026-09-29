@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Topic Log Playbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a bound book laid on a desk. Cloth cover, then paper pages stacked vertically, each with running head, chapter opener and folio. */
+:root{
+  --desk:#D8DEE5; --paper:#FCFCFB; --ink:#141B24; --muted:#5B6776; --rule:#DCE1E7;
+  --cloth:#1B2A4A; --cloth-ink:#E9EDF5; --foil:#C9D3E6;
+  --accent:#2448B8; --accent-soft:#E6ECFA;
+  --t1:#B4412A; --t1-soft:#F8E4DF; --t2:#8F6300; --t2-soft:#F6ECD2; --t3:#1D7A5A; --t3-soft:#DDF1E8; --t4:#5A6878; --t4-soft:#E9EDF1;
+  --gate:#8A94A0; --shadow:rgba(20,30,50,.18);
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --desk:#0B1016; --paper:#161C24; --ink:#E4E9EF; --muted:#98A5B4; --rule:#2B3440;
+  --cloth:#14203A; --cloth-ink:#E4E9F3; --foil:#AFC0E0;
+  --accent:#8AA6F5; --accent-soft:#1F2B48;
+  --t1:#F08A73; --t1-soft:#3A2019; --t2:#E0B24A; --t2-soft:#352A12; --t3:#5CC99F; --t3-soft:#123127; --t4:#A3B0BE; --t4-soft:#242E3A;
+  --gate:#6B7684; --shadow:rgba(0,0,0,.5); color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --desk:#0B1016; --paper:#161C24; --ink:#E4E9EF; --muted:#98A5B4; --rule:#2B3440;
+  --cloth:#14203A; --cloth-ink:#E4E9F3; --foil:#AFC0E0;
+  --accent:#8AA6F5; --accent-soft:#1F2B48;
+  --t1:#F08A73; --t1-soft:#3A2019; --t2:#E0B24A; --t2-soft:#352A12; --t3:#5CC99F; --t3-soft:#123127; --t4:#A3B0BE; --t4-soft:#242E3A;
+  --gate:#6B7684; --shadow:rgba(0,0,0,.5); color-scheme:dark;}
+*{box-sizing:border-box}
+html{scroll-snap-type:y proximity;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--desk);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6}
+.book{display:flex;flex-direction:column;align-items:center;gap:36px;padding-inline:16px;padding-block:32px 72px}
+
+/* ---------- cover ---------- */
+.cover{scroll-snap-align:start;width:min(100%,560px);aspect-ratio:5/7;max-height:calc(100vh - 64px);min-height:520px;
+  background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),
+    repeating-linear-gradient(90deg,rgba(0,0,0,.05) 0 1px,transparent 1px 4px),
+    linear-gradient(90deg,rgba(0,0,0,.35) 0,rgba(255,255,255,.06) 14px,rgba(0,0,0,.12) 20px,transparent 34px),
+    var(--cloth);
+  color:var(--cloth-ink);border-radius:3px 10px 10px 3px;box-shadow:0 30px 60px -20px var(--shadow),0 2px 0 rgba(0,0,0,.2);
+  display:flex;flex-direction:column;padding:48px 44px 36px 56px;position:relative}
+.cover .frame{position:absolute;inset:22px 22px 22px 34px;border:1px solid color-mix(in srgb,var(--foil) 45%,transparent);border-radius:2px;pointer-events:none}
+.cover .imprint{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--foil)}
+.cover h1{font-family:var(--f-display);font-weight:900;font-stretch:68%;font-size:clamp(58px,13vw,104px);line-height:.86;letter-spacing:-.005em;margin:auto 0 0;text-transform:uppercase}
+.cover h1 span{display:block}
+.cover h1 .thin{font-weight:300;color:var(--foil)}
+.cover .sub{font-size:17px;margin-top:22px;max-width:30ch;color:var(--foil);font-style:italic}
+.cover .strike{margin-top:28px;display:flex;align-items:flex-end;gap:3px;height:34px}
+.cover .strike i{flex:1;background:var(--foil);opacity:.55;border-radius:1px}
+.cover .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--foil) 40%,transparent);font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--foil)}
+.hint{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:-18px}
+
+/* ---------- pages ---------- */
+.page{scroll-snap-align:start;width:min(100%,780px);min-height:min(1040px,calc(100vh - 40px));background:
+  linear-gradient(90deg,rgba(0,0,0,.07) 0,transparent 26px),var(--paper);
+  border-radius:2px 6px 6px 2px;box-shadow:0 22px 44px -22px var(--shadow),0 1px 0 var(--rule);
+  padding:28px 56px 26px 64px;display:flex;flex-direction:column;gap:22px;scroll-margin-top:16px}
+.runhead{display:flex;justify-content:space-between;gap:12px;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--rule);padding-bottom:10px}
+.folio{margin-top:auto;display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:11px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px}
+.opener{display:flex;flex-direction:column;gap:8px;padding-top:26px}
+.chap{font-family:var(--f-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+h2{font-family:var(--f-display);font-weight:850;font-stretch:72%;font-size:clamp(34px,6vw,50px);line-height:.98;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:700;font-stretch:90%;font-size:17px;margin:0;line-height:1.25}
+p{margin:0;max-width:64ch}
+.lede{font-size:18px;color:var(--muted);font-style:italic;max-width:56ch}
+code,.mono{font-family:var(--f-mono);font-size:.84em}
+code{background:var(--accent-soft);padding:1px 5px;border-radius:3px}
+.note{font-size:14px;color:var(--muted)}
+.pill{font-family:var(--f-mono);font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid var(--rule);color:var(--muted);white-space:nowrap}
+
+/* contents */
+.toc{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.toc a{display:grid;grid-template-columns:44px auto 1fr auto;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--rule);color:var(--ink);text-decoration:none}
+.toc a:hover .tt,.toc a:focus-visible .tt{color:var(--accent)}
+.toc a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.toc .no{font-family:var(--f-mono);font-size:12px;color:var(--accent)}
+.toc .tt{font-family:var(--f-display);font-stretch:85%;font-weight:700;font-size:19px}
+.toc .dots{border-bottom:1px dotted var(--muted);transform:translateY(-4px);opacity:.6}
+.toc .pg{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.toc small{display:block;font-family:var(--f-body);font-size:13.5px;color:var(--muted);font-weight:400;font-stretch:100%}
+
+/* sheets diagram */
+.sheets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;position:relative}
+.sheet{border:1px solid var(--rule);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--paper);box-shadow:3px 3px 0 var(--rule)}
+.sheet .tag{font-family:var(--f-mono);font-size:11px;color:var(--accent)}
+.sheet .grain{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.sheet p{font-size:14px;color:var(--muted)}
+.flowline{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.flowline .arr{flex:1;border-top:1px dashed var(--muted);position:relative}
+.flowline .arr::after{content:"";position:absolute;right:-1px;top:-4px;border:4px solid transparent;border-left:6px solid var(--muted);border-right:0}
+.flowline.back .arr::after{right:auto;left:-1px;border-left:0;border-right:6px solid var(--muted)}
+@media (max-width:640px){.sheets{grid-template-columns:1fr}}
+
+/* timeline */
+.timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.timeline li{display:grid;grid-template-columns:78px 22px minmax(0,1fr);gap:0 14px;min-height:88px}
+.timeline .time{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);text-align:right;padding-top:2px}
+.timeline .node{position:relative;display:flex;justify-content:center}
+.timeline .node::before{content:"";position:absolute;top:6px;bottom:-6px;width:1px;background:var(--rule)}
+.timeline li:last-child .node::before{display:none}
+.timeline .node b{position:relative;width:13px;height:13px;border-radius:50%;background:var(--paper);border:2px solid var(--accent);margin-top:4px}
+.timeline .body{display:flex;flex-direction:column;gap:4px;padding-bottom:18px}
+.timeline .body p{font-size:15px;color:var(--muted)}
+.timeline .sheet-tag{font-family:var(--f-mono);font-size:11px;color:var(--accent)}
+
+/* rules */
+.rules{display:flex;flex-direction:column}
+.rule{display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--rule)}
+.rule:last-child{border-bottom:none}
+.rule .id{font-family:var(--f-display);font-weight:850;font-stretch:70%;font-size:30px;line-height:1;color:var(--accent)}
+.rule .b{display:flex;flex-direction:column;gap:5px;min-width:0}
+.rule .b p{font-size:15px;color:var(--muted)}
+.test{font-family:var(--f-mono);font-size:12.5px;background:var(--accent-soft);border-radius:3px;padding:5px 8px;overflow-x:auto;white-space:nowrap;align-self:flex-start;max-width:100%}
+
+.formula{border-left:3px solid var(--accent);padding:12px 16px;font-family:var(--f-mono);font-size:13.5px;overflow-x:auto;white-space:nowrap;line-height:1.95;background:var(--accent-soft)}
+.formula b{color:var(--accent);font-weight:500}
+
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--f-mono);font-weight:500;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1.5px solid var(--ink);white-space:nowrap}
+td.k{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+td.num{text-align:right;font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+
+.chip{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:500;padding:2px 8px;border-radius:3px;white-space:nowrap}
+.chip.T1{background:var(--t1-soft);color:var(--t1)} .chip.T2{background:var(--t2-soft);color:var(--t2)}
+.chip.T3{background:var(--t3-soft);color:var(--t3)} .chip.T4{background:var(--t4-soft);color:var(--t4)}
+.chip.G{border:1px dashed var(--gate);color:var(--gate)}
+.chip.A{background:var(--accent-soft);color:var(--accent)}
+
+/* tiers ladder */
+.ladder{display:flex;flex-direction:column;gap:0}
+.rung{display:grid;grid-template-columns:70px minmax(0,1fr);gap:16px;padding:16px 0;border-bottom:1px solid var(--rule)}
+.rung .chip{font-size:15px;padding:6px 12px;align-self:start;justify-self:start;font-weight:600}
+.rung .b{display:flex;flex-direction:column;gap:6px;min-width:0}
+.rung p{font-size:15px;color:var(--muted)}
+.aside{border:1px solid var(--rule);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.aside .lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+ol.plain,ul.plain{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+ol.plain li,ul.plain li{font-size:15px}
+
+/* board */
+.pick{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 22px;align-items:center;border:1.5px solid var(--ink);border-radius:4px;padding:16px 18px}
+.pick .tk{font-family:var(--f-display);font-weight:900;font-stretch:66%;font-size:60px;line-height:.9;grid-row:span 3}
+.pick .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pick .why{font-size:14px;color:var(--muted)}
+.lbl-s{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#tbl td{vertical-align:middle;white-space:nowrap}
+#tbl tr.gated td{color:var(--gate)}
+#tbl tr.gated td.tkc{text-decoration:line-through}
+.tkc{font-family:var(--f-display);font-weight:700;font-stretch:85%;font-size:15px}
+.bar{position:relative;width:60px;height:7px;background:var(--rule);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:4px}
+.comp{display:flex;gap:2px;align-items:flex-end;height:20px}
+.comp i{width:8px;background:var(--accent);border-radius:1px 1px 0 0}
+.comp i.na{background:transparent;border:1px dashed var(--gate);height:20px!important}
+.ctls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 22px}
+.ctl{display:grid;grid-template-columns:1fr 40px;gap:0 8px;align-items:center}
+.ctl label{font-family:var(--f-mono);font-size:12px}
+.ctl output{font-family:var(--f-mono);font-size:12px;text-align:right;color:var(--muted)}
+.ctl input{grid-column:1 / -1;width:100%;accent-color:var(--accent)}
+button.reset{font-family:var(--f-mono);font-size:12px;padding:6px 12px;border-radius:3px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer;align-self:flex-start}
+button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline:none}
+
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.cov td.y{color:var(--t3)} .cov td.p{color:var(--t2)} .cov td.n{color:var(--gate)}
+.cov td{font-family:var(--f-mono);font-size:12.5px}
+
+/* back cover */
+.backcover{width:min(100%,560px);aspect-ratio:5/7;max-height:calc(100vh - 64px);min-height:420px;scroll-snap-align:start;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(0,0,0,.05) 0 1px,transparent 1px 4px),linear-gradient(270deg,rgba(0,0,0,.35) 0,rgba(255,255,255,.06) 14px,rgba(0,0,0,.12) 20px,transparent 34px),var(--cloth);
+  color:var(--foil);border-radius:10px 3px 3px 10px;box-shadow:0 30px 60px -20px var(--shadow);padding:48px 56px 36px 44px;display:flex;flex-direction:column;justify-content:flex-end;gap:14px}
+.backcover p{font-size:15px;font-style:italic;max-width:34ch}
+.backcover .m{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+
+@media (max-width:640px){
+  .page{padding:22px 20px 20px 26px;min-height:0}
+  .cover{padding:36px 28px 28px 38px}
+  .cover .frame{inset:14px 14px 14px 22px}
+  .rule{grid-template-columns:48px minmax(0,1fr)}
+  .rule .id{font-size:24px}
+  .timeline li{grid-template-columns:58px 18px minmax(0,1fr);gap:0 10px}
+  .pick .tk{font-size:46px}
+  .toc a{grid-template-columns:34px 1fr auto}.toc .dots{display:none}
+}
+@media (prefers-reduced-motion:no-preference){.bar i,.comp i{transition:width .25s ease,height .25s ease}}
+</style>
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div class="book">
+
+  <!-- COVER -->
+  <section class="cover" id="cover" aria-label="Cover">
+    <div class="frame"></div>
+    <div class="imprint">Metrixx AI · MYCAST</div>
+    <h1><span>Topic</span><span>Log</span><span class="thin">Playbook</span></h1>
+    <p class="sub">How the daily episode's ticker is chosen, scored, and checked afterwards.</p>
+    <div class="strike" aria-hidden="true" id="strike"></div>
+    <div class="foot"><span>Edition v0 · Draft</span><span>September 2026</span></div>
+  </section>
+  <div class="hint" aria-hidden="true">Scroll to open ↓</div>
+
+  <!-- CONTENTS -->
+  <article class="page" id="contents">
+    <div class="runhead"><span>Topic Log Playbook</span><span>Contents</span></div>
+    <div class="opener"><span class="chap">Contents</span><h2>What's in this book</h2></div>
+    <ol class="toc">
+      <li><a href="#ch1"><span class="no">01</span><span class="tt">The Topic Log<small>Three sheets: raw, decision, feedback</small></span><span class="dots"></span><span class="pg">p. 2</span></a></li>
+      <li><a href="#ch2"><span class="no">02</span><span class="tt">The Daily Run<small>Six steps, same order every day</small></span><span class="dots"></span><span class="pg">p. 3</span></a></li>
+      <li><a href="#ch3"><span class="no">03</span><span class="tt">Hard Gates<small>What removes a ticker before scoring</small></span><span class="dots"></span><span class="pg">p. 4</span></a></li>
+      <li><a href="#ch4"><span class="no">04</span><span class="tt">demand_score<small>One number built from what changed</small></span><span class="dots"></span><span class="pg">p. 5</span></a></li>
+      <li><a href="#ch5"><span class="no">05</span><span class="tt">Priority Tiers<small>Which group the pick comes from</small></span><span class="dots"></span><span class="pg">p. 6</span></a></li>
+      <li><a href="#ch6"><span class="no">06</span><span class="tt">Worked Example<small>An interactive ranking on sample data</small></span><span class="dots"></span><span class="pg">p. 7</span></a></li>
+      <li><a href="#ch7"><span class="no">07</span><span class="tt">Angle Mapping<small>Contract structure decides the story</small></span><span class="dots"></span><span class="pg">p. 8</span></a></li>
+      <li><a href="#ch8"><span class="no">08</span><span class="tt">Overrides<small>When the editor can overrule the board</small></span><span class="dots"></span><span class="pg">p. 9</span></a></li>
+      <li><a href="#ch9"><span class="no">09</span><span class="tt">Review Loop<small>Weekly check and change control</small></span><span class="dots"></span><span class="pg">p. 10</span></a></li>
+      <li><a href="#appx"><span class="no">A</span><span class="tt">Source Coverage<small>Which source feeds which component</small></span><span class="dots"></span><span class="pg">p. 11</span></a></li>
+    </ol>
+    <p class="note">Every threshold and weight in this edition is a starting value. Chapter 9 describes how they get tuned.</p>
+    <div class="folio"><span>Edition v0</span><span>1</span></div>
+  </article>
+
+  <!-- CH1 -->
+  <article class="page" id="ch1">
+    <div class="runhead"><span>Topic Log Playbook</span><span>01 · The Topic Log</span></div>
+    <div class="opener"><span class="chap">Chapter 01</span><h2>The Topic Log</h2>
+      <p class="lede">A three-sheet record that decides which ticker each daily MYCAST episode covers, and keeps enough history to check whether the choice was any good.</p></div>
+    <div class="flowline"><span>raw</span><span class="arr"></span><span>decision</span><span class="arr"></span><span>feedback</span></div>
+    <div class="sheets">
+      <div class="sheet"><span class="tag">Sheet 1</span><h3>market_snapshots</h3><span class="grain">1 row · contract · pull</span><p>Quotes, volume, open interest, contract structure and lifecycle. Answers "is this a real, usable price".</p></div>
+      <div class="sheet"><span class="tag">Sheet 2</span><h3>topic_log</h3><span class="grain">1 row · ticker · day</span><p>Adanos, prediction-market and eToro signals rolled up per ticker, then <code>demand_score</code> and <code>rank</code>.</p></div>
+      <div class="sheet"><span class="tag">Sheet 3</span><h3>episode_log</h3><span class="grain">1 row · episode</span><p>The call at the time, whether the editor agreed, whether it was producible, and how the audience responded.</p></div>
+    </div>
+    <div class="flowline back"><span class="arr"></span><span>sheet 3 tunes the weights used in sheet 2</span></div>
+    <div class="aside"><span class="lbl">Reading rule</span><p>An implied probability is never read alone. It is read with its spread (the error bar), its volume (whether anyone traded), and its contract type (what the number means).</p></div>
+    <div class="folio"><span>The Topic Log</span><span>2</span></div>
+  </article>
+
+  <!-- CH2 -->
+  <article class="page" id="ch2">
+    <div class="runhead"><span>Topic Log Playbook</span><span>02 · The Daily Run</span></div>
+    <div class="opener"><span class="chap">Chapter 02</span><h2>The Daily Run</h2>
+      <p class="lede">Six steps in a fixed order. Times are proposed, US Eastern, and assume the VPS snapshot job ran overnight.</p></div>
+    <ol class="timeline">
+      <li><span class="time">06:30</span><span class="node"><b></b></span><div class="body"><h3>1 · Pull</h3><p>Latest Adanos and Kalshi snapshots land. Settled contracts are dropped.</p><span class="sheet-tag">→ 1_market_snapshots</span></div></li>
+      <li><span class="time">07:00</span><span class="node"><b></b></span><div class="body"><h3>2 · Gate</h3><p>Candidates failing any hard gate are removed. The failed gate is recorded.</p><span class="sheet-tag">→ 2_topic_log · data_quality_flag</span></div></li>
+      <li><span class="time">07:00</span><span class="node"><b></b></span><div class="body"><h3>3 · Score</h3><p>Compute <code>demand_score</code> and assign each surviving ticker a tier.</p><span class="sheet-tag">→ 2_topic_log · demand_score, rank</span></div></li>
+      <li><span class="time">07:15</span><span class="node"><b></b></span><div class="body"><h3>4 · Pick</h3><p>The editor takes the top of the highest non-empty tier, or overrides with a reason code.</p><span class="sheet-tag">→ 3_episode_log · selection_mode</span></div></li>
+      <li><span class="time">07:20</span><span class="node"><b></b></span><div class="body"><h3>5 · Angle</h3><p>Read the angle off the contract structure and confirm the material exists.</p><span class="sheet-tag">→ 3_episode_log · angle, material_sufficiency</span></div></li>
+      <li><span class="time">+7 days</span><span class="node"><b></b></span><div class="body"><h3>6 · Close</h3><p>Fill audience metrics, editor rating and how the market resolved.</p><span class="sheet-tag">→ 3_episode_log · views_7d … market_resolved_as</span></div></li>
+    </ol>
+    <div class="folio"><span>The Daily Run</span><span>3</span></div>
+  </article>
+
+  <!-- CH3 -->
+  <article class="page" id="ch3">
+    <div class="runhead"><span>Topic Log Playbook</span><span>03 · Hard Gates</span></div>
+    <div class="opener"><span class="chap">Chapter 03</span><h2>Hard Gates</h2>
+      <p class="lede">Fail any one and the ticker is out for the day. Gates run before scoring, so a broken row never receives a rank.</p></div>
+    <div class="rules">
+      <div class="rule"><span class="id">G1</span><div class="b"><h3>Freshness</h3><p>Stale rows rank yesterday's news.</p><div class="test">now − as_of ≤ 24h</div></div></div>
+      <div class="rule"><span class="id">G2</span><div class="b"><h3>Market evidence</h3><p>At least one open prediction-market contract with non-zero volume. Buzz alone is talk, not a market view.</p><div class="test">count(open ∧ volume_24h &gt; 0) ≥ 1</div></div></div>
+      <div class="rule"><span class="id">G3</span><div class="b"><h3>Liquidity floor</h3><p>Mostly zero-trade markets or very wide spreads make the implied probability meaningless.</p><div class="test">zero_trade_market_pct ≤ 0.80 ∧ avg_spread ≤ 0.30</div></div></div>
+      <div class="rule"><span class="id">G4</span><div class="b"><h3>Cooldown</h3><p>Covered inside the window: skipped. Up to four days past it: scored at 0.85×.</p><div class="test">days_since_covered &gt; N,  N = 3</div></div></div>
+      <div class="rule"><span class="id">G5</span><div class="b"><h3>Not settled</h3><p>A quote at 0.0005 or 0.9995 is an answer, not a forecast. Removed upstream in step 1.</p><div class="test">market_status = open ∧ 0.01 ≤ implied_prob ≤ 0.99</div></div></div>
+    </div>
+    <div class="folio"><span>Hard Gates</span><span>4</span></div>
+  </article>
+
+  <!-- CH4 -->
+  <article class="page" id="ch4">
+    <div class="runhead"><span>Topic Log Playbook</span><span>04 · demand_score</span></div>
+    <div class="opener"><span class="chap">Chapter 04</span><h2>demand_score</h2>
+      <p class="lede">One number per ticker, built from what changed today. A name that is always hot is not today's news; a name that just got hot is.</p></div>
+    <div class="formula">
+      demand_score = <b>quality</b> × <b>cooldown</b> × Σ wᵢ · pctrank(xᵢ) / Σ wᵢ<br>
+      quality = spread_f × zero_trade_f × source_f<br>
+      &nbsp;&nbsp;spread_f &nbsp;&nbsp;&nbsp;&nbsp;= clamp(1 − max(0, avg_spread − 0.05) / 0.5, 0.6, 1)<br>
+      &nbsp;&nbsp;zero_trade_f = 1 − 0.4 · zero_trade_market_pct<br>
+      &nbsp;&nbsp;source_f &nbsp;&nbsp;&nbsp;&nbsp;= 1.0 if sources_available ≥ 2 else 0.9
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Component</th><th>Raw input</th><th class="num">w0</th><th>Captures</th></tr></thead>
+        <tbody>
+          <tr><td class="k">attention_shift</td><td class="k">buzz_delta_1d</td><td class="num">0.25</td><td>A name that just got hot</td></tr>
+          <tr><td class="k">activity_shift</td><td class="k">trade_count Δ% 1d</td><td class="num">0.10</td><td>More people trading, not just talking</td></tr>
+          <tr><td class="k">money_flow</td><td class="k">mkt_volume_24h Δ% 1d</td><td class="num">0.20</td><td>New money arriving today</td></tr>
+          <tr><td class="k">money_stock</td><td class="k">mkt_open_interest Δ% 1d</td><td class="num">0.10</td><td>Positions being held, not just traded</td></tr>
+          <tr><td class="k">market_move</td><td class="k">max(|prob_Δ1d|, range_1d/2)</td><td class="num">0.20</td><td>The market changed its mind</td></tr>
+          <tr><td class="k">sentiment_shift</td><td class="k">|sentiment_Δ1d|</td><td class="num">0.15</td><td>Opinion moved, either way</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="plain note">
+      <li>Percentiles are taken within the day's surviving pool, because buzz points, contracts and probabilities share no unit.</li>
+      <li>A missing component is dropped and the remaining weights renormalised; it never counts as zero.</li>
+      <li>Direction does not enter the score. It belongs to the angle (Chapter 07).</li>
+    </ul>
+    <div class="folio"><span>demand_score</span><span>5</span></div>
+  </article>
+
+  <!-- CH5 -->
+  <article class="page" id="ch5">
+    <div class="runhead"><span>Topic Log Playbook</span><span>05 · Priority Tiers</span></div>
+    <div class="opener"><span class="chap">Chapter 05</span><h2>Priority Tiers</h2>
+      <p class="lede">Pick from the highest tier that has anyone in it, then order by demand_score. Tiers stop a score built on attention alone from beating a name where money and an event line up.</p></div>
+    <div class="ladder">
+      <div class="rung"><span class="chip T1">T1</span><div class="b"><h3>Event with money behind it</h3><p>A scheduled catalyst, and the market is repricing.</p><div class="test">catalyst ≤ 2 trading days ∧ (market_move ≥ p70 ∨ money_flow ≥ p70)</div></div></div>
+      <div class="rung"><span class="chip T2">T2</span><div class="b"><h3>Money moving</h3><p>Betting is picking up and attention is following.</p><div class="test">money_flow ≥ p70 ∧ attention_shift ≥ p50</div></div></div>
+      <div class="rung"><span class="chip T3">T3</span><div class="b"><h3>Attention only</h3><p>More talking than betting. Good for a direction story, weak for a market story.</p><div class="test">attention_shift ≥ p80</div></div></div>
+      <div class="rung"><span class="chip T4">T4</span><div class="b"><h3>Baseline</h3><p>Passes the gates, no trigger fired. Ranked by score alone.</p><div class="test">everything else</div></div></div>
+    </div>
+    <div class="aside"><span class="lbl">Tie-breakers, in order</span>
+      <ol class="plain">
+        <li>More <code>sources_available</code></li>
+        <li>Higher <code>unique_traders</code>, which guards against a few accounts manufacturing heat</li>
+        <li>Deeper <code>mkt_ladder_depth</code>, since more angles are available</li>
+        <li>Asset class not covered in the last two episodes</li>
+      </ol>
+    </div>
+    <div class="folio"><span>Priority Tiers</span><span>6</span></div>
+  </article>
+
+  <!-- CH6 -->
+  <article class="page" id="ch6">
+    <div class="runhead"><span>Topic Log Playbook</span><span>06 · Worked Example</span></div>
+    <div class="opener"><span class="chap">Chapter 06</span><h2>Worked Example</h2>
+      <p class="lede">Chapters 03 to 05 applied to a sample pool of eight tickers. Values are illustrative, not live. Move the weights and watch the pick change.</p></div>
+    <div class="pick" id="pick" aria-live="polite"></div>
+    <div class="tbl-wrap">
+      <table id="tbl">
+        <thead><tr><th>#</th><th>Ticker</th><th>Tier</th><th>Score</th><th title="percentile per component, in weight order">Components</th><th class="num">Qual ×</th><th class="num">Cool ×</th><th>Note</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="note" id="legend"></p>
+    <div class="ctls" id="ctls"></div>
+    <div class="ctl" style="max-width:260px">
+      <label for="cd">cooldown N (days)</label><output id="cd-o">3</output>
+      <input type="range" id="cd" min="0" max="10" step="1" value="3">
+    </div>
+    <button class="reset" id="reset" type="button">Reset to w0</button>
+    <div class="folio"><span>Worked Example</span><span>7</span></div>
+  </article>
+
+  <!-- CH7 -->
+  <article class="page" id="ch7">
+    <div class="runhead"><span>Topic Log Playbook</span><span>07 · Angle Mapping</span></div>
+    <div class="opener"><span class="chap">Chapter 07</span><h2>Angle Mapping</h2>
+      <p class="lede">The same 0.62 means "finishes up" in one contract and "finishes above 7,650" in another. The contract structure decides what the episode can honestly say.</p></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Structure</th><th>Condition</th><th>Angle</th><th>The episode says</th><th>Needs</th></tr></thead>
+        <tbody>
+          <tr><td class="k">up_down</td><td class="k">depth = 1</td><td><span class="chip A">direction</span></td><td>"The market puts 62% on AAPL closing up today."</td><td>Price chart, prob history</td></tr>
+          <tr><td class="k">above_below<br>close_above</td><td class="k">depth ≥ 5</td><td><span class="chip A">distribution</span></td><td>The implied distribution across strikes and the most likely close range</td><td>Strike ladder snapshot</td></tr>
+          <tr><td class="k">hit_target</td><td class="k">any</td><td><span class="chip A">touch</span></td><td>Probability of touching a level intraday or this week</td><td>Intraday high / low</td></tr>
+          <tr><td class="k">up_down + options</td><td class="k">chain available</td><td><span class="chip A">updown_vs_option</span></td><td>An UPDOWN bet against an option position of similar cost: payoff and breakeven</td><td>Options chain, payoff chart</td></tr>
+          <tr><td class="k">range buckets</td><td class="k">cap_strike set</td><td><span class="chip A">range</span></td><td>Which bucket the market favours and how concentrated it is</td><td>Bucket probabilities</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="aside"><span class="lbl">Fallback</span><p>If the needed material is missing, drop to the simpler angle and write it in <code>production_note</code>. Two fallbacks in a row for the same ticker lowers its <code>material_sufficiency</code>.</p></div>
+    <div class="folio"><span>Angle Mapping</span><span>8</span></div>
+  </article>
+
+  <!-- CH8 -->
+  <article class="page" id="ch8">
+    <div class="runhead"><span>Topic Log Playbook</span><span>08 · Overrides</span></div>
+    <div class="opener"><span class="chap">Chapter 08</span><h2>Overrides</h2>
+      <p class="lede">The editor can overrule the board. Each override is logged with <code>selection_mode = override</code>, a reason code and one line of text. It is the fastest feedback the system gets.</p></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Code</th><th>Use when</th><th>What it says about the score</th></tr></thead>
+        <tbody>
+          <tr><td class="k">BREAKING_NEWS</td><td>Material news broke after the 07:00 build</td><td>Snapshot timing, not weights</td></tr>
+          <tr><td class="k">SIMILAR_RECENT</td><td>A related ticker or theme was covered recently</td><td>Cooldown should work at theme level</td></tr>
+          <tr><td class="k">MATERIAL_GAP</td><td>The top pick cannot be produced well today</td><td>material_sufficiency should enter the score</td></tr>
+          <tr><td class="k">DATA_SUSPECT</td><td>A number looks wrong on inspection</td><td>A gate is missing or too loose</td></tr>
+          <tr><td class="k">EDITORIAL_MIX</td><td>Too many recent episodes on one asset class</td><td>Tie-breaker 4 should become a gate</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="aside"><span class="lbl">Rule of three</span><p>The same code three times within 14 days triggers a weight or gate review at the next weekly check.</p></div>
+    <div class="folio"><span>Overrides</span><span>9</span></div>
+  </article>
+
+  <!-- CH9 -->
+  <article class="page" id="ch9">
+    <div class="runhead"><span>Topic Log Playbook</span><span>09 · Review Loop</span></div>
+    <div class="opener"><span class="chap">Chapter 09</span><h2>Review Loop</h2>
+      <p class="lede">At about one episode a day, the sample is too small for regression for months. Until then, review by hand once a week.</p></div>
+    <div class="two">
+      <div class="aside"><span class="lbl">Look at</span>
+        <ul class="plain">
+          <li>Override rate and the codes behind it</li>
+          <li><code>avg_view_duration_pct</code> and <code>editor_rating</code> by tier</li>
+          <li>Days rank 1 was skipped: did the replacement do better?</li>
+          <li>Calibration: implied prob at selection vs <code>market_resolved_as</code></li>
+        </ul>
+      </div>
+      <div class="aside"><span class="lbl">Change control</span>
+        <ul class="plain">
+          <li>Any weight, threshold or tier change bumps <code>weights_version</code></li>
+          <li>Never recompute <code>demand_score_at_selection</code> under new weights</li>
+          <li>Change one thing per week so its effect can be read</li>
+          <li>Record the change and reason in the repo changelog</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><span class="lbl">Why avg_view_duration_pct</span><p>Of the audience metrics it is closest to "was this the right topic", because it depends least on title and thumbnail. <code>views_7d</code> mostly measures packaging.</p></div>
+    <div class="folio"><span>Review Loop</span><span>10</span></div>
+  </article>
+
+  <!-- APPENDIX -->
+  <article class="page" id="appx">
+    <div class="runhead"><span>Topic Log Playbook</span><span>Appendix · Source Coverage</span></div>
+    <div class="opener"><span class="chap">Appendix</span><h2>Source Coverage</h2>
+      <p class="lede">Which source feeds which component, based on the free-tier samples checked so far. Coverage is uneven, which is why weights renormalise per ticker.</p></div>
+    <div class="tbl-wrap">
+      <table class="cov">
+        <thead><tr><th>Component</th><th>Adanos</th><th>Kalshi</th><th>eToro</th></tr></thead>
+        <tbody>
+          <tr><td>attention_shift</td><td class="y">yes</td><td class="n">—</td><td class="p">pending</td></tr>
+          <tr><td>activity_shift</td><td class="y">yes</td><td class="n">—</td><td class="p">pending</td></tr>
+          <tr><td>money_flow</td><td class="y">Polymarket vol</td><td class="p">indices only</td><td class="p">pending</td></tr>
+          <tr><td>money_stock</td><td class="n">—</td><td class="p">indices only</td><td class="n">—</td></tr>
+          <tr><td>market_move</td><td class="y">Polymarket prob</td><td class="p">indices only</td><td class="n">—</td></tr>
+          <tr><td>sentiment_shift</td><td class="y">yes</td><td class="n">—</td><td class="p">net_position_delta</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="aside"><span class="lbl">Open items</span>
+      <ul class="plain">
+        <li>Kalshi free sample covers KXINXU, KXNASDAQ100U and KXDJI only.</li>
+        <li>Kalshi deltas need a continuous snapshot history from the VPS.</li>
+        <li>Sheet 2 needs <code>mkt_volume_delta_1d</code>, <code>mkt_oi_delta_1d</code>, <code>weights_version</code> and <code>catalyst_date</code>.</li>
+        <li>eToro not yet evaluated.</li>
+      </ul>
+    </div>
+    <div class="folio"><span>Appendix</span><span>11</span></div>
+  </article>
+
+  <section class="backcover" aria-label="Back cover">
+    <p>Thresholds and weights in this edition are starting values. They change through the review loop, one at a time, with every change versioned.</p>
+    <span class="m">Topic Log Playbook · Edition v0</span>
+  </section>
+</div>
+
+<script>
+(function(){
+  // cover strike ladder ornament: probabilities across strikes
+  var s=document.getElementById("strike"),pr=[.97,.94,.9,.84,.76,.66,.55,.44,.34,.25,.18,.12,.08,.05,.03];
+  s.innerHTML=pr.map(function(p){return '<i style="height:'+(p*100)+'%"></i>'}).join("");
+
+  // EXAMPLE candidate pool, illustrative values only.
+  var POOL=[
+    {tk:"SPX", buzz_d:4.2,  trade_d:35,  sent_d:0.08, prob_d:0.06, range:0.14, vol_d:62,  oi_d:18,  spread:0.07, zero:0.30, src:2, days:2,  cat:1,    type:"above_below", depth:12},
+    {tk:"NDX", buzz_d:9.8,  trade_d:80,  sent_d:0.21, prob_d:0.11, range:0.24, vol_d:140, oi_d:40,  spread:0.09, zero:0.35, src:2, days:9,  cat:1,    type:"above_below", depth:8},
+    {tk:"DJI", buzz_d:-2.1, trade_d:-10, sent_d:0.03, prob_d:0.02, range:0.06, vol_d:-15, oi_d:3,   spread:0.12, zero:0.55, src:2, days:12, cat:null, type:"above_below", depth:5},
+    {tk:"AAPL",buzz_d:-7.1, trade_d:-70, sent_d:0.385,prob_d:0.05, range:0.18, vol_d:10,  oi_d:null,spread:0.151,zero:0.506,src:1, days:13, cat:null, type:"up_down",     depth:1},
+    {tk:"NVDA",buzz_d:12.5, trade_d:120, sent_d:0.30, prob_d:0.09, range:0.22, vol_d:95,  oi_d:null,spread:0.11, zero:0.40, src:1, days:5,  cat:1,    type:"close_above", depth:6},
+    {tk:"TSLA",buzz_d:15.2, trade_d:60,  sent_d:0.45, prob_d:0.03, range:0.09, vol_d:20,  oi_d:null,spread:0.19, zero:0.48, src:1, days:20, cat:null, type:"up_down",     depth:1},
+    {tk:"MSFT",buzz_d:1.0,  trade_d:5,   sent_d:0.05, prob_d:0.01, range:0.04, vol_d:-5,  oi_d:null,spread:0.22, zero:0.82, src:1, days:30, cat:null, type:"up_down",     depth:1},
+    {tk:"AMZN",buzz_d:3.4,  trade_d:22,  sent_d:0.12, prob_d:null, range:null, vol_d:null,oi_d:null,spread:null, zero:null, src:1, days:40, cat:null, type:null,          depth:0}
+  ];
+  var COMPS=[
+    {k:"attention_shift",w:.25,f:function(r){return r.buzz_d}},
+    {k:"activity_shift", w:.10,f:function(r){return r.trade_d}},
+    {k:"money_flow",     w:.20,f:function(r){return r.vol_d}},
+    {k:"money_stock",    w:.10,f:function(r){return r.oi_d}},
+    {k:"market_move",    w:.20,f:function(r){return r.prob_d==null?null:Math.max(Math.abs(r.prob_d),r.range/2)}},
+    {k:"sentiment_shift",w:.15,f:function(r){return r.sent_d==null?null:Math.abs(r.sent_d)}}
+  ];
+  var W0=COMPS.map(function(c){return c.w});
+  var ANGLE={up_down:"direction",above_below:"distribution",close_above:"distribution",hit_target:"touch"};
+  var ctls=document.getElementById("ctls"),cd=document.getElementById("cd"),cdo=document.getElementById("cd-o");
+  COMPS.forEach(function(c,i){
+    var d=document.createElement("div");d.className="ctl";
+    d.innerHTML='<label for="w'+i+'">'+c.k+'</label><output id="w'+i+'-o">'+c.w.toFixed(2)+'</output><input type="range" id="w'+i+'" min="0" max="0.5" step="0.05" value="'+c.w+'">';
+    ctls.appendChild(d);
+    d.querySelector("input").addEventListener("input",function(e){c.w=+e.target.value;document.getElementById("w"+i+"-o").textContent=c.w.toFixed(2);render();});
+  });
+  cd.addEventListener("input",function(){cdo.textContent=cd.value;render();});
+  document.getElementById("reset").addEventListener("click",function(){
+    COMPS.forEach(function(c,i){c.w=W0[i];document.getElementById("w"+i).value=c.w;document.getElementById("w"+i+"-o").textContent=c.w.toFixed(2);});
+    cd.value=3;cdo.textContent="3";render();
+  });
+  function gate(r,N){
+    if(r.prob_d==null&&r.vol_d==null) return "G2 no live quote";
+    if(r.zero!=null&&r.zero>0.80) return "G3 thin market";
+    if(r.spread!=null&&r.spread>0.30) return "G3 wide spread";
+    if(r.days<=N) return "G4 covered "+r.days+"d ago";
+    return null;
+  }
+  function pctranks(vals){
+    var idx=[];vals.forEach(function(v,i){if(v!=null)idx.push(i)});
+    var out=vals.map(function(){return null});var n=idx.length;
+    if(n===0)return out;if(n===1){out[idx[0]]=.5;return out;}
+    idx.sort(function(a,b){return vals[a]-vals[b]});
+    var i=0;while(i<n){var j=i;while(j+1<n&&vals[idx[j+1]]===vals[idx[i]])j++;
+      var p=((i+j)/2)/(n-1);for(var k=i;k<=j;k++)out[idx[k]]=p;i=j+1;}
+    return out;
+  }
+  function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+  function render(){
+    var N=+cd.value;
+    var rows=POOL.map(function(r){return{r:r,g:gate(r,N)}});
+    var live=rows.filter(function(x){return!x.g});
+    COMPS.forEach(function(c){var p=pctranks(live.map(function(x){return c.f(x.r)}));live.forEach(function(x,i){(x.p=x.p||{})[c.k]=p[i]});});
+    live.forEach(function(x){
+      var r=x.r,num=0,den=0;
+      COMPS.forEach(function(c){var v=x.p[c.k];if(v!=null&&c.w>0){num+=c.w*v;den+=c.w;}});
+      var raw=den?num/den:0;
+      x.q=clamp(1-Math.max(0,r.spread-0.05)/0.5,0.6,1)*(1-0.4*r.zero)*(r.src>=2?1:0.9);
+      x.c=(r.days<=N+4)?0.85:1;x.s=raw*x.q*x.c;var P=x.p;
+      if(r.cat!=null&&r.cat<=2&&((P.market_move||0)>=.7||(P.money_flow||0)>=.7))x.t="T1";
+      else if((P.money_flow||0)>=.7&&(P.attention_shift||0)>=.5)x.t="T2";
+      else if((P.attention_shift||0)>=.8)x.t="T3";else x.t="T4";
+    });
+    live.sort(function(a,b){if(a.t!==b.t)return a.t<b.t?-1:1;if(b.s!==a.s)return b.s-a.s;return b.r.src-a.r.src;});
+    var tb=document.querySelector("#tbl tbody");tb.innerHTML="";
+    live.forEach(function(x,i){
+      var comp=COMPS.map(function(c){var v=x.p[c.k];return v==null?'<i class="na" title="'+c.k+': no data"></i>':'<i style="height:'+Math.max(2,v*20)+'px;opacity:'+(c.w>0?.85:.2)+'" title="'+c.k+': p'+Math.round(v*100)+'"></i>';}).join("");
+      var note=x.r.cat!=null?"catalyst in "+x.r.cat+"d":(x.r.src<2?"single source":"");
+      var tr=document.createElement("tr");
+      tr.innerHTML='<td class="num">'+(i+1)+'</td><td class="tkc">'+x.r.tk+'</td><td><span class="chip '+x.t+'">'+x.t+'</span></td><td><span class="bar"><i style="width:'+(x.s*100).toFixed(1)+'%"></i></span><span class="mono">'+x.s.toFixed(3)+'</span></td><td><div class="comp">'+comp+'</div></td><td class="num">'+x.q.toFixed(2)+'</td><td class="num">'+x.c.toFixed(2)+'</td><td>'+note+'</td>';
+      tb.appendChild(tr);
+    });
+    rows.filter(function(x){return x.g}).forEach(function(x){
+      var tr=document.createElement("tr");tr.className="gated";
+      tr.innerHTML='<td class="num">—</td><td class="tkc">'+x.r.tk+'</td><td><span class="chip G">gated</span></td><td class="mono">—</td><td></td><td class="num">—</td><td class="num">—</td><td>'+x.g+'</td>';
+      tb.appendChild(tr);
+    });
+    var pk=document.getElementById("pick");
+    if(!live.length){pk.innerHTML='<div class="tk">—</div><div class="row"><span class="lbl-s">Pick</span></div><h3>No candidate passes the gates</h3><div class="why">The editor picks manually and logs selection_mode = manual.</div>';return;}
+    var t=live[0],ang=t.r.type?(ANGLE[t.r.type]||"direction"):"direction";
+    if(t.r.depth<5&&ang==="distribution")ang="direction";
+    var why={T1:"Scheduled catalyst, and the market is repricing.",T2:"Betting volume is picking up and attention is following.",T3:"Attention jumped but money signals are weak. Keep it directional.",T4:"No tier trigger fired. Highest score among the rest."}[t.t];
+    pk.innerHTML='<div class="tk">'+t.r.tk+'</div><div class="row"><span class="lbl-s">Today\'s pick · sample</span><span class="chip '+t.t+'">'+t.t+'</span><span class="pill">score '+t.s.toFixed(3)+'</span><span class="pill">angle: '+ang+'</span></div><h3>'+why+'</h3><div class="why">'+(t.r.type?t.r.type+', ladder depth '+t.r.depth:'no contract structure')+' · '+live.length+' of '+POOL.length+' passed the gates</div>';
+  }
+  document.getElementById("legend").textContent="Component bars, left to right: "+COMPS.map(function(c){return c.k}).join(", ")+". Dashed = no data for that ticker. Struck-through rows failed a gate.";
+  render();
+})();
+</script>
+</body>
+</html>
