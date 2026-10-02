@@ -1,0 +1,5 @@
+inherits: ../base.yaml
+name: S_placebo_shuffle
+description: Sanity. Labels shuffled within each day. Expect IC ~ 0, pick pctl ~ 0.5.
+mode: placebo_shuffle
+cooldown: false

@@ -1,0 +1,4 @@
+inherits: base.yaml
+name: B_band_1pct
+description: B with the ATM liquidity band narrowed to +/-1%.
+features: {atm_band: 0.01}

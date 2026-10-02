@@ -1,0 +1,4 @@
+inherits: base.yaml
+name: B_floor_p5
+description: B with the volume floor at the 5th percentile.
+features: {volume_floor_pct: 5}

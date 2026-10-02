@@ -1,0 +1,74 @@
+# Universe: five crypto tokens + three US equity indices.
+# Each ticker maps to its Kalshi daily ladder, the hourly event used for the
+# 15:00 ET reference price, its Adanos source, and a Yahoo symbol (used only to
+# scale labels by trailing volatility).
+#
+# Event ticker patterns use strftime-style fields, upper-cased:
+#   {yy}{MON}{dd} e.g. 26SEP30
+name: crypto_indices
+
+tickers:
+  BTC:
+    asset_class: crypto
+    calendar: "24x7"
+    kalshi_series: KXBTCD
+    daily_event: "KXBTCD-{yy}{MON}{dd}17"      # 17:00 ET daily above/below ladder
+    price_event: "KXBTCD-{yy}{MON}{dd}15"      # 15:00 ET hourly event -> reference price
+    adanos: {platform: reddit, kind: crypto, symbol: BTC}
+    yahoo: BTC-USD
+  ETH:
+    asset_class: crypto
+    calendar: "24x7"
+    kalshi_series: KXETHD
+    daily_event: "KXETHD-{yy}{MON}{dd}17"
+    price_event: "KXETHD-{yy}{MON}{dd}15"
+    adanos: {platform: reddit, kind: crypto, symbol: ETH}
+    yahoo: ETH-USD
+  SOL:
+    asset_class: crypto
+    calendar: "24x7"
+    kalshi_series: KXSOLD
+    daily_event: "KXSOLD-{yy}{MON}{dd}17"
+    price_event: "KXSOLD-{yy}{MON}{dd}15"
+    adanos: {platform: reddit, kind: crypto, symbol: SOL}
+    yahoo: SOL-USD
+  XRP:
+    asset_class: crypto
+    calendar: "24x7"
+    kalshi_series: KXXRPD
+    daily_event: "KXXRPD-{yy}{MON}{dd}17"
+    price_event: "KXXRPD-{yy}{MON}{dd}15"
+    adanos: {platform: reddit, kind: crypto, symbol: XRP}
+    yahoo: XRP-USD
+  DOGE:
+    asset_class: crypto
+    calendar: "24x7"
+    kalshi_series: KXDOGED
+    daily_event: "KXDOGED-{yy}{MON}{dd}17"
+    price_event: "KXDOGED-{yy}{MON}{dd}15"
+    adanos: {platform: reddit, kind: crypto, symbol: DOGE}
+    yahoo: DOGE-USD
+  SPX:
+    asset_class: index
+    calendar: nyse
+    kalshi_series: KXINXU
+    daily_event: "KXINXU-{yy}{MON}{dd}H1600"
+    price_event: "KXINXU-{yy}{MON}{dd}H1500"
+    adanos: {platform: reddit, kind: stocks, symbol: SPY}   # ETF proxy
+    yahoo: ^GSPC
+  NDX:
+    asset_class: index
+    calendar: nyse
+    kalshi_series: KXNASDAQ100U
+    daily_event: "KXNASDAQ100U-{yy}{MON}{dd}H1600"
+    price_event: "KXNASDAQ100U-{yy}{MON}{dd}H1500"
+    adanos: {platform: reddit, kind: stocks, symbol: QQQ}
+    yahoo: ^NDX
+  DJI:
+    asset_class: index
+    calendar: nyse
+    kalshi_series: KXDJI
+    daily_event: "KXDJI-{yy}{MON}{dd}16"
+    price_event: "KXDJI-{yy}{MON}{dd}15"
+    adanos: {platform: reddit, kind: stocks, symbol: DIA}
+    yahoo: ^DJI

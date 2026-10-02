@@ -33,11 +33,12 @@ Data moves left to right once a day. The dotted line is the review loop: results
 | [`playbook/`](playbook/) | The selection procedure: gates, scoring logic, tiers, angles, overrides, review loop. Website + write-up. | v0 draft |
 | [`config/`](config/) | Every tunable number (thresholds, weights, tier rules), versioned, plus the changelog. | w0 draft |
 | [`schema/`](schema/) | Definition of the three Topic Log sheets and their columns. | v0 draft |
-| [`ingestion/`](ingestion/) | Collectors running continuously on the VPS; write raw snapshots. | planned |
-| [`scoring/`](scoring/) | Computes `demand_score`, tier and rank from snapshots + config; writes Sheet 2. | planned |
+| [`ingestion/`](ingestion/) | Collectors running continuously on the VPS; write raw snapshots. | v0: backfill + live snapshot |
+| [`scoring/`](scoring/) | Computes `demand_score`, tier and rank from snapshots + config; writes Sheet 2. | v0: scoring + features |
 | [`alerts/`](alerts/) | Conditional flags and colour rules in the Excel view of the Topic Log. | planned |
 | [`templates/`](templates/) | Production template for each episode, deployed to production. | scope TBD |
 | [`visuals/`](visuals/) | Plotly charts of Topic Log data rendered for Shotstack video. | planned |
+| [`backtest/`](backtest/) | Replays the daily selection on history and tests whether picks were newsworthy. Self-contained; reads ingestion, scoring, config. | v0: crypto + indices study |
 
 Each folder has its own `README.md` with the module's inputs, outputs, dependencies and usage. Keep that file current when the module changes.
 
@@ -106,6 +107,7 @@ The modules fall into three layers:
 | Check or change a threshold or weight | [`config/weights_w0.yaml`](config/weights_w0.yaml), then [`config/CHANGELOG.md`](config/CHANGELOG.md) |
 | Look up what a column means | [`schema/README.md`](schema/README.md) |
 | Work on a module | that module's `README.md` |
+| See backtest results | [`backtest/runs/INDEX.md`](backtest/runs/INDEX.md) |
 
 ---
 
@@ -125,5 +127,6 @@ Metrixx-TopicLOG/
 ├── scoring/               demand_score
 ├── alerts/                Excel alerts
 ├── templates/             production template
-└── visuals/               Plotly → Shotstack
+├── visuals/               Plotly → Shotstack
+└── backtest/              selection replay on history
 ```

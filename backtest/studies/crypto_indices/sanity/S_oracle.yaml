@@ -1,0 +1,5 @@
+inherits: ../base.yaml
+name: S_oracle
+description: Sanity. Score = the label itself. Expect IC = 1, top-1 hit = 1.
+mode: oracle
+cooldown: false

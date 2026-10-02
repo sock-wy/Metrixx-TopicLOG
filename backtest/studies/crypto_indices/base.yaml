@@ -1,0 +1,27 @@
+# Version B: the main configuration. Other files in this folder inherit from it and
+# change one thing each. Thresholds here are fixed before any result is seen.
+name: B_base
+description: >
+  w0 weights; pick at 15:00 ET; G3/quality measured on strikes within +/-2% of the
+  implied median; money_flow dropped when the previous day's volume is below its own
+  trailing 30-day 10th percentile; macro catalysts on indices only; label = abs move / sigma20.
+universe: backtest/universes/crypto_indices.yaml
+snapshots: backtest/snapshots/crypto_indices
+weights: config/weights_w0.yaml
+weights_overrides: {}          # deep-merged into the weights file (gates, quality, tiers ...)
+window: {start: 2026-08-04, end: 2026-09-30}
+features:
+  pick_hour_et: 15
+  atm_band: 0.02
+  volume_floor_pct: 10
+  floor_window: 30
+  floor_min_obs: 10
+  use_adanos: true
+catalysts:
+  file: backtest/catalysts/macro_2026.yaml
+  applies_to: [index]
+tiers: true
+cooldown: true
+label: abn_move                # abn_move | idio_move
+mode: normal                   # normal | placebo_random | placebo_shuffle | oracle
+seed: 7

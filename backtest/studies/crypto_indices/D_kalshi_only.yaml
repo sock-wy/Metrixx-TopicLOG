@@ -1,0 +1,4 @@
+inherits: base.yaml
+name: D_kalshi_only
+description: B using only the Kalshi components (money_flow, money_stock, market_move).
+features: {use_adanos: false}

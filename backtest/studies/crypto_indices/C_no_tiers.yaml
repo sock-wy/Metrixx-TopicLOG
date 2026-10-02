@@ -1,0 +1,4 @@
+inherits: base.yaml
+name: C_no_tiers
+description: B without priority tiers (rank by demand_score only).
+tiers: false
