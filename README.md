@@ -38,7 +38,7 @@ Data moves left to right once a day. The dotted line is the review loop: results
 | [`alerts/`](alerts/) | Conditional flags and colour rules in the Excel view of the Topic Log. | planned |
 | [`templates/`](templates/) | Production template for each episode, deployed to production. | scope TBD |
 | [`visuals/`](visuals/) | Plotly charts of Topic Log data rendered for Shotstack video. | planned |
-| [`backtest/`](backtest/) | Replays the daily selection on history and tests whether picks were newsworthy. Self-contained; reads ingestion, scoring, config. | v0: crypto + indices study |
+| [`backtest/`](backtest/) | Replays the daily selection on history and tests whether picks were newsworthy. Self-contained; reads ingestion, scoring, config. | v0: two studies, results page |
 
 Each folder has its own `README.md` with the module's inputs, outputs, dependencies and usage. Keep that file current when the module changes.
 
@@ -107,7 +107,7 @@ The modules fall into three layers:
 | Check or change a threshold or weight | [`config/weights_w0.yaml`](config/weights_w0.yaml), then [`config/CHANGELOG.md`](config/CHANGELOG.md) |
 | Look up what a column means | [`schema/README.md`](schema/README.md) |
 | Work on a module | that module's `README.md` |
-| See backtest results | [`backtest/runs/INDEX.md`](backtest/runs/INDEX.md) |
+| See backtest results | open [`backtest/results.html`](backtest/results.html) in a browser |
 
 ---
 
