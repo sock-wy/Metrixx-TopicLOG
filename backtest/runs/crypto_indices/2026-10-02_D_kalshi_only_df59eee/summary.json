@@ -1,0 +1,85 @@
+{
+  "version": "D_kalshi_only",
+  "mode": "normal",
+  "description": "B using only the Kalshi components (money_flow, money_stock, market_move).",
+  "days": 54,
+  "avg_pool": 3.59,
+  "IC_mean": -0.0485,
+  "IC_t": -0.54,
+  "IC_ci95": [
+    -0.2266,
+    0.1246
+  ],
+  "IC_p_value": 0.6904,
+  "IC_null_sd": 0.0925,
+  "pick_pctl": 0.488,
+  "pick_pctl_ci95": [
+    0.3904,
+    0.588
+  ],
+  "p_value_vs_random": 0.5843,
+  "hit_top1": 0.2963,
+  "random_hit_top1": 0.3096,
+  "momentum_pctl": 0.6367,
+  "momentum_hit_top1": 0.5,
+  "pick_minus_momentum": -0.1488,
+  "pick_minus_momentum_ci95": [
+    -0.2815,
+    -0.0228
+  ],
+  "IC_crypto_only": 0.0045,
+  "IC_weekday": -0.0023,
+  "IC_weekend": -0.4,
+  "component_IC": {
+    "attention_shift": {
+      "mean": null,
+      "t": null,
+      "days": 0
+    },
+    "activity_shift": {
+      "mean": null,
+      "t": null,
+      "days": 0
+    },
+    "money_flow": {
+      "mean": -0.0516,
+      "t": -0.55,
+      "days": 36
+    },
+    "money_stock": {
+      "mean": -0.1748,
+      "t": -1.92,
+      "days": 43
+    },
+    "market_move": {
+      "mean": 0.0315,
+      "t": 0.31,
+      "days": 41
+    },
+    "sentiment_shift": {
+      "mean": null,
+      "t": null,
+      "days": 0
+    }
+  },
+  "picks_by_ticker": {
+    "SOL": 10,
+    "XRP": 9,
+    "SPX": 9,
+    "ETH": 9,
+    "BTC": 7,
+    "DJI": 5,
+    "DOGE": 4,
+    "NDX": 1
+  },
+  "picks_by_tier": {
+    "T4": 49,
+    "T1": 5
+  },
+  "skipped_days": 4,
+  "gate_counts": {
+    "G4": 137,
+    "G3": 57,
+    "G2": 2
+  }
+}

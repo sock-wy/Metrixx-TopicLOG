@@ -1,0 +1,35 @@
+{
+  "version": "S_oracle",
+  "study": "crypto_indices",
+  "mode": "oracle",
+  "commit": "df59eee",
+  "run_at": "2026-10-02T07:08:18.776502+00:00",
+  "snapshots_meta": {
+    "universe": "crypto_indices",
+    "kalshi_start": "2026-08-03",
+    "kalshi_end": "2026-10-01",
+    "adanos_from": "2026-07-20",
+    "adanos_to": "2026-10-01",
+    "snapshot_hours_et": [
+      [
+        -1,
+        21
+      ],
+      [
+        0,
+        3
+      ],
+      [
+        0,
+        9
+      ],
+      [
+        0,
+        15
+      ]
+    ],
+    "store_band": 0.1,
+    "built_at": "2026-10-02T07:03:19.034691+00:00"
+  },
+  "weights_version": "w0"
+}

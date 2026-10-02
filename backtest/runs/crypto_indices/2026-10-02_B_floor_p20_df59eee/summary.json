@@ -1,0 +1,86 @@
+{
+  "version": "B_floor_p20",
+  "mode": "normal",
+  "description": "B with the volume floor at the 20th percentile.",
+  "days": 50,
+  "avg_pool": 3.76,
+  "IC_mean": 0.0051,
+  "IC_t": 0.05,
+  "IC_ci95": [
+    -0.1861,
+    0.2053
+  ],
+  "IC_p_value": 0.472,
+  "IC_null_sd": 0.0908,
+  "pick_pctl": 0.5143,
+  "pick_pctl_ci95": [
+    0.4037,
+    0.6247
+  ],
+  "p_value_vs_random": 0.4002,
+  "hit_top1": 0.32,
+  "random_hit_top1": 0.2923,
+  "momentum_pctl": 0.645,
+  "momentum_hit_top1": 0.46,
+  "pick_minus_momentum": -0.1307,
+  "pick_minus_momentum_ci95": [
+    -0.2667,
+    0.0117
+  ],
+  "IC_crypto_only": -0.1226,
+  "IC_weekday": -0.0469,
+  "IC_weekend": 0.4,
+  "component_IC": {
+    "attention_shift": {
+      "mean": 0.093,
+      "t": 1.02,
+      "days": 42
+    },
+    "activity_shift": {
+      "mean": -0.0255,
+      "t": -0.26,
+      "days": 42
+    },
+    "money_flow": {
+      "mean": -0.1534,
+      "t": -1.42,
+      "days": 34
+    },
+    "money_stock": {
+      "mean": -0.1412,
+      "t": -1.4,
+      "days": 43
+    },
+    "market_move": {
+      "mean": 0.1294,
+      "t": 1.32,
+      "days": 42
+    },
+    "sentiment_shift": {
+      "mean": -0.0105,
+      "t": -0.12,
+      "days": 42
+    }
+  },
+  "picks_by_ticker": {
+    "XRP": 10,
+    "SPX": 8,
+    "SOL": 8,
+    "ETH": 7,
+    "BTC": 6,
+    "DOGE": 4,
+    "DJI": 4,
+    "NDX": 3
+  },
+  "picks_by_tier": {
+    "T2": 25,
+    "T3": 19,
+    "T1": 6
+  },
+  "skipped_days": 8,
+  "gate_counts": {
+    "G4": 127,
+    "G3": 54,
+    "G2": 1
+  }
+}

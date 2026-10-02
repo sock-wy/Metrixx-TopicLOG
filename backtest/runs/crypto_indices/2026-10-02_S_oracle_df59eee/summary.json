@@ -1,0 +1,86 @@
+{
+  "version": "S_oracle",
+  "mode": "oracle",
+  "description": "Sanity. Score = the label itself. Expect IC = 1, top-1 hit = 1.",
+  "days": 58,
+  "avg_pool": 6.0,
+  "IC_mean": 1.0,
+  "IC_t": 1.957456748650765e+17,
+  "IC_ci95": [
+    1.0,
+    1.0
+  ],
+  "IC_p_value": 0.0,
+  "IC_null_sd": 0.0623,
+  "pick_pctl": 1.0,
+  "pick_pctl_ci95": [
+    1.0,
+    1.0
+  ],
+  "p_value_vs_random": 0.0,
+  "hit_top1": 1.0,
+  "random_hit_top1": 0.1777,
+  "momentum_pctl": 0.6364,
+  "momentum_hit_top1": 0.3793,
+  "pick_minus_momentum": 0.3636,
+  "pick_minus_momentum_ci95": [
+    0.2699,
+    0.4628
+  ],
+  "IC_crypto_only": 1.0,
+  "IC_weekday": 1.0,
+  "IC_weekend": 1.0,
+  "component_IC": {
+    "attention_shift": {
+      "mean": -0.0323,
+      "t": -0.54,
+      "days": 58
+    },
+    "activity_shift": {
+      "mean": -0.1225,
+      "t": -1.89,
+      "days": 58
+    },
+    "money_flow": {
+      "mean": 0.0301,
+      "t": 0.45,
+      "days": 57
+    },
+    "money_stock": {
+      "mean": 0.0232,
+      "t": 0.38,
+      "days": 58
+    },
+    "market_move": {
+      "mean": 0.0956,
+      "t": 1.4,
+      "days": 58
+    },
+    "sentiment_shift": {
+      "mean": -0.0178,
+      "t": -0.28,
+      "days": 58
+    }
+  },
+  "picks_by_ticker": {
+    "XRP": 14,
+    "SOL": 14,
+    "SPX": 8,
+    "DJI": 8,
+    "ETH": 5,
+    "BTC": 4,
+    "DOGE": 4,
+    "NDX": 1
+  },
+  "picks_by_tier": {
+    "T4": 25,
+    "T3": 15,
+    "T2": 11,
+    "T1": 7
+  },
+  "skipped_days": 0,
+  "gate_counts": {
+    "G3": 62,
+    "G2": 2
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "version": "S_placebo_random",
+  "mode": "placebo_random",
+  "description": "Sanity. Scores replaced by random numbers. Expect IC ~ 0, pick pctl ~ 0.5.",
+  "days": 58,
+  "avg_pool": 6.0,
+  "IC_mean": -0.1036,
+  "IC_t": -2.16,
+  "IC_ci95": [
+    -0.1925,
+    -0.0104
+  ],
+  "IC_p_value": 0.9538,
+  "IC_null_sd": 0.0616,
+  "pick_pctl": 0.4299,
+  "pick_pctl_ci95": [
+    0.3439,
+    0.5141
+  ],
+  "p_value_vs_random": 0.9397,
+  "hit_top1": 0.1034,
+  "random_hit_top1": 0.1777,
+  "momentum_pctl": 0.6364,
+  "momentum_hit_top1": 0.3793,
+  "pick_minus_momentum": -0.2064,
+  "pick_minus_momentum_ci95": [
+    -0.3369,
+    -0.0739
+  ],
+  "IC_crypto_only": -0.0828,
+  "IC_weekday": -0.1359,
+  "IC_weekend": -0.0187,
+  "component_IC": {
+    "attention_shift": {
+      "mean": -0.0323,
+      "t": -0.54,
+      "days": 58
+    },
+    "activity_shift": {
+      "mean": -0.1225,
+      "t": -1.89,
+      "days": 58
+    },
+    "money_flow": {
+      "mean": 0.0301,
+      "t": 0.45,
+      "days": 57
+    },
+    "money_stock": {
+      "mean": 0.0232,
+      "t": 0.38,
+      "days": 58
+    },
+    "market_move": {
+      "mean": 0.0956,
+      "t": 1.4,
+      "days": 58
+    },
+    "sentiment_shift": {
+      "mean": -0.0178,
+      "t": -0.28,
+      "days": 58
+    }
+  },
+  "picks_by_ticker": {
+    "BTC": 12,
+    "ETH": 12,
+    "SOL": 9,
+    "DOGE": 9,
+    "XRP": 6,
+    "SPX": 5,
+    "DJI": 3,
+    "NDX": 2
+  },
+  "picks_by_tier": {
+    "T4": 37,
+    "T3": 15,
+    "T2": 5,
+    "T1": 1
+  },
+  "skipped_days": 0,
+  "gate_counts": {
+    "G3": 62,
+    "G2": 2
+  }
+}
