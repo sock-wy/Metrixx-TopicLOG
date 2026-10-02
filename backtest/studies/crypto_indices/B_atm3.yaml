@@ -1,0 +1,7 @@
+inherits: base.yaml
+name: B_atm3
+description: >
+  B with liquidity (G3 zero-trade share and spread) measured on the 3 strikes nearest the
+  implied median instead of a +/-2% band. Added after a structural check (no labels involved):
+  a fixed % band holds 1 strike for DOGE but ~400 for DJI, so the zero-trade share is not comparable across tickers.
+features: {liquidity_strikes: 3}

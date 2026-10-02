@@ -1,0 +1,16 @@
+# Scheduled macro catalysts (dates in ET). Used by tier T1:
+# "catalyst within N trading days of the pick" (config/weights_wN.yaml tiers.T1).
+# Sources: BLS CPI release schedule (bls.gov/schedule/news_release/cpi.htm),
+#          Federal Reserve FOMC calendar (federalreserve.gov/monetarypolicy/fomccalendars.htm).
+events:
+  - {date: 2026-07-14, type: CPI}
+  - {date: 2026-07-29, type: FOMC}
+  - {date: 2026-08-12, type: CPI}
+  - {date: 2026-09-11, type: CPI}
+  - {date: 2026-09-16, type: FOMC}
+  - {date: 2026-10-14, type: CPI}
+  - {date: 2026-10-28, type: FOMC}
+
+# Which asset classes each event counts for. Studies can override
+# (e.g. a variant that also applies macro events to crypto).
+applies_to: [index]

@@ -196,7 +196,7 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
 </head>
 <body>
 
-<nav class="edswitch" aria-label="Edition"><a aria-current="page">v2 · current</a><a href="v1/index.html">v1 · archived</a></nav>
+<nav class="edswitch" aria-label="Edition"><a href="../index.html">v2 · current</a><a aria-current="page">v1 · archived</a></nav>
 <style>.edswitch{position:fixed;top:12px;right:12px;z-index:10;display:flex;gap:2px;background:var(--paper);border:1px solid var(--rule);border-radius:99px;padding:3px;font-family:var(--f-mono);font-size:11.5px;box-shadow:0 4px 14px -6px var(--shadow)}
 .edswitch a{padding:5px 11px;border-radius:99px;color:var(--muted);text-decoration:none}.edswitch a[aria-current]{background:var(--accent);color:var(--paper)}.edswitch a:hover{color:var(--ink)}</style>
 <div class="book">
@@ -208,7 +208,7 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
     <h1><span>Topic</span><span>Log</span><span class="thin">Playbook</span></h1>
     <p class="sub">How the daily episode's ticker is chosen, scored, and checked afterwards.</p>
     <div class="strike" aria-hidden="true" id="strike"></div>
-    <div class="foot"><span>Edition v2 · Draft</span><span>October 2026</span></div>
+    <div class="foot"><span>Edition v1 · Archived</span><span>September 2026</span></div>
   </section>
   <div class="hint" aria-hidden="true">Scroll to open ↓</div>
 
@@ -229,15 +229,7 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
       <li><a href="#appx"><span class="no">A</span><span class="tt">Source Coverage<small>Which source feeds which component</small></span><span class="dots"></span><span class="pg">p. 11</span></a></li>
     </ol>
     <p class="note">Every threshold and weight in this edition is a starting value. Chapter 9 describes how they get tuned.</p>
-    <div class="aside"><span class="lbl">New in v2</span>
-      <ul class="plain">
-        <li>Daily pick moves to <b>15:00 ET</b>; snapshots <b>8 times a day</b></li>
-        <li>Adanos uses <b>complete UTC days only</b>; G2 counts the whole ladder; G3 on ladders uses the <b>3 strikes nearest the money</b> (proposed w1)</li>
-        <li><code>money_flow</code> ignores days with a tiny volume base</li>
-        <li>Backtest rules and the <b>momentum benchmark</b> (Chapter 9); evidence notes in Chapters 4–5</li>
-      </ul>
-    </div>
-    <div class="folio"><span>Edition v2</span><span>1</span></div>
+    <div class="folio"><span>Edition v1</span><span>1</span></div>
   </article>
 
   <!-- CH1 -->
@@ -260,13 +252,13 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
   <article class="page" id="ch2">
     <div class="runhead"><span>Topic Log Playbook</span><span>02 · The Daily Run</span></div>
     <div class="opener"><span class="chap">Chapter 02</span><h2>The Daily Run</h2>
-      <p class="lede">Six steps in a fixed order. Times are US Eastern and assume the VPS snapshot job runs eight times a day.</p></div>
+      <p class="lede">Six steps in a fixed order. Times are proposed, US Eastern, and assume the VPS snapshot job ran overnight.</p></div>
     <ol class="timeline">
-      <li><span class="time">15:00</span><span class="node"><b></b></span><div class="body"><h3>1 · Pull</h3><p>The 15:00 Kalshi snapshot lands; Adanos holds complete UTC days up to yesterday (today is still open). Settled contracts are dropped.</p><span class="sheet-tag">→ 1_market_snapshots</span></div></li>
-      <li><span class="time">15:05</span><span class="node"><b></b></span><div class="body"><h3>2 · Gate</h3><p>Candidates failing any hard gate are removed. The failed gate is recorded.</p><span class="sheet-tag">→ 2_topic_log · data_quality_flag</span></div></li>
-      <li><span class="time">15:05</span><span class="node"><b></b></span><div class="body"><h3>3 · Score</h3><p>Compute <code>demand_score</code> and assign each surviving ticker a tier.</p><span class="sheet-tag">→ 2_topic_log · demand_score, rank</span></div></li>
-      <li><span class="time">15:15</span><span class="node"><b></b></span><div class="body"><h3>4 · Pick</h3><p>The editor takes the top of the highest non-empty tier, or overrides with a reason code.</p><span class="sheet-tag">→ 3_episode_log · selection_mode</span></div></li>
-      <li><span class="time">15:20</span><span class="node"><b></b></span><div class="body"><h3>5 · Angle</h3><p>Read the angle off the contract structure and confirm the material exists.</p><span class="sheet-tag">→ 3_episode_log · angle, material_sufficiency</span></div></li>
+      <li><span class="time">06:30</span><span class="node"><b></b></span><div class="body"><h3>1 · Pull</h3><p>Latest Adanos and Kalshi snapshots land. Settled contracts are dropped.</p><span class="sheet-tag">→ 1_market_snapshots</span></div></li>
+      <li><span class="time">07:00</span><span class="node"><b></b></span><div class="body"><h3>2 · Gate</h3><p>Candidates failing any hard gate are removed. The failed gate is recorded.</p><span class="sheet-tag">→ 2_topic_log · data_quality_flag</span></div></li>
+      <li><span class="time">07:00</span><span class="node"><b></b></span><div class="body"><h3>3 · Score</h3><p>Compute <code>demand_score</code> and assign each surviving ticker a tier.</p><span class="sheet-tag">→ 2_topic_log · demand_score, rank</span></div></li>
+      <li><span class="time">07:15</span><span class="node"><b></b></span><div class="body"><h3>4 · Pick</h3><p>The editor takes the top of the highest non-empty tier, or overrides with a reason code.</p><span class="sheet-tag">→ 3_episode_log · selection_mode</span></div></li>
+      <li><span class="time">07:20</span><span class="node"><b></b></span><div class="body"><h3>5 · Angle</h3><p>Read the angle off the contract structure and confirm the material exists.</p><span class="sheet-tag">→ 3_episode_log · angle, material_sufficiency</span></div></li>
       <li><span class="time">+7 days</span><span class="node"><b></b></span><div class="body"><h3>6 · Close</h3><p>Fill audience metrics, editor rating and how the market resolved.</p><span class="sheet-tag">→ 3_episode_log · views_7d … market_resolved_as</span></div></li>
     </ol>
     <div class="folio"><span>The Daily Run</span><span>3</span></div>
@@ -279,8 +271,8 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
       <p class="lede">Fail any one and the ticker is out for the day. Gates run before scoring, so a broken row never receives a rank.</p></div>
     <div class="rules">
       <div class="rule"><span class="id">G1</span><div class="b"><h3>Freshness</h3><p>Stale rows rank yesterday's news.</p><div class="test">now − as_of ≤ 24h</div></div></div>
-      <div class="rule"><span class="id">G2</span><div class="b"><h3>Market evidence</h3><p>At least one open prediction-market contract with non-zero volume, anywhere on the ladder. Buzz alone is talk, not a market view.</p><div class="test">count(open ∧ volume_24h &gt; 0) ≥ 1</div></div></div>
-      <div class="rule"><span class="id">G3</span><div class="b"><h3>Liquidity floor</h3><p>Mostly zero-trade markets or very wide spreads make the implied probability meaningless. On Kalshi ladders, measured on the 3 strikes nearest the implied median: counted over every strike, the share tracked strike spacing (NDX failed on 59% of days). Proposed as w1.</p><div class="test">zero_trade_market_pct ≤ 0.80 ∧ avg_spread ≤ 0.30</div></div></div>
+      <div class="rule"><span class="id">G2</span><div class="b"><h3>Market evidence</h3><p>At least one open prediction-market contract with non-zero volume. Buzz alone is talk, not a market view.</p><div class="test">count(open ∧ volume_24h &gt; 0) ≥ 1</div></div></div>
+      <div class="rule"><span class="id">G3</span><div class="b"><h3>Liquidity floor</h3><p>Mostly zero-trade markets or very wide spreads make the implied probability meaningless.</p><div class="test">zero_trade_market_pct ≤ 0.80 ∧ avg_spread ≤ 0.30</div></div></div>
       <div class="rule"><span class="id">G4</span><div class="b"><h3>Cooldown</h3><p>Covered inside the window: skipped. Up to four days past it: scored at 0.85×.</p><div class="test">days_since_covered &gt; N,  N = 3</div></div></div>
       <div class="rule"><span class="id">G5</span><div class="b"><h3>Not settled</h3><p>A quote at 0.0005 or 0.9995 is an answer, not a forecast. Removed upstream in step 1.</p><div class="test">market_status = open ∧ 0.01 ≤ implied_prob ≤ 0.99</div></div></div>
     </div>
@@ -305,7 +297,7 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
         <tbody>
           <tr><td class="k">attention_shift</td><td class="k">buzz_delta_1d</td><td class="num">0.25</td><td>A name that just got hot</td></tr>
           <tr><td class="k">activity_shift</td><td class="k">trade_count Δ% 1d</td><td class="num">0.10</td><td>More people trading, not just talking</td></tr>
-          <tr><td class="k">money_flow</td><td class="k">mkt_volume_24h Δ% 1d</td><td class="num">0.20</td><td>New money arriving today (skipped when yesterday's volume is below its own 10th percentile)</td></tr>
+          <tr><td class="k">money_flow</td><td class="k">mkt_volume_24h Δ% 1d</td><td class="num">0.20</td><td>New money arriving today</td></tr>
           <tr><td class="k">money_stock</td><td class="k">mkt_open_interest Δ% 1d</td><td class="num">0.10</td><td>Positions being held, not just traded</td></tr>
           <tr><td class="k">market_move</td><td class="k">max(|prob_Δ1d|, range_1d/2)</td><td class="num">0.20</td><td>The market changed its mind</td></tr>
           <tr><td class="k">sentiment_shift</td><td class="k">|sentiment_Δ1d|</td><td class="num">0.15</td><td>Opinion moved, either way</td></tr>
@@ -317,9 +309,6 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
       <li>A missing component is dropped and the remaining weights renormalised; it never counts as zero.</li>
       <li>Direction does not enter the score. It belongs to the angle (Chapter 07).</li>
     </ul>
-    <div class="aside"><span class="lbl">Evidence so far · Oct 2026</span>
-      <p>In two backtests no version of the score beat a random pick on next-day moves, while <b>momentum</b> (the biggest recent mover) did. Only <code>market_move</code> pointed the right way. With Adanos inputs, <b>3-day smoothing</b> beat 1-day changes on the holdout. Under test, not adopted: 3-day smoothing, a momentum component, abnormal levels instead of changes.</p>
-    </div>
     <div class="folio"><span>demand_score</span><span>5</span></div>
   </article>
 
@@ -327,8 +316,7 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
   <article class="page" id="ch5">
     <div class="runhead"><span>Topic Log Playbook</span><span>05 · Priority Tiers</span></div>
     <div class="opener"><span class="chap">Chapter 05</span><h2>Priority Tiers</h2>
-      <p class="lede">Pick from the highest tier that has anyone in it, then order by demand_score. Tiers stop a score built on attention alone from beating a name where money and an event line up.</p>
-      <p class="note">Backtest: ranking with or without tiers gave the same results. Tiers stay as an editorial priority.</p></div>
+      <p class="lede">Pick from the highest tier that has anyone in it, then order by demand_score. Tiers stop a score built on attention alone from beating a name where money and an event line up.</p></div>
     <div class="ladder">
       <div class="rung"><span class="chip T1">T1</span><div class="b"><h3>Event with money behind it</h3><p>A scheduled catalyst, and the market is repricing.</p><div class="test">catalyst ≤ 2 trading days ∧ (market_move ≥ p70 ∨ money_flow ≥ p70)</div></div></div>
       <div class="rung"><span class="chip T2">T2</span><div class="b"><h3>Money moving</h3><p>Betting is picking up and attention is following.</p><div class="test">money_flow ≥ p70 ∧ attention_shift ≥ p50</div></div></div>
@@ -398,7 +386,7 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
       <table>
         <thead><tr><th>Code</th><th>Use when</th><th>What it says about the score</th></tr></thead>
         <tbody>
-          <tr><td class="k">BREAKING_NEWS</td><td>Material news broke after the 15:00 build</td><td>Snapshot timing, not weights</td></tr>
+          <tr><td class="k">BREAKING_NEWS</td><td>Material news broke after the 07:00 build</td><td>Snapshot timing, not weights</td></tr>
           <tr><td class="k">SIMILAR_RECENT</td><td>A related ticker or theme was covered recently</td><td>Cooldown should work at theme level</td></tr>
           <tr><td class="k">MATERIAL_GAP</td><td>The top pick cannot be produced well today</td><td>material_sufficiency should enter the score</td></tr>
           <tr><td class="k">DATA_SUSPECT</td><td>A number looks wrong on inspection</td><td>A gate is missing or too loose</td></tr>
@@ -433,15 +421,6 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
         </ul>
       </div>
     </div>
-    <div class="aside"><span class="lbl">Backtest rules</span>
-      <ul class="plain">
-        <li><b>Pre-register</b> the question, versions (five at most) and decision rule before pulling data</li>
-        <li><b>Split by time</b>: choose on discovery, confirm once on holdout</li>
-        <li>Report every result next to <b>momentum</b>; Holm-correct across versions</li>
-        <li>Sanity first: oracle perfect, random scores random, nothing dated at or after the pick</li>
-        <li>No reweighting on insignificant results · all results: <code>backtest/results.html</code></li>
-      </ul>
-    </div>
     <div class="aside"><span class="lbl">Why avg_view_duration_pct</span><p>Of the audience metrics it is closest to "was this the right topic", because it depends least on title and thumbnail. <code>views_7d</code> mostly measures packaging.</p></div>
     <div class="folio"><span>Review Loop</span><span>10</span></div>
   </article>
@@ -450,44 +429,34 @@ button.reset:hover,button.reset:focus-visible{border-color:var(--accent);outline
   <article class="page" id="appx">
     <div class="runhead"><span>Topic Log Playbook</span><span>Appendix · Source Coverage</span></div>
     <div class="opener"><span class="chap">Appendix</span><h2>Source Coverage</h2>
-      <p class="lede">Which source feeds which component. Coverage is uneven, which is why weights renormalise per ticker.</p></div>
+      <p class="lede">Which source feeds which component, based on the free-tier samples checked so far. Coverage is uneven, which is why weights renormalise per ticker.</p></div>
     <div class="tbl-wrap">
       <table class="cov">
-        <thead><tr><th>Component</th><th>Adanos</th><th>Kalshi</th><th>Binance</th><th>eToro</th></tr></thead>
+        <thead><tr><th>Component</th><th>Adanos</th><th>Kalshi</th><th>eToro</th></tr></thead>
         <tbody>
-          <tr><td>attention_shift</td><td class="y">Reddit buzz</td><td class="n">—</td><td class="n">—</td><td class="p">pending</td></tr>
-          <tr><td>activity_shift</td><td class="y">Reddit mentions</td><td class="n">—</td><td class="n">—</td><td class="p">pending</td></tr>
-          <tr><td>money_flow</td><td class="y">Polymarket vol</td><td class="y">indices + 5 crypto</td><td class="n">—</td><td class="p">pending</td></tr>
-          <tr><td>money_stock</td><td class="n">—</td><td class="y">indices + 5 crypto</td><td class="n">—</td><td class="n">—</td></tr>
-          <tr><td>market_move</td><td class="y">Polymarket prob</td><td class="y">indices + 5 crypto</td><td class="n">—</td><td class="n">—</td></tr>
-          <tr><td>sentiment_shift</td><td class="y">Reddit sentiment</td><td class="n">—</td><td class="n">—</td><td class="p">net_position_delta</td></tr>
-          <tr><td>momentum (benchmark)</td><td class="n">—</td><td class="y">15:00 settlements</td><td class="y">daily OHLC</td><td class="n">—</td></tr>
+          <tr><td>attention_shift</td><td class="y">yes</td><td class="n">—</td><td class="p">pending</td></tr>
+          <tr><td>activity_shift</td><td class="y">yes</td><td class="n">—</td><td class="p">pending</td></tr>
+          <tr><td>money_flow</td><td class="y">Polymarket vol</td><td class="p">indices only</td><td class="p">pending</td></tr>
+          <tr><td>money_stock</td><td class="n">—</td><td class="p">indices only</td><td class="n">—</td></tr>
+          <tr><td>market_move</td><td class="y">Polymarket prob</td><td class="p">indices only</td><td class="n">—</td></tr>
+          <tr><td>sentiment_shift</td><td class="y">yes</td><td class="n">—</td><td class="p">net_position_delta</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="two">
-      <div class="aside"><span class="lbl">Available, not used yet</span>
-        <ul class="plain">
-          <li>Adanos <code>unique_posts</code>, <code>subreddit_count</code>, <code>total_upvotes</code>, bullish/bearish detail</li>
-          <li>Kalshi hourly and 15-min up/down, range buckets, perp funding</li>
-          <li>Polymarket <code>unique_traders</code></li>
-        </ul>
-      </div>
-      <div class="aside"><span class="lbl">Open items</span>
-        <ul class="plain">
-          <li>Kalshi event candles start at its historical cutoff (Aug 2026); the VPS must store the rest.</li>
-          <li>Adanos hobby key: 90-day lookback. About 25 crypto tokens have steady Reddit discussion.</li>
-          <li>Sheet 2 needs <code>mkt_volume_delta_1d</code>, <code>mkt_oi_delta_1d</code>, <code>weights_version</code> and <code>catalyst_date</code>.</li>
-          <li>eToro not yet evaluated.</li>
-        </ul>
-      </div>
+    <div class="aside"><span class="lbl">Open items</span>
+      <ul class="plain">
+        <li>Kalshi free sample covers KXINXU, KXNASDAQ100U and KXDJI only.</li>
+        <li>Kalshi deltas need a continuous snapshot history from the VPS.</li>
+        <li>Sheet 2 needs <code>mkt_volume_delta_1d</code>, <code>mkt_oi_delta_1d</code>, <code>weights_version</code> and <code>catalyst_date</code>.</li>
+        <li>eToro not yet evaluated.</li>
+      </ul>
     </div>
     <div class="folio"><span>Appendix</span><span>11</span></div>
   </article>
 
   <section class="backcover" aria-label="Back cover">
     <p>Thresholds and weights in this edition are starting values. They change through the review loop, one at a time, with every change versioned.</p>
-    <span class="m">Topic Log Playbook · Edition v2</span>
+    <span class="m">Topic Log Playbook · Edition v1</span>
   </section>
 </div>
 

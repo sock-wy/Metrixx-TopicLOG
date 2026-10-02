@@ -1,0 +1,5 @@
+inherits: ../base.yaml
+name: S_placebo_random
+description: Sanity. Scores replaced by random numbers. Expect IC ~ 0, pick pctl ~ 0.5.
+mode: placebo_random
+cooldown: false

@@ -1,0 +1,4 @@
+inherits: base.yaml
+name: B_no_cooldown
+description: B without G4 / soft cooldown (the pure signal, repeats allowed).
+cooldown: false

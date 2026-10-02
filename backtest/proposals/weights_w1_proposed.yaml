@@ -1,0 +1,145 @@
+# Topic Log scoring configuration
+# ---------------------------------------------------------------
+# Single source of truth for every tunable number in the playbook.
+# Any change to this file = new weights_version (copy to weights_w1.yaml,
+# edit, bump `version`, and add an entry to config/CHANGELOG.md).
+# Never edit a version that has already been used to select an episode.
+
+version: w1
+effective_from: TBD          # PROPOSAL ONLY - not in config/, not active
+status: draft          # draft | active | retired
+based_on: w0
+
+# ---------------------------------------------------------------
+# Chapter 03 - Hard gates (fail any one -> ticker is out for the day)
+# ---------------------------------------------------------------
+gates:
+  G1_freshness:
+    max_age_hours: 24                 # now - as_of <= 24h
+  G2_market_evidence:
+    min_open_contracts_with_volume: 1 # open AND volume_24h > 0
+  G3_liquidity_floor:
+    max_zero_trade_market_pct: 0.80
+    max_avg_spread: 0.30
+    # w1: for Kalshi strike ladders, compute zero_trade_market_pct and avg_spread on the
+    # N strikes nearest the implied median (mid closest to 50%), not on every strike.
+    # Sources without ladders (Adanos/Polymarket per-ticker markets) are unchanged.
+    ladder_nearest_strikes: 3
+  G4_cooldown:
+    window_days: 3                    # N: skip if days_since_covered <= N
+  G5_not_settled:
+    min_implied_prob: 0.01
+    max_implied_prob: 0.99
+
+# ---------------------------------------------------------------
+# Chapter 04 - demand_score components
+# score = quality * cooldown * sum(w_i * pctrank(x_i)) / sum(w_i)
+# Missing components are dropped and weights renormalised.
+# ---------------------------------------------------------------
+components:
+  attention_shift:
+    weight: 0.25
+    input: buzz_delta_1d
+    source: [adanos]
+  activity_shift:
+    weight: 0.10
+    input: trade_count_pct_change_1d
+    source: [adanos]
+  money_flow:
+    weight: 0.20
+    input: mkt_volume_delta_1d        # % change in 24h volume
+    source: [kalshi, polymarket]
+  money_stock:
+    weight: 0.10
+    input: mkt_oi_delta_1d            # % change in open interest
+    source: [kalshi]
+  market_move:
+    weight: 0.20
+    input: max(abs(mkt_prob_delta_1d), mkt_prob_range_1d / 2)
+    source: [kalshi, polymarket]
+  sentiment_shift:
+    weight: 0.15
+    input: abs(sentiment_delta_1d)    # direction deliberately ignored
+    source: [adanos]
+
+# ---------------------------------------------------------------
+# Chapter 04 - multipliers
+# ---------------------------------------------------------------
+quality:
+  spread:
+    free_below: 0.05        # spreads up to this cost nothing
+    slope_divisor: 0.5      # spread_f = 1 - max(0, avg_spread - free_below) / slope_divisor
+    floor: 0.6
+  zero_trade:
+    penalty: 0.4            # zero_trade_f = 1 - penalty * zero_trade_market_pct
+  sources:
+    min_for_full_credit: 2
+    single_source_factor: 0.9
+
+cooldown:
+  soft_band_days: 4         # N < days_since_covered <= N + 4 -> multiplier below
+  soft_band_multiplier: 0.85
+
+# ---------------------------------------------------------------
+# Chapter 05 - Priority tiers (evaluated top-down; first match wins)
+# Percentiles are within the day's surviving pool.
+# ---------------------------------------------------------------
+tiers:
+  T1:
+    label: Event with money behind it
+    catalyst_within_trading_days: 2
+    any_of:
+      market_move_pct_min: 0.70
+      money_flow_pct_min: 0.70
+  T2:
+    label: Money moving
+    all_of:
+      money_flow_pct_min: 0.70
+      attention_shift_pct_min: 0.50
+  T3:
+    label: Attention only
+    all_of:
+      attention_shift_pct_min: 0.80
+  T4:
+    label: Baseline
+
+tie_breakers:               # applied in order within a tier
+  - sources_available: desc
+  - unique_traders: desc
+  - mkt_ladder_depth: desc
+  - asset_class_not_in_last_n_episodes: 2
+
+# ---------------------------------------------------------------
+# Chapter 07 - Angle mapping
+# ---------------------------------------------------------------
+angles:
+  - structure: up_down
+    condition: ladder_depth == 1
+    angle: direction
+  - structure: [above_below, close_above]
+    condition: ladder_depth >= 5
+    angle: distribution
+  - structure: hit_target
+    condition: any
+    angle: touch
+  - structure: up_down
+    condition: options_chain_available
+    angle: updown_vs_option
+  - structure: range_buckets
+    condition: cap_strike_present
+    angle: range
+fallback:
+  consecutive_fallbacks_to_lower_material_sufficiency: 2
+
+# ---------------------------------------------------------------
+# Chapter 08 - Overrides
+# ---------------------------------------------------------------
+override_codes:
+  - BREAKING_NEWS
+  - SIMILAR_RECENT
+  - MATERIAL_GAP
+  - DATA_SUSPECT
+  - EDITORIAL_MIX
+review_trigger:
+  same_code_count: 3
+  within_days: 14

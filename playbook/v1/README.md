@@ -1,30 +1,17 @@
 # Topic Log Playbook
 
-The daily procedure for choosing which ticker each MYCAST episode covers, and for recording enough to check later whether the choice was right. This folder is the playbook module; see the [project README](../README.md) for how it fits with the rest of the repo.
+The daily procedure for choosing which ticker each MYCAST episode covers, and for recording enough to check later whether the choice was right. This folder is the playbook module; see the [project README](../../README.md) for how it fits with the rest of the repo.
 
 | File | What it is |
 |---|---|
 | [`index.html`](index.html) | The playbook as a website: the full procedure plus an interactive worked example. |
 | `README.md` | This file: the playbook explained in full. |
-| [`../config/weights_w0.yaml`](../config/weights_w0.yaml) | Every gate threshold, weight, multiplier and tier rule used below. |
-| [`../config/CHANGELOG.md`](../config/CHANGELOG.md) | One entry per change to the config. |
-| [`v1/`](v1/) | The previous edition, unchanged, for comparison. |
+| [`../config/weights_w0.yaml`](../../config/weights_w0.yaml) | Every gate threshold, weight, multiplier and tier rule used below. |
+| [`../config/CHANGELOG.md`](../../config/CHANGELOG.md) | One entry per change to the config. |
 
-> **Status: edition v2 (2026-10-02).** Revised after the first backtests (results: `backtest/results.html`). Thresholds and weights are still starting values, tuned through the review loop. Numbers in the worked example are illustrative, not live data.
-
-### What changed in v2
-
-| Area | v1 | v2 | Why |
-|---|---|---|---|
-| Daily pick | 07:00 ET | **15:00 ET** | Team decision; same-day market state is fresher |
-| Snapshot cadence | every 15 min | **8 pulls a day**, every 3 h from 15:00 ET | Enough to rebuild the day's path from hourly candles; far less storage |
-| Adanos timing | not specified | **complete UTC days only** (t−1 at a 15:00 ET pick) | Adanos counts by UTC day; using day t leaks up to five hours of the future |
-| G2 | open contract with volume | same, counted **anywhere on the ladder** | Clarifies the test for strike ladders |
-| G3 on Kalshi ladders | all strikes | **3 strikes nearest the implied median** (proposed w1) | Zero-trade share depended on strike spacing: NDX was gated on 59% of days |
-| `money_flow` | always computed | dropped when the previous day's volume is below its own trailing 10th percentile | A tiny base turns noise into a 100× "flow" |
-| Benchmark | none | **momentum** must be reported next to every result | It beat `demand_score` in both backtests |
-| Backtest rules | none | pre-registration, time split, Holm correction (Chapter 9) | Many versions on little data produce false wins |
-| Source coverage | Kalshi indices only | Kalshi crypto ladders; Binance prices; Adanos account limits | Chapter 11 |
+> **Archived edition v1** (first draft, September 2026; labelled v0 at the time). The current edition is [v2](../../README.md).
+>
+> **Status: draft.** All thresholds and weights are starting values, to be tuned through the review loop. Numbers in the worked example are illustrative, not live data.
 
 ---
 
@@ -53,7 +40,7 @@ Three sheets, one for each stage data passes through.
 
 | Sheet | Grain | Role |
 |---|---|---|
-| `1_market_snapshots` | one row per contract per pull (8 pulls a day) | **Raw layer.** Is this quote a usable price? |
+| `1_market_snapshots` | one row per contract per pull (every 15 min) | **Raw layer.** Is this quote a usable price? |
 | `2_topic_log` | one row per ticker per day | **Decision layer.** Signals rolled up per ticker, ending in `demand_score` and `rank`. |
 | `3_episode_log` | one row per published episode | **Feedback layer.** The call at the time, whether the editor agreed, whether it was producible, how the audience responded, how the market resolved. |
 
@@ -73,15 +60,15 @@ Chapter 3's gates check spread and volume; Chapter 7's angle mapping relies on c
 
 ## 2. The Daily Run
 
-Six steps in a fixed order. Each step depends on the one before it, and a repeatable routine is what makes days comparable in the review loop. Times are US Eastern and assume the VPS snapshot job runs continuously.
+Six steps in a fixed order. Each step depends on the one before it, and a repeatable routine is what makes days comparable in the review loop. Times are proposed, US Eastern, and assume the VPS snapshot job ran overnight.
 
 | Step | Time (ET) | What happens | Writes to |
 |---|---|---|---|
-| 1 · Pull | 15:00 | The 15:00 Kalshi snapshot lands (one of eight a day); Adanos holds complete UTC days up to yesterday. Settled contracts are dropped. | `1_market_snapshots` |
-| 2 · Gate | 15:05 | Candidates failing any hard gate are removed; the gate is recorded. | `2_topic_log.data_quality_flag` |
-| 3 · Score | 15:05 | Compute `demand_score` and assign a tier to each surviving ticker. | `2_topic_log.demand_score`, `rank` |
-| 4 · Pick | 15:15 | Editor takes the top of the highest non-empty tier, or overrides with a reason code. | `3_episode_log.selection_mode` |
-| 5 · Angle | 15:20 | Read the angle off the contract structure; confirm material exists. | `3_episode_log.angle` |
+| 1 · Pull | 06:30 | Latest Adanos and Kalshi snapshots land. Settled contracts are dropped. | `1_market_snapshots` |
+| 2 · Gate | 07:00 | Candidates failing any hard gate are removed; the gate is recorded. | `2_topic_log.data_quality_flag` |
+| 3 · Score | 07:00 | Compute `demand_score` and assign a tier to each surviving ticker. | `2_topic_log.demand_score`, `rank` |
+| 4 · Pick | 07:15 | Editor takes the top of the highest non-empty tier, or overrides with a reason code. | `3_episode_log.selection_mode` |
+| 5 · Angle | 07:20 | Read the angle off the contract structure; confirm material exists. | `3_episode_log.angle` |
 | 6 · Close | +7 days | Fill audience metrics, editor rating and market resolution. | `3_episode_log.views_7d` … |
 
 **Why this order**
@@ -91,9 +78,7 @@ Six steps in a fixed order. Each step depends on the one before it, and a repeat
 - **Pick before Angle.** The angle is read off the chosen ticker's contracts.
 - **Close at +7 days.** Audience numbers need about a week to settle; some markets take that long to resolve.
 
-**Dependency.** Step 1 only works if the VPS snapshot job runs continuously, eight times a day (15, 18, 21, 00, 03, 06, 09, 12 ET). Without that history there are no day-over-day deltas, so `money_flow` and `money_stock` cannot be computed.
-
-**Timing rule.** Every input must be dated before the pick. Kalshi snapshots qualify up to 15:00 ET. Adanos aggregates by UTC day, and day *t* is still open at 15:00 ET, so the newest usable Adanos value is day *t*−1.
+**Dependency.** Step 1 only works if the VPS snapshot job runs continuously. Without an overnight history there are no day-over-day deltas, so `money_flow` and `money_stock` cannot be computed.
 
 ---
 
@@ -106,14 +91,12 @@ Fail any one gate and the ticker is out for the day. Gates answer "can this row 
 | Gate | Test | Rationale |
 |---|---|---|
 | G1 Freshness | `now − as_of ≤ 24h` | Stale rows rank yesterday's news. |
-| G2 Market evidence | ≥ 1 open contract with `volume_24h > 0`, anywhere on the ladder | Buzz alone is talk; MYCAST's story is what the market is pricing. |
-| G3 Liquidity floor | `zero_trade_market_pct ≤ 0.80` and `avg_spread ≤ 0.30`; on Kalshi ladders, measured on the 3 strikes nearest the implied median (proposed w1) | Beyond these, the implied probability is mostly noise. |
+| G2 Market evidence | ≥ 1 open contract with `volume_24h > 0` | Buzz alone is talk; MYCAST's story is what the market is pricing. |
+| G3 Liquidity floor | `zero_trade_market_pct ≤ 0.80` and `avg_spread ≤ 0.30` | Beyond these, the implied probability is mostly noise. |
 | G4 Cooldown | `days_since_covered > N`, N = 3 | Stops one name dominating the feed. Just past the window: scored at 0.85×. |
 | G5 Not settled | `status = open`, `0.01 ≤ p ≤ 0.99` | A quote at 0.0005 or 0.9995 is an answer, not a forecast. Removed in step 1. |
 
 **About the thresholds.** They are set to reject only clearly broken rows. For reference, the Adanos AAPL sample had zero-trade 0.506 and average spread 0.151; the Kalshi sample averaged a 0.17 spread. If gates reject too much or too little in practice, the `DATA_SUSPECT` override code will reveal it.
-
-**Why G3 is measured near the money on ladders.** A Kalshi ladder's strike spacing differs by orders of magnitude between underlyings: a ±2% band holds about one DOGE strike but about 120 NDX strikes, most never traded. Counted over the whole ladder (or a fixed % band), the zero-trade share measures spacing, not liquidity; NDX failed G3 on 59% of days in the first backtest. Measuring on the three strikes nearest the implied median (where the mid is closest to 50%) makes the test comparable across underlyings. This is proposed as w1 (`backtest/proposals/`).
 
 ---
 
@@ -150,7 +133,7 @@ cooldown     = 0.85 if N < days_since_covered ≤ N + 4 else 1.0
 |---|---|---|---|
 | `attention_shift` | `buzz_delta_1d` | 0.25 | A name that just got hot. Highest weight: change in attention is the core "today's news" signal. |
 | `activity_shift` | trade count Δ% 1d | 0.10 | More people trading, not only talking. Lower weight: overlaps with attention. |
-| `money_flow` | `mkt_volume_24h` Δ% 1d | 0.20 | New money arriving today. Betting has a cost, so it is more credible than talk. Dropped (treated as missing) when the previous day's volume is below its own trailing 30-day 10th percentile. |
+| `money_flow` | `mkt_volume_24h` Δ% 1d | 0.20 | New money arriving today. Betting has a cost, so it is more credible than talk. |
 | `money_stock` | `mkt_open_interest` Δ% 1d | 0.10 | Positions held overnight. Kalshi only for now. |
 | `market_move` | `max(|prob Δ1d|, range_1d / 2)` | 0.20 | The market changed its mind. The range term catches a swing that ended flat. |
 | `sentiment_shift` | `|sentiment Δ1d|` | 0.15 | Opinion moved, either way. Absolute value on purpose. |
@@ -160,18 +143,6 @@ Split: 35% attention, 30% money, 20% market move, 15% sentiment.
 **Why direction is excluded.** A sharp bearish turn is as newsworthy as a bullish one. Rewarding positive sentiment would bias MYCAST toward good news. Direction belongs to the angle (Chapter 7).
 
 **Missing data: renormalise, never zero.** Single stocks have no Kalshi data, so `money_stock` is missing. Counting it as zero would punish a ticker for a gap in our coverage. Instead it is dropped and weights renormalised. Example (AAPL, Chapter 6): available weights 0.90; weighted percentiles 0.25×0 + 0.10×0 + 0.20×0.25 + 0.20×0.50 + 0.15×0.75 = 0.2625; raw score 0.2625 / 0.90 = **0.292**. The single-source cost is charged once, openly, via `source_f = 0.9`.
-
-**Evidence so far (backtests, October 2026).** Details on the results page (`backtest/results.html`).
-
-- In `crypto_indices` (8 tickers, 54 days) no version of `demand_score` beat a random pick; momentum (the pool's biggest recent mover) did.
-- Of the six components only `market_move` pointed the right way; the Adanos components were indistinguishable from zero.
-- In `adanos_crypto` (25 tokens, 60 days, pre-registered) the 1-day change construction carried nothing, while the same inputs smoothed over 3 days beat it on the holdout. Momentum still beat both.
-
-**Candidate changes under test (not adopted).** Each needs an out-of-sample confirmation under the Chapter 9 backtest rules before it becomes a config change:
-
-1. 3-day smoothed changes instead of 1-day changes for the Adanos components.
-2. Momentum (prior-period abnormal move) as a seventh component.
-3. Abnormal level (z-score against the ticker's own 30-day baseline) instead of change.
 
 **Quality multiplier, worked**
 
@@ -207,9 +178,7 @@ Pick from the highest tier that has anyone in it, then order by `demand_score` w
 3. Deeper `mkt_ladder_depth`: more strikes, more angles.
 4. Asset class not covered in the last two episodes.
 
-T1 requires new `catalyst` and `catalyst_date` columns in Sheet 2, filled by hand until an event calendar is connected. The backtest uses the BLS CPI and FOMC calendars for indices.
-
-**Evidence so far.** Ranking with or without tiers gave the same results in the first backtest. Tiers stay because they encode an editorial priority (an event with money behind it), not only a prediction.
+T1 requires new `catalyst` and `catalyst_date` columns in Sheet 2, filled by hand until an event calendar is connected.
 
 ---
 
@@ -274,7 +243,7 @@ The editor can overrule the board. Overrides are the fastest feedback the system
 
 | Code | Use when | What it says about the system |
 |---|---|---|
-| `BREAKING_NEWS` | Material news broke after the 15:00 build | Snapshot timing, not weights |
+| `BREAKING_NEWS` | Material news broke after the 07:00 build | Snapshot timing, not weights |
 | `SIMILAR_RECENT` | A related ticker or theme was covered recently | Cooldown should be theme-level |
 | `MATERIAL_GAP` | Top pick can't be produced well today | `material_sufficiency` should enter the score or become a gate |
 | `DATA_SUSPECT` | A number looks wrong on inspection | A gate is missing or too loose |
@@ -296,17 +265,6 @@ At about one episode a day, the sample is too small for regression for months, s
 - **Calibration**: implied probability at selection vs `market_resolved_as`. Events priced at 70% should happen about 70% of the time.
 
 **Why `avg_view_duration_pct`.** It is closest to "was this the right topic" because it depends least on title and thumbnail. `views_7d` mostly measures packaging. GSC impressions and CTR are independent of the platform's recommendation algorithm.
-
-**Backtests.** Changes that cannot wait for months of episode data are tested on history first, under rules that keep a small sample from producing false wins:
-
-- **Pre-register.** Write the question, data window, versions (five at most), metric and decision rule in the study's `PREREG.md` and commit it before pulling data. Later additions are labelled exploratory.
-- **Split by time.** Select on the earlier part (discovery), confirm once on the later part (holdout). Universes are fixed from a formation period that is never evaluated.
-- **Benchmark against momentum.** Every result is reported next to the momentum pick; a score that loses to "who moved most recently" adds no information.
-- **Correct for multiple versions** (Holm) and report every version run, not only the best.
-- **Sanity checks** must pass first: oracle = perfect, random scores = random, no input dated at or after the pick.
-- **No reweighting on insignificant results.**
-
-Results for every study are on one page: `backtest/results.html`.
 
 **Change control**
 
@@ -339,8 +297,6 @@ version = cfg["version"]          # write this into 2_topic_log.weights_version
 3. Add an entry to `config/CHANGELOG.md`.
 4. Point the scoring job at the new file. From then on, new Sheet 2 rows carry `weights_version = w1`.
 
-Proposed changes that are not yet active live in `backtest/proposals/` with their changelog entry drafted; they move into `config/` only when adopted.
-
 > `playbook/index.html` currently mirrors the w0 values by hand. When the config changes, update the numbers in the page too, until the page is wired to read the YAML directly.
 
 ### `config/CHANGELOG.md`
@@ -355,40 +311,22 @@ Open it locally in any browser, or publish it with GitHub Pages: **Settings → 
 
 ## 11. Source Coverage and Open Items
 
-| Component | Adanos | Kalshi | Binance | eToro |
-|---|---|---|---|---|
-| `attention_shift` | Reddit `buzz_score` (crypto; stocks/ETFs) | — | — | pending |
-| `activity_shift` | Reddit `mentions` | — | — | pending |
-| `money_flow` | Polymarket volume (stocks) | daily ladders: indices, BTC, ETH, SOL, XRP, DOGE | — | pending |
-| `money_stock` | — | same ladders | — | — |
-| `market_move` | Polymarket probability (stocks) | same ladders | — | — |
-| `sentiment_shift` | Reddit `sentiment_score` | — | — | `net_position_delta` |
-| prices / momentum | — | 15:00 ET hourly settlement values | daily OHLC (`data-api.binance.vision`) | — |
-
-**Available but not used yet** (kept in the raw data; candidates for future versions, each to be pre-registered):
-
-| Source | Field | Possible use |
-|---|---|---|
-| Adanos | `unique_posts` | activity without a few long threads inflating `mentions` |
-| Adanos | `subreddit_count` | spread of a topic across communities |
-| Adanos | `total_upvotes` | engagement weight |
-| Adanos | `bullish_pct`, `bearish_pct`, positive/negative/neutral counts | sentiment detail (overlaps `sentiment_score`) |
-| Adanos | `trend`, `top_subreddits`, `top_mentions` | context for the episode, not scoring |
-| Kalshi | hourly and 15-minute up/down series, range buckets | intraday angle material |
-| Kalshi | perpetual funding and open interest | positioning signal |
-| Polymarket | `unique_traders` | tie-breaker 2 |
-
-Only `daily_trend` fields have daily history in Adanos; the others are period aggregates and need one request per day to backfill.
+| Component | Adanos | Kalshi | eToro |
+|---|---|---|---|
+| `attention_shift` | yes | — | pending |
+| `activity_shift` | yes | — | pending |
+| `money_flow` | Polymarket volume | indices only | pending |
+| `money_stock` | — | indices only | — |
+| `market_move` | Polymarket probability | indices only | — |
+| `sentiment_shift` | yes | — | `net_position_delta` |
 
 **Open items**
 
-- Kalshi serves event-level candles only after its historical cutoff (2026-08-02 at the time of writing); longer histories exist only if the VPS stores them.
-- The Adanos key is a hobby account: at most 90 days of lookback. Store data while it is fresh.
-- Few crypto tokens have steady Reddit discussion (about 25 pass a 3-mentions-a-day floor).
-- DIA (the DJI proxy) has Reddit data on fewer than half of days.
+- The Kalshi free sample covers only KXINXU (S&P 500), KXNASDAQ100U and KXDJI. Single stocks rely on Adanos.
+- Kalshi deltas need a continuous snapshot history from the VPS.
 - Sheet 2 needs new columns: `mkt_volume_delta_1d`, `mkt_oi_delta_1d`, `weights_version`, `catalyst`, `catalyst_date`.
-- Rename `buzz_trend` → `buzz_trend_7d`. Adanos's trend label uses a multi-day window while `buzz_delta_1d` is one day, so they can legitimately disagree.
-- Sheet 1 belongs in a database, with Excel as a view.
+- Rename `buzz_trend` → `buzz_trend_7d`. Adanos's trend label uses a 7-day window while `buzz_delta_1d` is one day, so they can legitimately disagree.
+- At 15-minute cadence Sheet 1 grows by about 40,000 rows a day and reaches Excel's row limit within weeks. It belongs in a database, with Excel as a view.
 - eToro not yet evaluated.
 
 ---
@@ -408,8 +346,3 @@ Only `daily_trend` fields have daily history in Adanos; the others are period ag
 | lexicographic | Sort by the first key; use the second only to break ties. |
 | calibration | Whether events priced at X% happen about X% of the time. |
 | `weights_version` | Label of the config used for a ranking, e.g. `w0`. |
-| momentum | The pool's biggest recent mover: prior-period abnormal move, the benchmark every score must beat. |
-| abnormal move / range | A move (or high-low range) divided by the ticker's own recent average, so volatile and quiet names compare fairly. |
-| pre-registration | Writing a test's rules down and committing them before seeing the data. |
-| holdout | The later part of a backtest window, used once to confirm a choice made on the earlier part. |
-| implied median | The strike whose contract mid is closest to 50%: where the market centres its forecast. |

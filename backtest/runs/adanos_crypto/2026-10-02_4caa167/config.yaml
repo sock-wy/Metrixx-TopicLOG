@@ -1,0 +1,42 @@
+history:
+- '2026-07-04'
+- '2026-10-01'
+formation:
+- '2026-07-04'
+- '2026-08-02'
+evaluation:
+- '2026-08-03'
+- '2026-10-01'
+discovery:
+- '2026-08-03'
+- '2026-09-07'
+holdout:
+- '2026-09-08'
+- '2026-10-01'
+exclude:
+- USDT
+- USDC
+- DAI
+- FDUSD
+- TUSD
+- USDE
+- RLUSD
+- WETH
+- WBTC
+- STETH
+- PAXG
+- XAUT
+min_coverage: 0.8
+min_median_mentions: 3
+top_n: 30
+weights:
+  attention: 0.25
+  activity: 0.1
+  sentiment: 0.15
+z_window: 30
+z_min_obs: 20
+label_window: 20
+z_clip: 5.0
+n_perm: 5000
+n_boot: 5000
+seed: 11

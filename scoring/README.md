@@ -1,6 +1,6 @@
 # scoring
 
-**Status:** planned
+**Status:** v0 — scoring and feature builder implemented; worked-example test passes
 
 ## Purpose
 
@@ -20,11 +20,25 @@ Turns the day's snapshots into one row per ticker in `2_topic_log`: applies the 
 
 ## Contents
 
-Planned: a scoring module, a daily job entry point, and tests that reproduce the worked example in `playbook/README.md` section 6 (NDX 0.584, NVDA 0.416, TSLA 0.349, AAPL 0.167, DJI 0.059).
+| File | Purpose |
+|---|---|
+| `scoring.py` | `score_day`: hard gates, percentiles, renormalised weights, quality, cooldown, tiers, rank. Reads every number from the config |
+| `features.py` | Snapshot tables → one row per (day, ticker) of component inputs, as of the pick time, with a look-ahead guard |
+| `tests/test_worked_example.py` | Reproduces the playbook worked example (NDX 0.584, NVDA 0.416, TSLA 0.349, AAPL 0.167, DJI 0.059) |
 
 ## Usage
 
-To be written. Rule: every number comes from the config file; the output row must carry the config `version` it used.
+```python
+from scoring.scoring import load_config, score_day
+cfg = load_config("config/weights_w0.yaml")
+ranked, gated = score_day(rows, cfg)   # rows: one dict per ticker, see the scoring.py docstring
+```
+
+```bash
+python -m pytest -q scoring/tests
+```
+
+Every output row carries `weights_version`.
 
 ---
 
