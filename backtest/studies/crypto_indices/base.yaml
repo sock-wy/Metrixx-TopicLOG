@@ -22,6 +22,6 @@ catalysts:
   applies_to: [index]
 tiers: true
 cooldown: true
-label: abn_move                # abn_move | idio_move
+label: abn_move
 mode: normal                   # normal | placebo_random | placebo_shuffle | oracle
 seed: 7

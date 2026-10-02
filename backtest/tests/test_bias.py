@@ -3,7 +3,7 @@
 These guard the validation itself:
   - no data newer than the pick reaches a feature (snapshots, features, labels)
   - rolling statistics (volume floor, sigma, beta) use only the past
-  - sanity modes behave as theory says (oracle = perfect, placebos = random)
+  - sanity modes behave as theory says (oracle = perfect, placebos = random); run in memory, nothing written
 """
 import datetime as dt
 import pathlib
@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 
 from backtest.labels import build_labels
-from backtest.run import load_study, run_one
+from backtest.run import compute, load_study
 from scoring.features import build_features, load_snapshots
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -83,25 +83,25 @@ def test_volume_floor_ignores_future(snap, base):
 def test_labels_are_after_pick_and_sigma_is_past_only(snap, base):
     days = _days(base)
     tk = list(snap["totals"].ticker.unique())
-    lab = build_labels(snap["prices"], snap["vol_scale"], days, tk, crypto=["BTC", "ETH", "SOL", "XRP", "DOGE"])
+    lab = build_labels(snap["prices"], snap["vol_scale"], days, tk)
     ok = lab.dropna(subset=["next_date"])
     assert (pd.to_datetime(ok.next_date) > pd.to_datetime(ok.date)).all()
     t = days[30]
     vs = snap["vol_scale"]
-    lab2 = build_labels(snap["prices"], vs[vs.date < t], [t], tk, crypto=["BTC", "ETH", "SOL", "XRP", "DOGE"])
-    a = lab[lab.date == t].set_index("ticker")[["sigma20", "idio_move"]]
-    b = lab2.set_index("ticker")[["sigma20", "idio_move"]]
+    lab2 = build_labels(snap["prices"], vs[vs.date < t], [t], tk)
+    a = lab[lab.date == t].set_index("ticker")[["sigma20", "abn_move"]]
+    b = lab2.set_index("ticker")[["sigma20", "abn_move"]]
     pd.testing.assert_frame_equal(a.loc[b.index], b, check_dtype=False)
 
 
 def test_oracle_is_perfect():
-    _, s = run_one(STUDY / "sanity" / "S_oracle.yaml", quiet=True)
+    s = compute(STUDY / "sanity" / "S_oracle.yaml")[4]
     assert s["hit_top1"] == 1.0 and abs(s["IC_mean"] - 1.0) < 1e-9
 
 
 @pytest.mark.parametrize("name", ["S_placebo_random", "S_placebo_shuffle"])
 def test_placebos_look_random(name):
-    _, s = run_one(STUDY / "sanity" / f"{name}.yaml", quiet=True)
+    s = compute(STUDY / "sanity" / f"{name}.yaml")[4]
     lo, hi = s["pick_pctl_ci95"]
     assert lo <= 0.5 <= hi, s["pick_pctl_ci95"]
     assert abs(s["IC_mean"]) < 0.15

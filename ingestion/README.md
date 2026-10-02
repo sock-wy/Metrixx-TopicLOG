@@ -1,6 +1,6 @@
 # ingestion
 
-**Status:** v0 — backfill for Kalshi, Adanos, Yahoo; live snapshot command ready for cron
+**Status:** v0 — backfill for Kalshi, Adanos, Binance, Yahoo; live snapshot command ready for cron
 
 ## Purpose
 
@@ -8,7 +8,7 @@ Runs continuously on the VPS, pulls data from each source on a schedule, and wri
 
 ## Inputs
 
-Kalshi public market data (no key), Adanos API (`ADANOS_API_KEY`), Yahoo Finance daily closes (no key). eToro not yet evaluated.
+Kalshi public market data (no key), Adanos API (`ADANOS_API_KEY`), Binance public market data (no key), Yahoo Finance daily closes (no key). eToro not yet evaluated.
 
 ## Outputs
 
@@ -25,7 +25,8 @@ Network access; `ADANOS_API_KEY` in a local `.env` (copy `.env.example`). Never 
 | `common.py` | Paths, `.env` loading, HTTP with retry, ET/UTC conversion (DST-safe) |
 | `kalshi.py` | Event candlesticks (whole ladder), event markets (settlement value), live open-market snapshot |
 | `adanos.py` | Per-token / per-ticker detail with `daily_trend`, quota tracking |
-| `yahoo.py` | Daily closes (used only to scale backtest labels) |
+| `binance.py` | Spot daily klines from `data-api.binance.vision` (crypto prices; `api.binance.com` refuses some regions) |
+| `yahoo.py` | Daily closes (used to scale `crypto_indices` labels) |
 | `pull.py` | Entry point: `kalshi`, `adanos`, `yahoo` backfills and the live `snapshot` |
 
 ## Usage
@@ -39,12 +40,14 @@ python -m ingestion.pull yahoo  --universe backtest/universes/crypto_indices.yam
 python -m ingestion.pull snapshot --universe backtest/universes/crypto_indices.yaml   # live, for cron
 ```
 
-On the VPS, schedule `snapshot` four times a day at the pick-anchored times (15:00, 21:00, 03:00, 09:00 ET), e.g.
+On the VPS, schedule the Kalshi `snapshot` eight times a day, every three hours anchored on the 15:00 ET pick (15, 18, 21, 00, 03, 06, 09, 12 ET). Adanos data is daily, so it is pulled once a day after 00:00 UTC (one `/compare` request covers every token):
 
 ```cron
 CRON_TZ=America/New_York
-0 15,21,3,9 * * *  cd ~/Metrixx-TopicLOG && .venv/bin/python -m ingestion.pull snapshot --universe backtest/universes/crypto_indices.yaml >> logs/pull.log 2>&1
+0 0,3,6,9,12,15,18,21 * * *  cd ~/Metrixx-TopicLOG && .venv/bin/python -m ingestion.pull snapshot --universe backtest/universes/crypto_indices.yaml >> logs/pull.log 2>&1
 ```
+
+**Account limits:** the current Adanos key is a hobby account: 250,000 requests a month, at most 90 days of lookback per request. Data older than 90 days is only available if it was stored when it was fresh, which is another reason to run the collector continuously.
 
 **Known source issues:** Kalshi moves events settled before its historical cutoff (2026-08-02 at the time of writing) to `/historical/*`, which does not serve event-level candles. One Kalshi settlement value was malformed at source (`KXDJI-26SEP1015`, `expiration_value = "No"`); malformed values are treated as missing, never guessed.
 

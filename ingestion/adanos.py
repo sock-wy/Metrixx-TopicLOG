@@ -57,3 +57,17 @@ def quota_left(platform="reddit", kind="crypto"):
             if "month" in k.lower() and "remaining" in k.lower():
                 return v
     return None
+
+
+def trending(platform: str, kind: str, frm: str, to: str, limit: int = 100, offset: int = 0, refresh=False):
+    """Trending list over [frm, to] (aggregate per token, API order). Cached whole."""
+    path = DIR / f"trending_{platform}_{kind}_{frm}_{to}_{limit}_{offset}.json"
+    if not path.exists() or refresh:
+        status, body, headers = http_get(f"{BASE}/{platform}/{kind}/v1/trending",
+                                         params={"from": frm, "to": to, "limit": limit, "offset": offset},
+                                         headers={"X-API-Key": _key()}, pause=0.7)
+        cache_json(path, {"status": status, "body": body,
+                          "quota": {k: v for k, v in headers.items() if k.lower().startswith("x-ratelimit")},
+                          "_pulled_at": dt.datetime.now(UTC).isoformat()})
+    blob = json.loads(path.read_text())
+    return blob["body"] if blob.get("status") == 200 else None

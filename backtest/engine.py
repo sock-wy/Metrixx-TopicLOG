@@ -51,7 +51,7 @@ def run(features, labels, cfg, weights, study, universe, cats, rng):
     nyse_days = sorted(set(features.loc[features.ticker.map(classes) == "index", "date"]))
     lab = labels.set_index(["date", "ticker"])
     last_pick = {}
-    days, pools, skipped = [], [], []
+    days, pools = [], []
     for t in sorted(features.date.unique()):
         f_t = features[features.date == t]
         rows = []
@@ -77,11 +77,11 @@ def run(features, labels, cfg, weights, study, universe, cats, rng):
         if mode == "normal":
             last_pick[live[0]["ticker"]] = t
             if live[0]["ticker"] not in y:
-                skipped.append(dict(date=t, pick=live[0]["ticker"], reason="pick has no label"))
+                days.append(dict(date=t, pick=live[0]["ticker"], skipped="pick has no label"))
                 continue
         live = [r for r in live if r["ticker"] in y]
         if len(live) < 2:
-            skipped.append(dict(date=t, pick=live[0]["ticker"] if live else None, reason="pool < 2 after labels"))
+            days.append(dict(date=t, pick=live[0]["ticker"] if live else None, skipped="pool < 2 after labels"))
             continue
         if mode == "placebo_random":
             for r in live:
@@ -103,7 +103,7 @@ def run(features, labels, cfg, weights, study, universe, cats, rng):
                          pick_score=pick["demand_score"], pool_size=len(live),
                          pool=" ".join(r["ticker"] for r in live),
                          gated=" ".join(f"{g['ticker']}:{g['data_quality_flag']}" for g in gated),
-                         n_gated=len(gated), weekday=t.weekday()))
+                         n_gated=len(gated), skipped=None))
         for rank, r in enumerate(live, 1):
             pools.append(dict(
                 date=t, ticker=r["ticker"], asset_class=classes[r["ticker"]], rank=rank,
@@ -112,4 +112,4 @@ def run(features, labels, cfg, weights, study, universe, cats, rng):
                 prev_move=prev[r["ticker"]],
                 **{f"pct_{k}": r["pct"][k] for k in COMPONENTS},
             ))
-    return pd.DataFrame(days), pd.DataFrame(pools), pd.DataFrame(skipped)
+    return pd.DataFrame(days), pd.DataFrame(pools)

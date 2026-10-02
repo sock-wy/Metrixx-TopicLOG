@@ -14,6 +14,7 @@ Outputs (csv.gz, one row per ...):
 
     python -m backtest.build_snapshots --universe backtest/universes/crypto_indices.yaml \
         --start 2026-08-03 --end 2026-10-01 --adanos-from 2026-07-20 --adanos-to 2026-10-01
+Add --incremental to keep stored Kalshi rows and only build later dates (for the VPS).
 """
 from __future__ import annotations
 
@@ -28,7 +29,7 @@ import yaml
 from ingestion import kalshi, yahoo
 from ingestion.common import RAW, et, fmt_event
 
-SNAPSHOT_HOURS_ET = [(-1, 21), (0, 3), (0, 9), (0, 15)]  # (day offset vs event date, hour)
+SNAPSHOT_HOURS_ET = [(-1, 21), (0, 3), (0, 9), (0, 15)]  # (day offset vs event date, hour); backtest replay of the original 4-a-day plan
 STORE_BAND = 0.10
 
 
@@ -147,11 +148,23 @@ def main(argv=None):
     ap.add_argument("--end", type=dt.date.fromisoformat, required=True)
     ap.add_argument("--adanos-from", required=True)
     ap.add_argument("--adanos-to", required=True)
+    ap.add_argument("--incremental", action="store_true",
+                    help="keep existing Kalshi rows and only build event dates after the last one stored")
     a = ap.parse_args(argv)
     uni = yaml.safe_load(open(a.universe))
     out = pathlib.Path(__file__).parent / "snapshots" / uni["name"]
     out.mkdir(parents=True, exist_ok=True)
-    strikes, totals, prices = build_kalshi(uni, a.start, a.end)
+    start = a.start
+    old = None
+    if a.incremental and (out / "ladder_totals.csv.gz").exists():
+        old = {n: pd.read_csv(out / f"{n}.csv.gz") for n in ("ladder_strikes", "ladder_totals", "prices")}
+        last = pd.to_datetime(old["ladder_totals"].event_date).max().date()
+        start = max(a.start, last + dt.timedelta(days=1))
+    strikes, totals, prices = build_kalshi(uni, start, a.end)
+    if old is not None:
+        strikes = pd.concat([old["ladder_strikes"], strikes], ignore_index=True)
+        totals = pd.concat([old["ladder_totals"], totals], ignore_index=True)
+        prices = pd.concat([old["prices"], prices], ignore_index=True)
     tables = {
         "ladder_strikes": strikes, "ladder_totals": totals, "prices": prices,
         "vol_scale": build_vol_scale(uni), "adanos_daily": build_adanos(uni, a.adanos_from, a.adanos_to),

@@ -42,9 +42,7 @@ def per_day(pools: pd.DataFrame) -> pd.DataFrame:
                    IC=spearman(g.demand_score, g.label),
                    pick_pctl=pctl(y, pick.label), hit_top1=float(pick.label == y.max()),
                    mom_pick=mom.ticker, mom_pctl=pctl(y, mom.label), mom_hit_top1=float(mom.label == y.max()),
-                   rand_hit_top1=1 / len(g),
-                   IC_crypto=spearman(*g.loc[g.asset_class == "crypto", ["demand_score", "label"]].values.T)
-                   if (g.asset_class == "crypto").sum() >= 3 else np.nan)
+                   rand_hit_top1=1 / len(g))
         for k in COMPONENTS:
             rec[f"IC_{k}"] = spearman(g[f"pct_{k}"], g.label)
         out.append(rec)
@@ -100,7 +98,6 @@ def tstat(x):
 
 def summarize(days: pd.DataFrame, pools: pd.DataFrame, rng) -> dict:
     d = per_day(pools)
-    d["weekend"] = [pd.Timestamp(t).weekday() >= 5 for t in d.date]
     diff = d.pick_pctl - d.mom_pctl
     s = dict(
         days=int(len(d)), avg_pool=round(float(d.n.mean()), 2),
@@ -114,9 +111,6 @@ def summarize(days: pd.DataFrame, pools: pd.DataFrame, rng) -> dict:
         momentum_pctl=round(float(d.mom_pctl.mean()), 4), momentum_hit_top1=round(float(d.mom_hit_top1.mean()), 4),
         pick_minus_momentum=round(float(diff.mean()), 4),
         pick_minus_momentum_ci95=[round(v, 4) for v in boot_ci(diff, rng)],
-        IC_crypto_only=round(float(d.IC_crypto.mean()), 4) if d.IC_crypto.notna().any() else None,
-        IC_weekday=round(float(d.loc[~d.weekend, "IC"].mean()), 4) if (~d.weekend).any() else None,
-        IC_weekend=round(float(d.loc[d.weekend, "IC"].mean()), 4) if d.weekend.any() else None,
         component_IC={k: dict(mean=round(float(d[f"IC_{k}"].mean()), 4) if d[f"IC_{k}"].notna().any() else None,
                               t=round(tstat(d[f"IC_{k}"]), 2) if d[f"IC_{k}"].notna().sum() > 2 else None,
                               days=int(d[f"IC_{k}"].notna().sum())) for k in COMPONENTS},

@@ -6,9 +6,8 @@ settlement values of the 15:00 hourly event. Everything in the window happens
 after the pick.
 
     abn_move   = |r_fwd| / sigma_20
-    idio_move  = |r_fwd - beta * r_fwd_BTC| / sigma_resid_20     (crypto ex-BTC; others = abn_move)
 
-sigma_20, beta and sigma_resid use Yahoo daily log returns dated strictly before t
+sigma_20 uses Yahoo daily log returns dated strictly before t
 (rolling, never the full sample). `prev_move` is the same measure for the period
 that ended at the pick (known at the pick) and drives the momentum benchmark.
 """
@@ -44,13 +43,11 @@ def _yahoo_returns(vol_scale: pd.DataFrame):
     return rets
 
 
-def build_labels(prices, vol_scale, pick_days, tickers, crypto=(), base="BTC", vol_window=20, beta_window=30):
-    crypto = set(crypto)
+def build_labels(prices, vol_scale, pick_days, tickers, vol_window=20):
     fb = _fwd_back(prices)
     yr = _yahoo_returns(vol_scale)
     rows = []
     for t in pick_days:
-        rb_f = fb.get((base, t), (np.nan, np.nan, None))
         for tk in tickers:
             if (tk, t) not in fb:
                 continue
@@ -60,16 +57,6 @@ def build_labels(prices, vol_scale, pick_days, tickers, crypto=(), base="BTC", v
             row = dict(date=t, ticker=tk, next_date=nxt, r_fwd=r_f, r_prev=r_b, sigma20=sig,
                        abn_move=abs(r_f) / sig if sig and sig > 0 else np.nan,
                        prev_move=abs(r_b) / sig if sig and sig > 0 else np.nan)
-            row["idio_move"] = row["abn_move"]
-            if tk != base and tk in yr and base in yr:
-                j = pd.concat([yr[tk], yr[base]], axis=1, keys=["x", "b"]).dropna()
-                j = j[j.index < t].iloc[-beta_window:]
-                if len(j) >= beta_window and j.b.var() > 0 and tk in crypto:
-                    beta = j.x.cov(j.b) / j.b.var()
-                    resid = (j.x - beta * j.b).iloc[-vol_window:]
-                    sr = resid.std(ddof=1)
-                    row["beta_btc"] = beta
-                    row["idio_move"] = abs(r_f - beta * rb_f[0]) / sr if sr > 0 and not np.isnan(rb_f[0]) else np.nan
             rows.append(row)
     return pd.DataFrame(rows)
 

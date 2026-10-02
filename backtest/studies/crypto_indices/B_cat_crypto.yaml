@@ -1,4 +1,0 @@
-inherits: base.yaml
-name: B_cat_crypto
-description: B with CPI/FOMC also counted as catalysts for crypto.
-catalysts: {applies_to: [index, crypto]}

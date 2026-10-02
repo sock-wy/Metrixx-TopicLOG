@@ -54,7 +54,8 @@ def git_commit():
         return "nogit"
 
 
-def run_one(study_path, quiet=False):
+def compute(study_path):
+    """Run one version in memory. Returns (study, features, days, pools, summary, per_day, weights_cfg)."""
     study = load_study(study_path)
     universe = yaml.safe_load((ROOT / study["universe"]).read_text())
     weights_cfg = deep_merge(yaml.safe_load((ROOT / study["weights"]).read_text()), study.get("weights_overrides"))
@@ -68,32 +69,34 @@ def run_one(study_path, quiet=False):
     start, end = (dt.date.fromisoformat(str(study["window"][k])) for k in ("start", "end"))
     pick_days = [start + dt.timedelta(days=i) for i in range((end - start).days + 1)]
     tickers = list(universe["tickers"])
-    crypto = [t for t, s in universe["tickers"].items() if s["asset_class"] == "crypto"]
 
     feats = build_features(snap, pick_days, tickers, study.get("features"))
-    labels = build_labels(snap["prices"], snap["vol_scale"], pick_days, tickers, crypto=crypto)
+    labels = build_labels(snap["prices"], snap["vol_scale"], pick_days, tickers)
     rng = np.random.default_rng(study.get("seed", 7))
-    days, pools, skipped = engine.run(feats, labels, weights_cfg, weights, study, universe, cats, rng)
-    summary, per_day = evaluate.summarize(days, pools, np.random.default_rng(study.get("seed", 7)))
-    summary["skipped_days"] = int(len(skipped))
+    days, pools = engine.run(feats, labels, weights_cfg, weights, study, universe, cats, rng)
+    evaluated = days[days.skipped.isna()]
+    summary, per_day = evaluate.summarize(evaluated, pools, np.random.default_rng(study.get("seed", 7)))
+    summary["skipped_days"] = int(days.skipped.notna().sum())
     summary["gate_counts"] = (pd.Series(" ".join(days.gated.fillna("")).split()).str.split(":").str[1]
                               .value_counts().to_dict() if len(days) else {})
+    return study, feats, days, pools, summary, per_day, weights_cfg
 
-    study_name = pathlib.Path(study_path).resolve().parent.name if study.get("mode", "normal") == "normal" \
-        else pathlib.Path(study_path).resolve().parent.parent.name
+
+def run_one(study_path, quiet=False):
+    study, feats, days, pools, summary, per_day, weights_cfg = compute(study_path)
+
+    study_name = pathlib.Path(study_path).resolve().parent.name
     out = RUNS / study_name / f"{dt.date.today():%Y-%m-%d}_{study['name']}_{git_commit()}"
     out.mkdir(parents=True, exist_ok=True)
     (out / "config.yaml").write_text(yaml.safe_dump(json.loads(json.dumps(study, default=str)), sort_keys=False))
-    meta = dict(version=study["name"], study=study_name, mode=study.get("mode", "normal"),
-                commit=git_commit(), run_at=dt.datetime.now(dt.timezone.utc).isoformat(),
-                snapshots_meta=json.loads((ROOT / study["snapshots"] / "meta.json").read_text()),
-                weights_version=weights_cfg["version"])
-    (out / "meta.json").write_text(json.dumps(meta, indent=2))
-    feats.to_csv(out / "features.csv", index=False)
+    # features depend only on the snapshots and the feature parameters: one file per study, not per run
+    feats.to_csv(RUNS / study_name / f"features_{study['name']}.csv", index=False)
     days.merge(per_day.drop(columns=["pick"]), on="date", how="left").to_csv(out / "daily_log.csv", index=False)
     pools.to_csv(out / "pool_log.csv", index=False)
-    skipped.to_csv(out / "skipped.csv", index=False)
     summary = dict(version=study["name"], mode=study.get("mode", "normal"), description=study.get("description", ""),
+                   commit=git_commit(), run_at=dt.datetime.now(dt.timezone.utc).isoformat(),
+                   weights_version=weights_cfg["version"],
+                   snapshots_meta=json.loads((ROOT / study["snapshots"] / "meta.json").read_text()),
                    **summary)
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     if not quiet:
@@ -105,14 +108,18 @@ def run_one(study_path, quiet=False):
 def write_index():
     lines = ["# Backtest runs", "",
              "Latest run of each version, per study. `p (Holm)` adjusts the pick-vs-random p-value for the number "
-             "of versions tested in the study. Sanity rows check the harness, not the strategy.", ""]
+             "of versions tested in the study.", ""]
     for study_dir in sorted(p for p in RUNS.iterdir() if p.is_dir()):
         latest = {}
         for run_dir in sorted(study_dir.iterdir()):
             sj = run_dir / "summary.json"
             if sj.exists():
                 s = json.loads(sj.read_text())
+                if "version" not in s:  # studies with their own summary format (e.g. adanos_crypto)
+                    continue
                 latest[s["version"]] = (run_dir.name, s)  # sorted by name -> last date wins
+        if not latest:
+            continue
         normal = {v: s for v, (_, s) in latest.items() if s["mode"] == "normal"}
         adj = evaluate.holm({v: s["p_value_vs_random"] for v, s in normal.items()})
         lines += [f"## {study_dir.name}", "",
@@ -136,7 +143,8 @@ def main(argv=None):
     ap.add_argument("config", nargs="?")
     ap.add_argument("--study")
     a = ap.parse_args(argv)
-    paths = [a.config] if a.config else sorted(str(p) for p in pathlib.Path(a.study).rglob("*.yaml"))
+    # sanity versions live in studies/<study>/sanity/ and run only inside pytest
+    paths = [a.config] if a.config else sorted(str(p) for p in pathlib.Path(a.study).glob("*.yaml"))
     for p in paths:
         if pathlib.Path(p).name.startswith("_"):
             continue

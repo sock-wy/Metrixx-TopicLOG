@@ -1,4 +1,0 @@
-inherits: base.yaml
-name: B_floor_off
-description: B without the volume floor (shows what the floor changes).
-features: {volume_floor_pct: null}
