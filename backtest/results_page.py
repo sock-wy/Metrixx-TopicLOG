@@ -299,6 +299,189 @@ def section_adanos():
 </section>"""
 
 
+DIMS = ["E", "A", "D", "M"]
+DIM_NAME = {"E": "E · event", "A": "A · attention", "D": "D · disagreement", "M": "M · money at stake"}
+DIM_CLS = {"E": "s2", "A": "s1", "D": "s4", "M": "s3"}
+FIELD_NAME = {
+    "E1_momentum": "E1 · price momentum", "E2_today_move": "E2 · today's move to 14:30",
+    "E3_kalshi_move": "E3 · Kalshi price move ᴷ", "A1_x_mentions": "A1 · X mentions",
+    "A2_reddit_mentions": "A2 · Reddit mentions", "A3_news_mentions": "A3 · News mentions",
+    "D1_social_balance": "D1 · bull/bear balance", "D2_sentiment_dev": "D2 · |sentiment shift|",
+    "D3_pm_balance": "D3 · Polymarket balance", "D4_kalshi_split": "D4 · Kalshi split ᴷ",
+    "M1_pm_trades": "M1 · Polymarket trades", "M2_kalshi_volume": "M2 · Kalshi 24h volume ᴷ",
+}
+TOPIC_VERSIONS = {"V0": "V0 · 1-day change", "V1": "V1 · EWMA, half-life 1.5 d", "V2": "V2 · max(1-day, 3-day)"}
+
+
+def ci_inline(v, lo, hi):
+    return f"{v:+.3f} <span class='sub'>[{lo:+.2f}, {hi:+.2f}]</span>"
+
+
+def ci(v, lo, hi, nd=3):
+    return f"{v:+.{nd}f}<br><span class='sub'>[{lo:+.2f}, {hi:+.2f}]</span>"
+
+
+def section_topic_stocks():
+    d = sorted(p for p in (RUNS / "topic_stocks").iterdir() if (p / "summary.json").exists())[-1]
+    s = json.loads((d / "summary.json").read_text())
+    sc, cv = s["scores"], s["carried_version"]
+    dim = pd.read_csv(d / "dimension_report.csv")
+    fld = pd.read_csv(d / "field_report.csv")
+    picks = pd.read_csv(d / "picks.csv")
+    hold_from = "2026-09-11"
+    dv = dim[dim.version == cv].set_index(["period", "label", "dimension"])
+
+    def sc_mark(key, cls, tip):
+        r = sc[key]
+        return (cls, r["IC"], *r["IC_ci95"], f"{tip}: IC {r['IC']:+.3f} [{r['IC_ci95'][0]:+.2f}, {r['IC_ci95'][1]:+.2f}]")
+
+    # 1. versions and benchmarks on the primary label
+    rows1 = [(TOPIC_VERSIONS[v] + (" ✓" if v == cv else ""),
+              [sc_mark(f"{v}|discovery|L_A|score", "disc", f"{v} discovery"), sc_mark(f"{v}|holdout|L_A|score", "hold", f"{v} holdout")])
+             for v in TOPIC_VERSIONS]
+    for col, name in (("A_dim", "Attention only (A)"), ("B_most_discussed", "Most discussed yesterday"),
+                      ("E1_momentum", "Price momentum")):
+        rows1.append((name, [sc_mark(f"{cv}|discovery|L_A|{col}", "disc", f"{name} discovery"),
+                             sc_mark(f"{cv}|holdout|L_A|{col}", "hold", f"{name} holdout")]))
+    c1 = dot_ci_chart(rows1, -0.1, 0.6, 0.1, ref=0, ref_label="random", left=200, height_per=38,
+                      xlabel="Mean daily rank IC with attention over the next 3 days",
+                      series={"disc": ("s4", "dot"), "hold": ("s1", "dot")})
+
+    # 2. dimension standalone IC and 3. ablation, holdout, two labels
+    def dim_rows(col, lo, hi, tipname):
+        return [(DIM_NAME[k], [(key, r[col], r[lo], r[hi], f"{DIM_NAME[k]} · {lab}: {tipname} {r[col]:+.3f}")
+                               for lab, key in (("L_A", "la"), ("L_E", "le"))
+                               for r in [dv.loc[("holdout", lab, k)]]])
+                for k in DIMS]
+    c2 = dot_ci_chart(dim_rows("standalone_IC", "standalone_ci_lo", "standalone_ci_hi", "IC"), -0.1, 0.5, 0.1, ref=0,
+                      left=170, height_per=40, xlabel="IC of the dimension on its own (holdout)",
+                      series={"la": ("s1", "dot"), "le": ("s2", "diamond")})
+    c3 = dot_ci_chart(dim_rows("ablation_dIC", "ablation_ci_lo", "ablation_ci_hi", "ΔIC"), -0.1, 0.2, 0.05, ref=0,
+                      left=170, height_per=40, xlabel="IC lost when the dimension is removed (holdout; > 0 = it helps)",
+                      series={"la": ("s1", "dot"), "le": ("s2", "diamond")})
+
+    # 4. who led the pick, 5. would the pick change without the dimension
+    pv = picks[(picks.version == cv) & (picks.score_col == "score")].copy()
+    pv["period"] = (pv.date >= hold_from).map({False: "Discovery", True: "Holdout"})
+    led = pd.crosstab(pv.period, pv.leading_dim, normalize="index")
+    c4 = stacked_chart([(p, led.loc[p].to_dict()) for p in led.index], DIMS, DIM_CLS, DIM_NAME,
+                       "Share of daily picks where the dimension made the largest part of the pick's score")
+    flips = {p: {k: (g[f"rank_without_{k}"] > 1).mean() for k in DIMS} for p, g in pv.groupby("period")}
+    med_rank = {p: {k: g[f"rank_without_{k}"].median() for k in DIMS} for p, g in pv.groupby("period")}
+
+    # 6. fields
+    fh = fld[(fld.version == cv) & (fld.period == "holdout")].set_index(["label", "field"])
+    rows6 = []
+    for fname, nice in FIELD_NAME.items():
+        marks = []
+        for lab, key in (("L_A", "la"), ("L_E", "le")):
+            r = fh.loc[(lab, fname)]
+            lo, hi = json.loads(r.IC_ci95)
+            marks.append((key, r.IC, lo, hi, f"{nice} · {lab}: IC {r.IC:+.3f}, coverage {r.coverage:.0%}"))
+        rows6.append((nice, marks))
+    c6 = dot_ci_chart(rows6, -0.3, 0.5, 0.1, ref=0, left=210, height_per=34,
+                      xlabel="IC of each field on its own (holdout)", series={"la": ("s1", "dot"), "le": ("s2", "diamond")})
+
+    # tables
+    h1, h2, h3m, h3p, h4 = (s["H1_carried_IC_holdout"], s["H2_vs_attention_only"], s["H3_vs_most_discussed"],
+                            s["H3_vs_momentum"], s["H4_kalshi_with_minus_without"])
+    dec = s["decision"]
+    yes = lambda b: "<b>Accepted</b>" if b else "Rejected"
+    t_h = table(["Pre-registered hypothesis (holdout, attention label)", "Measure", "Result"], [
+        [f"H1 · {cv} beats random", f"IC {h1['IC']:+.3f} [{h1['IC_ci95'][0]:+.2f}, {h1['IC_ci95'][1]:+.2f}] · p {h1['p']:.3f} · pick pctl {h1['pick_pctl']:.2f} · "
+         f"top-3 hit {h1['top3_hit']:.2f} (random {s['sanity']['random_top3_hit_expected']:.2f})", yes(dec["H1"])],
+        ["H2 · four dimensions beat attention alone", f"ΔIC {ci_inline(h2['mean'], *h2['ci95'])}", yes(dec["H2"])],
+        ["H3 · beats most discussed yesterday", f"ΔIC {ci_inline(h3m['mean'], *h3m['ci95'])}", yes(dec["H3_most_discussed"])],
+        ["H3 · beats price momentum", f"ΔIC {ci_inline(h3p['mean'], *h3p['ci95'])}", yes(dec["H3_momentum"])],
+        [f"H4 · Kalshi adds information ({len(s['kalshi_subset'])} stocks)",
+         f"ΔIC {ci_inline(h4['mean'], *h4['ci95'])} · IC with {s['H4_subset_IC_with']['IC']:.3f} vs without "
+         f"{s['H4_subset_IC_without']['IC']:.3f}", yes(dec["H4"])],
+    ], num_from=9)
+
+    def drow(k):
+        a, e = dv.loc[("holdout", "L_A", k)], dv.loc[("holdout", "L_E", k)]
+        ho = flips["Holdout"][k]
+        return [f"<b>{DIM_NAME[k]}</b>", ci(a.standalone_IC, a.standalone_ci_lo, a.standalone_ci_hi),
+                ci(a.ablation_dIC, a.ablation_ci_lo, a.ablation_ci_hi) + f"<br><span class='sub'>Holm p {a.ablation_p_holm:.3f}</span>",
+                ci(e.standalone_IC, e.standalone_ci_lo, e.standalone_ci_hi),
+                ci(e.ablation_dIC, e.ablation_ci_lo, e.ablation_ci_hi) + f"<br><span class='sub'>Holm p {e.ablation_p_holm:.3f}</span>",
+                f"{a.share_of_picks_led:.0%}", f"{a.mean_share_in_pick:.0%}", f"{ho:.0%}<br><span class='sub'>median rank {med_rank['Holdout'][k]:g}</span>",
+                f"{a.coverage:.0%}"]
+    t_d = table(["Dimension", "Alone · attention", "Removed · attention", "Alone · next-day range", "Removed · next-day range",
+                 "Led the pick", "Share of pick's score", "Pick changes without it", "Coverage"],
+                [drow(k) for k in DIMS])
+    allp = dim[(dim.version == cv) & (dim.period == "all")].set_index(["label", "dimension"])
+    t_d_all = table(["Dimension", "Alone · attention", "Removed · attention", "Alone · next-day range", "Removed · next-day range",
+                     "Alone · composite", "Removed · composite"],
+                    [[f"<b>{DIM_NAME[k]}</b>"] + [ci(allp.loc[(lab, k)][a], allp.loc[(lab, k)][b], allp.loc[(lab, k)][c])
+                                                  for lab in ("L_A", "L_E", "L_comp")
+                                                  for a, b, c in (("standalone_IC", "standalone_ci_lo", "standalone_ci_hi"),
+                                                                  ("ablation_dIC", "ablation_ci_lo", "ablation_ci_hi"))]
+                     for k in DIMS])
+    t_v = table(["Version", "Discovery IC", "Holdout IC [95% CI]", "Holdout pick pctl", "Top-3 hit", "Holdout IC · next-day range",
+                 "Holdout IC · composite"],
+                [[TOPIC_VERSIONS[v] + (" <b>· carried</b>" if v == cv else ""), f(sc[f"{v}|discovery|L_A|score"]["IC"], sign=True),
+                  ci(sc[f"{v}|holdout|L_A|score"]["IC"], *sc[f"{v}|holdout|L_A|score"]["IC_ci95"]),
+                  f(sc[f"{v}|holdout|L_A|score"]["pick_pctl"], 2), f(sc[f"{v}|holdout|L_A|score"]["top3_hit"], 2),
+                  f(sc[f"{v}|holdout|L_E|score"]["IC"], sign=True), f(sc[f"{v}|holdout|L_comp|score"]["IC"], sign=True)]
+                 for v in TOPIC_VERSIONS] +
+                [[name, f(sc[f"{cv}|discovery|L_A|{col}"]["IC"], sign=True),
+                  ci(sc[f"{cv}|holdout|L_A|{col}"]["IC"], *sc[f"{cv}|holdout|L_A|{col}"]["IC_ci95"]),
+                  f(sc[f"{cv}|holdout|L_A|{col}"]["pick_pctl"], 2), f(sc[f"{cv}|holdout|L_A|{col}"]["top3_hit"], 2),
+                  f(sc[f"{cv}|holdout|L_E|{col}"]["IC"], sign=True), f(sc[f"{cv}|holdout|L_comp|{col}"]["IC"], sign=True)]
+                 for col, name in (("A_dim", "Benchmark · attention only"), ("B_most_discussed", "Benchmark · most discussed yesterday"),
+                                   ("E1_momentum", "Benchmark · price momentum"))])
+    fa = fld[(fld.version == cv) & (fld.period == "holdout")].pivot(index="field", columns="label", values="IC")
+    cov = fld[(fld.version == cv) & (fld.period == "holdout") & (fld.label == "L_A")].set_index("field").coverage
+    t_f = table(["Field", "IC · attention", "IC · next-day range", "IC · composite", "Coverage"],
+                [[FIELD_NAME[k], f(fa.loc[k, "L_A"], sign=True), f(fa.loc[k, "L_E"], sign=True), f(fa.loc[k, "L_comp"], sign=True),
+                  f"{cov[k]:.0%}"] for k in FIELD_NAME])
+    pk = picks[picks.version == cv]
+    pk_k = pk[pk.score_col == "score_k"].set_index("date")
+    t_p = table(["Date", "Pick", "E", "A", "D", "M", "Led by", "Pick pctl · attention", "Pick pctl · range", "Kalshi-subset pick"],
+                [[r.date + (" <span class='sub'>holdout</span>" if r.date >= hold_from else ""), f"<b>{esc(r.pick)}</b>",
+                  f(r.E_dim, 2), f(r.A_dim, 2), f(r.D_dim, 2), f(r.M_dim, 2), r.leading_dim, f(r.L_A_pctl, 2), f(r.L_E_pctl, 2),
+                  f"{esc(pk_k.loc[r.date].pick)} <span class='sub'>({pk_k.loc[r.date].L_A_pctl:.2f})</span>" if r.date in pk_k.index else "—"]
+                 for r in pk[pk.score_col == "score"].itertuples()], num_from=2)
+    corr = s["dimension_corr_carried"]
+    t_c = table([""] + DIMS, [[f"<b>{k}</b>"] + [f(corr[f"{k}_dim"][f"{j}_dim"], 2) for j in DIMS] for k in DIMS])
+    pan = pd.read_csv(d / "panel.csv.gz", usecols=["version", "E_dim", "A_dim", "D_dim", "M_dim"])
+    means = pan[pan.version == cv][[f"{k}_dim" for k in DIMS]].mean()
+
+    a_h, e_h = dv.loc[("holdout", "L_A", "A")], dv.loc[("holdout", "L_A", "E")]
+    e_all_le = allp.loc[("L_E", "E")]
+    return f"""
+<section id="topic_stocks">
+  <header class="shead"><span class="eyebrow">Study 3 · Adanos X + Reddit + News · Kalshi · pre-registered · 2026-08-13 → 10-07</span>
+    <h2>Topic stocks: what each dimension does</h2>
+    <p class="facts">{s['n_tickers']} stocks and ETFs · {s['n_pick_days']} pick days (discovery 20, holdout 19) · {s['n_rows_per_version']:,} stock-days per version · pick at 15:00 ET · score = mean of dimensions E, A, D, M · main label: attention over the next 3 days · dimensions 5–8 not used</p></header>
+  <div class="verdict"><p><b>The four-dimension score picks topics well, but attention does nearly all the work.</b> On the holdout, {cv} put its pick at the {h1['pick_pctl']*100:.0f}th percentile of next-3-day attention (IC {h1['IC']:+.2f}) and beat both momentum and yesterday's most-discussed stock. Attention alone scored higher (IC {a_h.standalone_IC:+.2f}): removing A costs {a_h.ablation_dIC:.2f} of IC, while removing E, D or M changes it by less than 0.03. E decided the pick on {flips['Holdout']['E']:.0%} of holdout days without improving the ranking; on next-day price range it is the dimension that helps most (+{e_all_le.ablation_dIC:.3f} over all days). Kalshi fields lowered IC on their {len(s['kalshi_subset'])} stocks.</p></div>
+  <figure class="wide"><figcaption>Score versions and benchmarks</figcaption>{legend([("s4","dot","discovery (20 days)"),("s1","dot","holdout (19 days), 95% CI")])}{c1}</figure>
+  <div class="grid2">
+    <figure><figcaption>Each dimension on its own</figcaption>{legend([("s1","dot","attention, next 3 days"),("s2","diamond","next-day price range")])}{c2}</figure>
+    <figure><figcaption>What the total loses when a dimension is removed</figcaption>{legend([("s1","dot","attention, next 3 days"),("s2","diamond","next-day price range")])}{c3}</figure>
+  </div>
+  <figure class="wide"><figcaption>Which dimension led the daily pick</figcaption>{legend([(DIM_CLS[k],"bar",DIM_NAME[k]) for k in DIMS])}{c4}</figure>
+  <figure class="wide"><figcaption>Each field on its own</figcaption>{legend([("s1","dot","attention, next 3 days"),("s2","diamond","next-day price range")])}{c6}<p class="note">ᴷ Kalshi field, measured on the {len(s['kalshi_subset'])}-stock subset.</p></figure>
+  <h3>Pre-registered decisions</h3>{t_h}
+  <h3>Dimension record · {cv}, holdout</h3>{t_d}
+  <p class="note">Alone: rank IC of the dimension by itself. Removed: IC of the total minus IC of the total without the dimension, paired by day. Led the pick: the dimension with the largest share of the pick's score. Pick changes without it: share of days the pick would not be ranked first if the dimension were dropped.</p>
+  <h3>Limits of this run</h3>
+  <ul class="limits">
+    <li>Dimensions are not centred. Mean value: E {means['E_dim']:+.2f}, A {means['A_dim']:+.2f}, D {means['D_dim']:+.2f}, M {means['M_dim']:+.2f}, because E2 and D2 are absolute values. The total averages only the dimensions a stock has, so a stock without M is not pulled down by M's negative mean: {pv[pv.period == 'Holdout'].M_dim.isna().mean():.0%} of holdout picks had no M, against {1 - dv.loc[('holdout', 'L_A', 'M')].coverage:.0%} of all stocks.</li>
+    <li>M coverage fell from {dv.loc[('discovery', 'L_A', 'M')].coverage:.0%} in discovery to {dv.loc[('holdout', 'L_A', 'M')].coverage:.0%} in the holdout (fewer Polymarket trades).</li>
+    <li>Kalshi fields were standardised against one pooled history, as pre-registered. That pool mixes the SPY/QQQ index ladders with company markets, and D4 points the wrong way (IC {fa.loc['D4_kalshi_split', 'L_E']:+.2f} on range).</li>
+    <li>The main label rewards attention that persists, which favours A by construction. On next-day range the total beats attention alone ({sc[f'{cv}|holdout|L_E|score']['IC']:+.3f} vs {sc[f'{cv}|holdout|L_E|A_dim']['IC']:+.3f}).</li>
+  </ul>
+  <h3>Versions and benchmarks</h3>{t_v}
+  <details><summary>Dimension record · all 39 days, three labels</summary>{t_d_all}</details>
+  <details><summary>Field record · holdout</summary>{t_f}</details>
+  <details><summary>Daily picks · {cv} (39 days)</summary>{t_p}</details>
+  <details><summary>Correlation between dimensions · {cv}</summary>{t_c}</details>
+  <p class="note">Sanity: oracle IC {s['sanity']['oracle_IC']:.2f}, random IC {s['sanity']['random_IC_mean']:+.4f} (sd {s['sanity']['random_IC_sd']:.3f}). Run <code>{esc(d.name)}</code>.</p>
+</section>"""
+
+
 CSS = """
 /* Layout: a single reading column of study sections, each verdict → charts → tables. Tokens follow the playbook. */
 :root{
@@ -369,6 +552,9 @@ td.num,th.num{text-align:right;white-space:nowrap;font-family:var(--f-mono);font
 details summary{cursor:pointer;font-weight:600;font-size:14px}
 details[open] summary{margin-bottom:8px}
 .note{margin:0;color:var(--muted);font-size:13px}
+#topic_stocks th{white-space:normal;vertical-align:bottom}
+#topic_stocks td:first-child{min-width:128px}
+ul.limits{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px;max-width:80ch}
 footer{color:var(--muted);font-size:13px;display:flex;flex-direction:column;gap:6px}
 footer code{background:var(--paper);border:1px solid var(--rule);padding:1px 6px;border-radius:3px}
 """
@@ -383,14 +569,15 @@ def build():
 <div class="wrap">
   <div class="top">
     <div><h1>Topic Log Backtests</h1>
-      <p>Does the Topic Log pick the tickers that turn out to move? Each study: the conclusion, the charts, the numbers.</p></div>
-    <nav class="jump" aria-label="Studies"><a href="#crypto_indices">Study 1 · crypto + indices</a><a href="#adanos_crypto">Study 2 · Adanos</a></nav>
+      <p>Does the Topic Log pick the right topics? Each study: the conclusion, the charts, the numbers. Newest study first.</p></div>
+    <nav class="jump" aria-label="Studies"><a href="#crypto_indices">Study 1 · crypto + indices</a><a href="#adanos_crypto">Study 2 · Adanos</a><a href="#topic_stocks">Study 3 · topic stocks</a></nav>
   </div>
+  {section_topic_stocks()}
   {section_crypto_indices()}
   {section_adanos()}
   <footer>
     <span>Built {built} from the latest runs in <code>backtest/runs/</code>. Hover a mark for its value.</span>
-    <span>Reproduce: <code>python -m backtest.run --study backtest/studies/crypto_indices</code> · <code>python -m backtest.adanos_study run</code> · <code>python -m backtest.results_page</code></span>
+    <span>Reproduce: <code>python -m backtest.run --study backtest/studies/crypto_indices</code> · <code>python -m backtest.adanos_study run</code> · <code>python -m backtest.topic_study</code> · <code>python -m backtest.results_page</code></span>
   </footer>
 </div>
 """

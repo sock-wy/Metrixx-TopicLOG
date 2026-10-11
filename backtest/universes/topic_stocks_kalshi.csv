@@ -1,0 +1,63 @@
+series,ticker,title,frequency,volume_90d,events_90d
+KXAAPLA,AAPL,Apple KPI,one_off,10686.669999999998,1
+KXAAPLCEOCHANGE,AAPL,Tim Cook leaves Apple,custom,180231.42,1
+KXAPPLEFOLD,AAPL,Apple reveals foldable iPhone,custom,213979.13,1
+KXAMZN,AMZN,Amazon KPI,one_off,59914.51000000001,2
+KXAMZNA,AMZN,Amazon KPI,one_off,49854.61,1
+KXAMZNCC,AMZN,Amazon Credit Card Spend,one_off,329578.88,3
+KXBA,BA,Boeing KPI,one_off,221200.5,1
+KXALANIPOS,CELH,Alani Nu Point of Sale Growth,one_off,66123.03,3
+KXCELSIUSPOS,CELH,Celsius Point of Sale Growth,one_off,64288.16000000001,3
+KXCOINBASE,COIN,Coinbase KPI,one_off,560.77,1
+KXCRWV,CRWV,Coreweave quarter kpi,one_off,4547.74,2
+KXCVXCC,CVX,Chevron Credit Card Spend,one_off,35520.16,2
+KXDDOG,DDOG,Datadog quarter kpi,one_off,4191.27,1
+KXACQANNOUNCEEBAY,EBAY,Will GameStop acquire eBay?,one_off,3444275.21,1
+KXEBAY,EBAY,Ebay KPI,one_off,50165.96,2
+KXGOOG,GOOGL,Google KPI,one_off,14974.390000000005,2
+KXGOOGA,GOOGL,Google KPI,one_off,34862.05,2
+KXHIMS,HIMS,Hims KPI,one_off,158654.23000000004,2
+KXHIMSA,HIMS,Hims KPI,one_off,40793.03,1
+KXHIMSCC,HIMS,Hims Credit Card Spend,one_off,7614.98,2
+KXHOOD,HOOD,Robinhood KPI,one_off,155742.75999999998,3
+KXINTC,INTC,Intel KPI,one_off,8842.279999999999,1
+KXINTCA,INTC,Intel KPI,one_off,927.07,1
+KXACQANNOUNCEJPM,JPM,JP Morgan,one_off,1039.2,1
+KXCOCACOLAPOS,KO,Coca-Cola Point of Sale Growth,one_off,244900.61,3
+KXSPRITEPOS,KO,Sprite Point of Sale Growth,one_off,74528.01000000001,3
+KXLLYCC,LLY,Eli Lilly Credit Card Spend,one_off,20938.59,2
+KXMCD,MCD,McDonald's KPI,one_off,7765.599999999999,2
+KXMCDCC,MCD,McDonald's Credit Card Spend,one_off,16300.96,2
+KXMCDFT,MCD,McDonald's Foot Traffic,one_off,70445.02999999998,3
+KXACQUANNOUNCEMETA,META,META,custom,0.0,1
+KXMETA,META,Meta KPI,one_off,8037.019999999999,3
+KXNEWXBOX,MSFT,New Xbox,one_off,50300.76,1
+KXNET,NET,Cloudflare quarter kpi,one_off,405.65,1
+KXKPOPDH2,NFLX,Will KPop Demon Hunters 2 be released before September 2026?,one_off,79889.6,1
+KXNFLXA,NFLX,Netflix KPI,one_off,14217.45,1
+KXNVDAA,NVDA,Nvidia KPI,one_off,30465.0,1
+KXORCLA,ORCL,Oracle KPI,one_off,10340.69,1
+KXPLTR,PLTR,Palantir KPI,one_off,861.9,1
+KXPLTRA,PLTR,Palantir KPI,one_off,21152.3,1
+KXACQPYPL,PYPL,PayPal acquisition,one_off,29740.68,1
+KXRDDT,RDDT,Reddit KPI,one_off,2021.06,1
+KXRDDTA,RDDT,Reddit KPI,one_off,12129.24,1
+KXRIVN,RIVN,Rivian KPI,one_off,166500.7,3
+KXRIVNA,RIVN,Rivian KPI,one_off,79034.34000000001,1
+KXRKLB,RKLB,Rocket Lab KPI,one_off,3525.05,1
+KXSHOP,SHOP,Shopify KPI,one_off,51679.12,2
+KXSNAP,SNAP,Snapchat KPI,one_off,6488.33,1
+KXSNOWFLAKE,SNOW,Snowflake KPI,one_off,13544.830000000002,2
+KXSOFI,SOFI,Sofi quarter kpi,one_off,9985.84,1
+KXMUSKNW,TSLA,Elon Musk net worth on [date],monthly,136714.68,4
+KXTESLACEOCHANGE,TSLA,New Tesla CEO,custom,92028.86,2
+KXTESLADELIVERYBY,TSLA,Tesla deliveries by,custom,109074.59,1
+KXTESLAROADSTER,TSLA,Tesla Roadster delivered,one_off,90060.94,1
+KXTESLASEMI,TSLA,How many Tesla semi trucks produced,one_off,166404.53,1
+KXTSLA,TSLA,Tesla KPI,one_off,199194.99,8
+KXUBER,UBER,Uber KPI,one_off,1485.8399999999997,1
+KXUBERTRIPS,UBER,UBER,one_off,106622.58,1
+KXWMT,WMT,Walmart KPI,one_off,26459.24,2
+KXWMTCC,WMT,Walmart Credit Card Spend,one_off,49865.96,3
+KXWMTFT,WMT,Walmart Foot Traffic,one_off,29980.110000000004,2
+KXZETA,ZETA,Zeta KPI,one_off,286.0,1

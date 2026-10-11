@@ -97,3 +97,47 @@ def open_markets_snapshot(series: str):
         if not cursor or not body.get("markets"):
             break
     return markets
+
+
+def series_markets(series: str, min_close_ts: int, historical: bool = False, refresh: bool = False):
+    """Every market of a series closing at or after min_close_ts (live or /historical), all fields kept."""
+    tag = "hist" if historical else "live"
+    path = DIR / "series_markets" / f"{series}_{min_close_ts}_{tag}.json"
+    if path.exists() and not refresh:
+        return json.loads(path.read_text())["markets"]
+    url = f"{BASE}/historical/markets" if historical else f"{BASE}/markets"
+    markets, cursor = [], None
+    for _ in range(50):
+        params = {"series_ticker": series, "limit": 1000}
+        if not historical:
+            params["min_close_ts"] = min_close_ts
+        if cursor:
+            params["cursor"] = cursor
+        status, body, _ = http_get(url, params=params, pause=0.25)
+        if status != 200 or not body:
+            break
+        ms = body.get("markets") or []
+        if historical:
+            ms = [m for m in ms if m.get("close_time") and
+                  dt.datetime.fromisoformat(m["close_time"].replace("Z", "+00:00")).timestamp() >= min_close_ts]
+        markets += ms
+        cursor = body.get("cursor")
+        if not cursor or not body.get("markets"):
+            break
+    cache_json(path, {"markets": markets, "_pulled_at": dt.datetime.now(UTC).isoformat()})
+    return markets
+
+
+def market_candles(market: str, start: dt.datetime, end: dt.datetime, historical: bool = False,
+                   series: str | None = None, period_minutes: int = 60, refresh: bool = False):
+    """Hourly candles for one market (live: /series/{s}/markets/{m}; historical: /historical/markets/{m})."""
+    path = DIR / "market_candles" / f"{market}_{int(start.timestamp())}_{int(end.timestamp())}.json"
+    if path.exists() and not refresh:
+        return json.loads(path.read_text()).get("candlesticks") or []
+    url = (f"{BASE}/historical/markets/{market}/candlesticks" if historical
+           else f"{BASE}/series/{series}/markets/{market}/candlesticks")
+    status, body, _ = http_get(url, params={"start_ts": int(start.timestamp()), "end_ts": int(end.timestamp()),
+                                            "period_interval": period_minutes}, ok404=True, pause=0.25)
+    cs = (body or {}).get("candlesticks") or []
+    cache_json(path, {"status": status, "candlesticks": cs, "_pulled_at": dt.datetime.now(UTC).isoformat()})
+    return cs
