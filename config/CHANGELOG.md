@@ -13,6 +13,12 @@ Each entry records:
 
 ---
 
+## p0 (perps.yaml) — 2026-10-13
+
+- **Change**: new file `config/perps.yaml`: Topic Log ticker → Kalshi perp map and definitions of `perp_funding_rate`, `perp_funding_z` (30-day window, min 15 settlements, clip ±5) and `perp_oi_chg_pct` (24 h, hourly candles).
+- **Reason**: WO-TOPICLOG-ALERTS-01 step 4 (D3) adds these three columns to `2_topic_log`. OIL and NATGAS have no active Kalshi perp and stay blank.
+- **Expected effect**: perp columns filled daily for mapped tickers; not yet used in `demand_score`.
+
 ## w0 — 2026-09-29
 
 - **Change**: initial draft. All values in `config/weights_w0.yaml` are starting points.

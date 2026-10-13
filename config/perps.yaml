@@ -1,0 +1,44 @@
+# Kalshi perps fields for 2_topic_log (WO-TOPICLOG-ALERTS-01, step 4 / deliverable D3).
+# Read by scoring/perp_fields.py. Change this file the same way as weights_wN.yaml:
+# bump `version` and add a line to CHANGELOG.md.
+version: p0
+
+# Topic Log ticker -> Kalshi perp market ticker.
+# null = Kalshi lists no active perp for it; the three perp columns stay blank.
+# Checked against GET /margin/markets on 2026-10-13.
+map:
+  GOLD: KXGOLDPERP
+  SILVER: KXSILVERPERP
+  OIL: null          # KXWTIFUTURE exists but is inactive
+  NATGAS: null       # no Kalshi perp
+  COPPER: KXCOPPERPERP
+  PLATINUM: KXPLATINUMPERP
+  PALLADIUM: KXPALLADIUMPERP
+  ALUMINUM: KXALUMINUMPERP
+  SPX: KXUS500PERP
+  NDX: null          # KXUSTECH100PERP exists but is inactive
+  BTC: KXBTCPERP
+  ETH: KXETHPERP
+  SOL: KXSOLPERP
+  XRP: KXXRPPERP
+  DOGE: KXDOGEPERP
+  ADA: KXADAPERP
+  LINK: KXLINKPERP
+  LTC: KXLTCPERP
+
+fields:
+  perp_funding_rate:
+    # The most recent settled funding rate at or before the as-of time, as a fraction
+    # per funding period (0.0005 = 0.05%). Crypto settles 3x a day, metals 1x.
+    source: funding_rates/historical
+  perp_funding_z:
+    # z-score of the latest rate against the settlements in the trailing window
+    # (latest excluded). Blank when the window has too few settlements or no
+    # variation (all deadband zeros).
+    window_days: 30
+    min_settlements: 15
+    clip: 5
+  perp_oi_chg_pct:
+    # Open interest now vs 24 hours earlier, from hourly candles:
+    # OI(last closed hour) / OI(same hour a day earlier) - 1. Blank when either is 0 or missing.
+    lookback_hours: 24
