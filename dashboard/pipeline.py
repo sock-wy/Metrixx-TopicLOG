@@ -12,6 +12,8 @@ Writes every dashboard dataset to --out:
     adanos_daily.json   Adanos Reddit metrics per UTC day, last 21 days
     symbol_appendix.json  every open Kalshi series -> topic
     market_data.json    price, 24h / 5d change and abnormal move per priced topic
+  raw tables from the free sources (dashboard/sources.py), not scored yet:
+    us_stocks.json  earnings_calendar.json  us_movers.json  polymarket.json  crypto_spot.json
 
 Scoring is scoring/scoring.py with config/weights_w0.yaml, unchanged. Momentum is reported next to it, never inside it.
 """
@@ -32,6 +34,7 @@ import zoneinfo
 import yaml
 
 from scoring import scoring
+from . import sources
 from .symbols import CATEGORIES, map_series, topic_info
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -370,6 +373,8 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
             ad_syms[v["adanos_kind"]].append(v["adanos_symbol"])
     ad_cache, steps["adanos"] = adanos_update(adanos_key, ad_cache, now, ad_syms)
 
+    raw, raw_status = sources.pull_all(now_et.date())  # free sources, shown as raw tables, not scored yet
+
     px = prices([v["price_symbol"] for v in feats.values()])
     steps["prices"] = dict(status="ok" if px else "error", symbols=len(px))
 
@@ -502,13 +507,17 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         scored=steps["score"]["scored"], gated=steps["score"]["gated"], prior_pull=prev_ts,
         top_topic=top["topic"] if top else None, top_tier=top["tier"] if top else None,
         top_score=top["demand_score"] if top else None, momentum_top=mtop["topic"] if mtop else None,
+        **{f"{st['dataset']}_status": st["status"] for st in raw_status},
+        **{f"{st['dataset']}_rows": st["rows"] for st in raw_status},
+        **{f"{st['dataset']}_error": st["error"] for st in raw_status if st["error"]},
+        coinbase_usd_pairs=next((st.get("coinbase_usd_pairs") for st in raw_status if st["dataset"] == "crypto_spot"), None),
         seconds=round(time.time() - t0, 1),
     ))
     runs = runs[-240:]
 
     out.mkdir(parents=True, exist_ok=True)
     files = dict(topic_log=out_rows, score_history=history, daily_log=daily, runs=runs,
-                 adanos_daily=ad_cache, symbol_appendix=appendix, market_data=mkt)
+                 adanos_daily=ad_cache, symbol_appendix=appendix, market_data=mkt, **raw)
     for k, v in files.items():
         (out / f"{k}.json").write_text(json.dumps(v, separators=(",", ":"), default=str))
     return runs[-1]

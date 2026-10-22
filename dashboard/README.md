@@ -32,6 +32,20 @@ Seven JSON files, each one dataset on the dashboard:
 | `symbol_appendix.json` | every open Kalshi series → topic, price symbol, Adanos symbol |
 | `market_data.json` | price, 24h / 5d change, abnormal move per priced topic |
 
+## Raw data (free sources, not scored yet)
+
+`sources.py` pulls these on every run. They appear under the dashboard's Raw data tab and in the left-hand source panel, and do not change `demand_score`.
+
+| Dataset | Source | Rows (10/22) |
+|---|---|---|
+| `us_stocks.json` | Nasdaq screener: every US-listed stock, price, change, volume, market cap, sector | ~7,000 |
+| `earnings_calendar.json` | Nasdaq earnings calendar, next 10 weekdays, EPS forecast | ~2,000 |
+| `us_movers.json` | Yahoo screeners: top 100 gainers, losers, most active | 300 |
+| `polymarket.json` | Polymarket gamma API: active events tagged finance, economy, stocks, earnings, fed-rates, commodities, ipos, business, crypto (top 200 per tag by 24h volume) | ~800 |
+| `crypto_spot.json` | Binance (`data-api.binance.vision`) 24h stats per USDT pair, flagged if Coinbase lists the coin against USD | ~700 |
+
+Not reachable without a key: eToro, Alpha Vantage, Finnhub, Polygon, FMP. Not reachable from the cloud environment: Stooq, FRED, CBOE, `api.binance.com`.
+
 ## How a topic is built
 
 - **Topic** = what an episode would be about. `symbols.py` maps each Kalshi series to one topic: crypto tokens, indices, commodities, FX pairs, Treasury tenors, listed companies (all KPI, credit-card, foot-traffic, point-of-sale and app-download series roll up to the stock), private companies (Anthropic, OpenAI, SpaceX…) and a few themes. Unmapped series fall back to their own ticker and are flagged in the appendix.

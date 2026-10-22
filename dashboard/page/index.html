@@ -52,6 +52,7 @@
 #dash-root .tl-bar i b { position: absolute; inset: 0 auto 0 0; border-radius: 3px; }
 #dash-root .tl-heat { display: inline-block; width: 2.6em; text-align: center; border-radius: 3px; padding: 1px 0; }
 #dash-root .tl-muted { color: var(--color-fg-muted); }
+#dash-root .tl-table td.tl-clip { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; }
 #dash-root .tl-pos { color: var(--color-ok); } #dash-root .tl-neg { color: var(--color-bad); }
 #dash-root .tl-empty { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); padding: var(--cds-pad-md); }
 #dash-root .tl-detail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--cds-gap-sm); }
@@ -122,6 +123,7 @@
     <button class="tl-tab" role="tab" id="tab-ranking" data-page="ranking" aria-selected="true">Workbench</button>
     <button class="tl-tab" role="tab" id="tab-daily" data-page="daily" aria-selected="false">Daily picks</button>
     <button class="tl-tab" role="tab" id="tab-runs" data-page="runs" aria-selected="false">Daily steps</button>
+    <button class="tl-tab" role="tab" id="tab-raw" data-page="raw" aria-selected="false">Raw data</button>
     <button class="tl-tab" role="tab" id="tab-market" data-page="market" aria-selected="false">Market data</button>
     <button class="tl-tab" role="tab" id="tab-symbols" data-page="symbols" aria-selected="false">Symbol appendix</button>
   </nav>
@@ -154,8 +156,18 @@
           <span class="src-feeds">momentum: |24h move| ÷ the month's daily volatility</span>
         </div>
 
-        <div class="src ph"><span class="src-name">eToro</span><span class="src-feeds">Live trades and trader portfolios. Not connected yet.</span></div>
-        <div class="src ph"><span class="src-name">Polymarket</span><span class="src-feeds">Volume and odds for the same topics. Not connected yet.</span></div>
+        <p class="tl-note" style="margin-top:4px">Collected every pull, shown under Raw data, not in the score yet:</p>
+        <div class="src" id="src-raw-us_stocks"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_stocks_status"></span>Nasdaq · US stocks</span><button class="tl-chip" data-raw="us_stocks" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="us_stocks_rows">—</span> listed stocks: price, change, volume, market cap, sector</span></div>
+        <div class="src" id="src-raw-earnings_calendar"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="earnings_calendar_status"></span>Nasdaq · earnings</span><button class="tl-chip" data-raw="earnings_calendar" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="earnings_calendar_rows">—</span> reports in the next 10 trading days, with EPS forecast</span></div>
+        <div class="src" id="src-raw-us_movers"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_movers_status"></span>Yahoo · US movers</span><button class="tl-chip" data-raw="us_movers" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="us_movers_rows">—</span> rows: top 100 gainers, losers, most active</span></div>
+        <div class="src" id="src-raw-polymarket"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="polymarket_status"></span>Polymarket</span><button class="tl-chip" data-raw="polymarket" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="polymarket_rows">—</span> events in finance, economy, stocks, earnings, Fed, commodities, IPO, crypto</span></div>
+        <div class="src" id="src-raw-crypto_spot"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="crypto_spot_status"></span>Binance · Coinbase</span><button class="tl-chip" data-raw="crypto_spot" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="crypto_spot_rows">—</span> USDT pairs with 24h stats · <span data-source="latest_run" data-field="coinbase_usd_pairs">—</span> Coinbase USD pairs</span></div>
+        <div class="src ph"><span class="src-name">eToro</span><span class="src-feeds">Live trades and trader portfolios. Needs the API key.</span></div>
         <div class="src ph"><span class="src-name">Metrixx AI upload</span><span class="src-feeds">Market data upload (agenda 2). Not linked yet.</span></div>
 
         <div class="alg" id="universe">
@@ -313,6 +325,20 @@
           <tbody></tbody>
         </table>
       </div>
+    </div>
+  </section>
+
+  <!-- ============================== Raw data -->
+  <section class="tl-page" id="raw" role="tabpanel" aria-labelledby="tab-raw" hidden>
+    <div class="tl-card" id="card-raw">
+      <h3 id="raw-title">Raw data</h3>
+      <p class="tl-note" id="raw-note"></p>
+      <div class="tl-controls">
+        <span id="raw-chips"></span>
+        <input class="tl-search" id="raw-search" type="search" placeholder="Search" aria-label="Search raw data">
+      </div>
+      <div class="tl-scroll" id="raw-box"></div>
+      <p class="tl-note" id="raw-count"></p>
     </div>
   </section>
 
@@ -644,7 +670,7 @@ window.TL = (() => {
     const lr = rows('latest_run')[0];
     document.querySelectorAll('#wb-sources .tl-dot[data-k]').forEach((d) => {
       const v = lr ? lr[d.dataset.k] : null;
-      d.className = 'tl-dot ' + (v === 'ok' || v === 'fetched' || v === 'cached' ? 'ok' : v === 'no key' ? 'warn' : v ? 'bad' : '');
+      d.className = 'tl-dot ' + (v === 'ok' || v === 'fetched' || v === 'cached' ? 'ok' : v === 'no key' || v === 'empty' ? 'warn' : v ? 'bad' : '');
     });
     document.getElementById('src-kalshi').classList.toggle('off', !S.src_kalshi);
     document.getElementById('src-adanos').classList.toggle('off', !S.src_adanos);
@@ -980,8 +1006,79 @@ window.TL = (() => {
     document.getElementById('sym-count').textContent = `${out.length} of ${all.length} series shown · ${un} unmapped`;
   }
 
+  // =================================================================== raw data (free sources, not scored)
+  const pc = (v) => (v == null ? '–' : d3.format('+.2f')(v) + '%');
+  const money = (v) => (v == null ? '–' : '$' + fc.format(v));
+  const px2 = (v) => (v == null ? '–' : Math.abs(v) >= 1 ? d3.format(',.2f')(v) : d3.format('.4~g')(v));
+  const RAW = {
+    us_stocks: { title: 'US stocks · Nasdaq screener', note: 'Every US-listed stock as of this pull. Prices are delayed.', key: 'symbol', sort: ['market_cap', 'desc'],
+      cols: [['symbol', 'Symbol', null, 'l'], ['name', 'Name', null, 'l'], ['price', 'Price', px2], ['change_pct', 'Chg %', pc, 's'], ['volume', 'Volume', (v) => show(v, (x) => fc.format(x))], ['market_cap', 'Mkt cap', money], ['sector', 'Sector', null, 'l'], ['industry', 'Industry', null, 'l']] },
+    earnings_calendar: { title: 'Earnings calendar · Nasdaq', note: 'Reports in the next 10 trading days. Candidate T1 catalysts for single stocks.', key: 'date,symbol', sort: ['market_cap', 'desc'],
+      cols: [['date', 'Date', null, 'l'], ['time', 'When', (v) => (v || '').replace('time-', '').replace('not-supplied', '–'), 'l'], ['symbol', 'Symbol', null, 'l'], ['name', 'Name', null, 'l'], ['market_cap', 'Mkt cap', money], ['fiscal_quarter', 'Quarter', null, 'l'], ['eps_forecast', 'EPS est', (v) => show(v, d3.format('.2f'))], ['n_estimates', '# est', (v) => show(v, d3.format('d'))], ['last_year_eps', 'EPS last yr', (v) => show(v, d3.format('.2f'))]] },
+    us_movers: { title: 'US movers · Yahoo', note: 'Top 100 gainers, losers and most active today. Rel. volume = today ÷ 3-month average.', key: 'list,symbol', sort: ['list_rank', 'asc'],
+      cols: [['list', 'List', null, 'l'], ['list_rank', '#', (v) => String(v)], ['symbol', 'Symbol', null, 'l'], ['name', 'Name', null, 'l'], ['price', 'Price', px2], ['change_pct', 'Chg %', pc, 's'], ['volume', 'Volume', (v) => show(v, (x) => fc.format(x))], ['rel_volume', 'Rel. vol', (v) => show(v, (x) => x.toFixed(1) + '×')], ['market_cap', 'Mkt cap', money]] },
+    polymarket: { title: 'Polymarket events', note: 'Active events in the money tags, by 24h volume. Top market = the event\'s most traded market; price is its last trade.', key: 'event_id', sort: ['volume_24h', 'desc'],
+      cols: [['title', 'Event', null, 'l'], ['matched_tags', 'Tags', null, 'l'], ['volume_24h', 'Vol 24h', money], ['volume_1wk', 'Vol 1w', money], ['liquidity', 'Liquidity', money], ['open_interest', 'OI', money], ['n_markets', 'Mkts', (v) => String(v)], ['top_market', 'Top market', null, 'l'], ['top_price', 'Price', (v) => show(v, d3.format('.2f'))], ['top_change_1d', 'Δ1d', (v) => show(v, d3.format('+.3f')), 's'], ['end_date', 'Ends', null, 'l']] },
+    crypto_spot: { title: 'Crypto spot · Binance, Coinbase', note: 'Binance 24h stats for every USDT pair with volume. Coinbase = listed against USD on Coinbase.', key: 'pair', sort: ['quote_volume', 'desc'],
+      cols: [['symbol', 'Coin', null, 'l'], ['price', 'Price', px2], ['change_pct', 'Chg %', pc, 's'], ['range_pct', '24h range %', (v) => show(v, (x) => x.toFixed(1) + '%')], ['quote_volume', 'Vol 24h', money], ['trades', 'Trades', (v) => show(v, (x) => fc.format(x))], ['on_coinbase', 'Coinbase', (v) => (v == null ? '–' : v ? 'yes' : 'no'), 'l']] },
+  };
+  state.raw = 'us_stocks'; state.rawQ = '';
+  const rawTables = {};
+  function rawTable(id) {
+    if (rawTables[id]) return rawTables[id];
+    const spec = RAW[id];
+    const t = el('table', 'tl-table'); t.id = 'raw-' + id; t.dataset.source = id; t.dataset.rowKey = spec.key;
+    const tr = el('tr');
+    for (const [f, label, , al] of spec.cols) {
+      const th = el('th', al === 'l' ? 'l' : null); th.dataset.field = f;
+      const b = el('button', 'tl-th-btn', label); b.type = 'button'; b.dataset.sort = f; th.append(b); tr.append(th);
+    }
+    const th = el('thead'); th.append(tr); t.append(th, el('tbody'));
+    state.sort['raw-' + id] = { k: spec.sort[0], dir: spec.sort[1] };
+    t.querySelectorAll('.tl-th-btn').forEach((b) => b.addEventListener('click', () => {
+      const cur = state.sort['raw-' + id]; const k = b.dataset.sort;
+      state.sort['raw-' + id] = { k, dir: cur.k === k ? (cur.dir === 'asc' ? 'desc' : 'asc') : (typeof (rows(id)[0] || {})[k] === 'number' ? 'desc' : 'asc') };
+      drawRaw();
+    }));
+    rawTables[id] = t; return t;
+  }
+  function drawRaw() {
+    if (state.page !== 'raw') return;
+    const id = state.raw, spec = RAW[id];
+    chips('raw-chips', Object.keys(RAW), new Set([id]), () => {});
+    document.querySelectorAll('#raw-chips .tl-chip').forEach((b) => { b.onclick = () => { state.raw = b.dataset.v; drawRaw(); }; b.textContent = RAW[b.dataset.v].title.split(' · ')[0]; });
+    document.getElementById('raw-title').textContent = spec.title;
+    document.getElementById('raw-note').textContent = spec.note;
+    const box = document.getElementById('raw-box'); const t = rawTable(id);
+    if (box.firstChild !== t) box.replaceChildren(t);
+    const tbody = t.querySelector('tbody'); const d = dash.data(id);
+    if (d.status !== 'ok') { emptyRow(tbody, spec.cols.length, d.status === 'loading' ? 'Loading…' : 'This source has no data in the latest pull.'); document.getElementById('raw-count').textContent = ''; return; }
+    const q = state.rawQ.toLowerCase();
+    const data = q ? d.data.filter((r) => spec.cols.some(([f, , , al]) => al === 'l' && r[f] != null && String(r[f]).toLowerCase().includes(q))) : d.data;
+    const { out, s } = sortRows('raw-' + id, data, spec.sort[0], spec.sort[1]);
+    ariaSort(t.id, s);
+    const keyCols = spec.key.split(',');
+    const frag = document.createDocumentFragment();
+    for (const r of out.slice(0, 500)) {
+      const tr = el('tr'); tr.dataset.key = keyCols.map((k) => encodeURIComponent(String(r[k]))).join(',');
+      for (const [f, , fmt, al] of spec.cols) {
+        const v = r[f];
+        if (al === 's') { const td = el('td'); td.append(signed(v, () => fmt(v))); tr.append(td); continue; }
+        const td = el('td', al === 'l' ? 'l tl-clip' : null, fmt ? fmt(v) : v == null ? '–' : String(v));
+        if (al === 'l' && v != null) td.title = String(v);
+        tr.append(td);
+      }
+      frag.append(tr);
+    }
+    tbody.replaceChildren(frag);
+    if (!out.length) emptyRow(tbody, spec.cols.length, 'No rows match.');
+    document.getElementById('raw-count').textContent = `${Math.min(500, out.length)} of ${out.length} rows shown${out.length > 500 ? ' · search to narrow' : ''} · ${d.data.length} in this pull`;
+  }
+  document.getElementById('raw-search').addEventListener('input', (e) => { state.rawQ = e.target.value; drawRaw(); });
+  document.querySelectorAll('[data-raw]').forEach((b) => b.addEventListener('click', () => { state.raw = b.dataset.raw; go('raw', true); }));
+
   // =================================================================== tabs
-  const PAGES = ['ranking', 'daily', 'runs', 'market', 'symbols'];
+  const PAGES = ['ranking', 'raw', 'daily', 'runs', 'market', 'symbols'];
   function go(page, link) {
     if (!PAGES.includes(page)) return;
     state.page = page;
@@ -1003,7 +1100,7 @@ window.TL = (() => {
   function drawAll() {
     if (!synced) { syncFromParams(); synced = true; }
     paintSliders(); fillMarks(); paintSources(); recompute();
-    drawDaily(); drawRuns(); drawMarket(); drawSymbols();
+    drawRaw(); drawDaily(); drawRuns(); drawMarket(); drawSymbols();
   }
   const first = location.hash.slice(1);
   if (PAGES.includes(first)) go(first, false);
