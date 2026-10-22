@@ -38,6 +38,7 @@ Data moves left to right once a day. The dotted line is the review loop: results
 | [`alerts/`](alerts/) | Conditional flags and colour rules in the Excel view of the Topic Log. | planned |
 | [`templates/`](templates/) | Production template for each episode, deployed to production. | scope TBD |
 | [`visuals/`](visuals/) | Plotly charts of Topic Log data rendered for Shotstack video. | planned |
+| [`dashboard/`](dashboard/) | Live Topic Log workbench on claude.ai: data sources, tunable algorithm, output. Refreshed eight times a day by a scheduled task. | v0: live |
 | [`backtest/`](backtest/) | Replays the daily selection on history and tests whether picks were newsworthy. Self-contained; reads ingestion, scoring, config. | v0: two studies, results page |
 
 Each folder has its own `README.md` with the module's inputs, outputs, dependencies and usage. Keep that file current when the module changes.

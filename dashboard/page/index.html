@@ -1,0 +1,1013 @@
+<style>
+#dash-root .tl { font-family: var(--font-anthropic-sans); color: var(--color-fg); display: flex; flex-direction: column; gap: var(--cds-gap-lg); }
+#dash-root .tl-head { display: flex; flex-direction: column; gap: var(--cds-gap-xs); }
+#dash-root .tl-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+#dash-root .tl-take { color: var(--color-fg-muted); font-size: var(--cds-font-size-body); margin: 0; max-width: 70ch; }
+#dash-root .tl-take b { color: var(--color-fg); font-weight: 600; }
+#dash-root .tl-tabs { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); border-bottom: 1px solid var(--color-border-line); }
+#dash-root .tl-tab { font: inherit; font-size: var(--cds-font-size-body); background: none; border: 0; border-bottom: 2px solid transparent; padding: var(--cds-pad-xs) var(--cds-pad-sm); color: var(--color-fg-muted); cursor: pointer; }
+#dash-root .tl-tab[aria-selected="true"] { color: var(--color-fg); border-bottom-color: var(--color-fg); }
+#dash-root .tl-tab:focus-visible, #dash-root .tl-chip:focus-visible, #dash-root .tl-th-btn:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+#dash-root .tl-page { display: flex; flex-direction: column; gap: var(--cds-gap-lg); }
+#dash-root .tl-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--cds-gap-sm); }
+#dash-root .tl-step { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#dash-root .tl-step-k { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .02em; }
+#dash-root .tl-step-v { font-size: var(--cds-font-size-body); display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+#dash-root .tl-dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--cds-chart-muted); flex: none; }
+#dash-root .tl-dot.ok { background: var(--color-ok); } #dash-root .tl-dot.warn { background: var(--color-warn); } #dash-root .tl-dot.bad { background: var(--color-bad); }
+#dash-root .tl-step-n { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+#dash-root .tl-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--cds-gap-md); }
+#dash-root .tl-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#dash-root .tl-tile-k { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+#dash-root .tl-tile-v { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.1; overflow-wrap: anywhere; }
+#dash-root .tl-tile-s { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+#dash-root .tl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-md); }
+#dash-root .tl-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+#dash-root .tl-card h3 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+#dash-root .tl-note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); max-width: 75ch; }
+#dash-root .tl-chart { position: relative; min-height: 260px; }
+#dash-root .tl-chart.sm { min-height: 150px; }
+#dash-root .tl-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 2; }
+#dash-root .tl-tip .k { color: var(--cds-text-secondary); }
+#dash-root .tl-controls { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); align-items: center; }
+#dash-root .tl-chip { font: inherit; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg-muted); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+#dash-root .tl-chip[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+#dash-root .tl-search { font: inherit; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); border-radius: var(--cds-radius); padding: 4px 8px; min-width: 0; flex: 1 1 10rem; max-width: 16rem; }
+#dash-root .tl-scroll { overflow: auto; max-height: 34rem; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
+#dash-root .tl-table { border-collapse: collapse; width: 100%; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+#dash-root .tl-table th { position: sticky; top: 0; background: var(--color-panel); text-align: right; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); border-bottom: 1px solid var(--color-border-line); padding: 0; white-space: nowrap; z-index: 1; }
+#dash-root .tl-table th.l, #dash-root .tl-table td.l { text-align: left; }
+#dash-root .tl-th-btn { font: inherit; color: inherit; background: none; border: 0; padding: 6px 8px; cursor: pointer; width: 100%; text-align: inherit; }
+#dash-root .tl-table td { padding: 5px 8px; border-bottom: 1px solid var(--color-border-line); text-align: right; white-space: nowrap; }
+#dash-root .tl-table tbody tr { cursor: default; }
+#dash-root .tl-table.click tbody tr { cursor: pointer; }
+#dash-root .tl-table tbody tr:hover td { background: var(--color-bg); }
+#dash-root .tl-table tr.sel td { background: var(--color-bg); box-shadow: inset 0 1px 0 var(--color-fg), inset 0 -1px 0 var(--color-fg); }
+#dash-root .tl-tier { display: inline-block; min-width: 2.2em; text-align: center; border-radius: 999px; padding: 1px 6px; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); color: var(--color-fg-muted); }
+#dash-root .tl-tier.T1 { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+#dash-root .tl-tier.T2 { border-color: var(--color-fg); color: var(--color-fg); }
+#dash-root .tl-gate { color: var(--color-warn); }
+#dash-root .tl-bar { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+#dash-root .tl-bar i { display: inline-block; height: 6px; border-radius: 3px; background: var(--cds-chart-muted); width: 56px; position: relative; overflow: hidden; }
+#dash-root .tl-bar i b { position: absolute; inset: 0 auto 0 0; border-radius: 3px; }
+#dash-root .tl-heat { display: inline-block; width: 2.6em; text-align: center; border-radius: 3px; padding: 1px 0; }
+#dash-root .tl-muted { color: var(--color-fg-muted); }
+#dash-root .tl-pos { color: var(--color-ok); } #dash-root .tl-neg { color: var(--color-bad); }
+#dash-root .tl-empty { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); padding: var(--cds-pad-md); }
+#dash-root .tl-detail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--cds-gap-sm); }
+#dash-root .tl-detail-head .big { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); }
+#dash-root .tl-comp { display: grid; grid-template-columns: minmax(7rem, auto) 1fr 3.2em 3em; gap: 4px 8px; align-items: center; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+#dash-root .tl-comp i { display: block; height: 8px; border-radius: 4px; background: var(--cds-chart-muted); position: relative; overflow: hidden; }
+#dash-root .tl-comp i b { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+#dash-root .tl-placeholder { border: 1px dashed var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); display: flex; flex-direction: column; gap: 4px; }
+#dash-root .tl-placeholder b { color: var(--color-fg); font-weight: 600; }
+#dash-root [data-dash-source-state=empty] { color: transparent; }
+#dash-root [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+@media (max-width: 640px) { #dash-root .tl-hide-sm { display: none; } }
+#dash-root .wb { display: grid; grid-template-columns: 1fr; gap: var(--cds-gap-md); align-items: start; }
+@media (min-width: 1100px) { #dash-root .wb { grid-template-columns: minmax(15rem, 0.9fr) minmax(19rem, 1.1fr) minmax(0, 2.2fr); } }
+@media (min-width: 760px) and (max-width: 1099px) { #dash-root .wb { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } #dash-root .wb-out { grid-column: 1 / -1; } }
+#dash-root .wb-col { display: flex; flex-direction: column; gap: var(--cds-gap-md); min-width: 0; }
+#dash-root .wb-colhead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--cds-gap-sm); }
+#dash-root .wb-colhead h3 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+#dash-root .wb-step { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .04em; text-transform: uppercase; }
+#dash-root .src { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#dash-root .src.off { opacity: .55; }
+#dash-root .src-top { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+#dash-root .src-name { display: flex; align-items: center; gap: 6px; font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-body); }
+#dash-root .src-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#dash-root .src-feeds { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+#dash-root .src.ph { border-style: dashed; background: transparent; }
+#dash-root .tg { position: relative; width: 34px; height: 20px; flex: none; }
+#dash-root .tg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+#dash-root .tg span { position: absolute; inset: 0; border-radius: 999px; background: var(--cds-chart-muted); transition: background .15s; pointer-events: none; }
+#dash-root .tg span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--color-bg); transition: transform .15s; }
+#dash-root .tg input:checked + span { background: var(--color-fg); }
+#dash-root .tg input:checked + span::after { transform: translateX(14px); }
+#dash-root .tg input:focus-visible + span { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+#dash-root .alg { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+#dash-root .alg h4 { margin: 0; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#dash-root .alg h4 small { font-weight: 400; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+#dash-root .formula { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); background: var(--color-bg); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); overflow-x: auto; white-space: nowrap; }
+#dash-root .sl { display: grid; grid-template-columns: minmax(6.5rem, 1fr) minmax(5rem, 1.4fr) 3.4em; gap: 6px; align-items: center; font-size: var(--cds-font-size-caption); }
+#dash-root .sl label { color: var(--color-fg); overflow-wrap: anywhere; }
+#dash-root .sl label small { display: block; color: var(--color-fg-muted); }
+#dash-root .sl input[type=range] { width: 100%; accent-color: var(--color-fg); min-width: 0; }
+#dash-root .sl output { text-align: right; font-variant-numeric: tabular-nums; }
+#dash-root .sl output.changed { font-weight: 700; }
+#dash-root .sl .share { grid-column: 2 / 4; height: 4px; border-radius: 2px; background: var(--cds-chart-muted); position: relative; overflow: hidden; margin-top: -4px; }
+#dash-root .sl .share b { position: absolute; inset: 0 auto 0 0; background: var(--color-fg); border-radius: 2px; }
+#dash-root .row-tg { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--cds-font-size-caption); }
+#dash-root .btns { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); }
+#dash-root .btn { font: inherit; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); border-radius: var(--cds-radius); padding: 5px 10px; cursor: pointer; }
+#dash-root .btn.primary { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+#dash-root .btn:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+#dash-root .yaml { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--cds-font-size-caption); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm); max-height: 18rem; overflow: auto; white-space: pre; margin: 0; }
+#dash-root .pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: var(--cds-gap-sm); }
+#dash-root .delta-up { color: var(--color-ok); } #dash-root .delta-dn { color: var(--color-bad); }
+</style>
+
+<div class="tl">
+  <header class="tl-head" id="top">
+    <h2 class="tl-title">Metrixx Topic Log</h2>
+    <p class="tl-take" id="takeaway">
+      Latest pull <b data-source="latest_run" data-field="run_et">—</b> ET.
+      With your settings the pick is <b id="take-pick">—</b>; the stored w0 run picked
+      <b data-source="topic_log" data-field="topic" data-where="rank=1">—</b> and momentum alone would pick
+      <b data-source="topic_log" data-field="topic" data-where="momentum_rank=1">—</b>.
+    </p>
+  </header>
+
+  <nav class="tl-tabs" role="tablist" aria-label="Dashboard pages">
+    <button class="tl-tab" role="tab" id="tab-ranking" data-page="ranking" aria-selected="true">Workbench</button>
+    <button class="tl-tab" role="tab" id="tab-daily" data-page="daily" aria-selected="false">Daily picks</button>
+    <button class="tl-tab" role="tab" id="tab-runs" data-page="runs" aria-selected="false">Daily steps</button>
+    <button class="tl-tab" role="tab" id="tab-market" data-page="market" aria-selected="false">Market data</button>
+    <button class="tl-tab" role="tab" id="tab-symbols" data-page="symbols" aria-selected="false">Symbol appendix</button>
+  </nav>
+
+  <!-- ============================== Workbench: sources | algorithm | output -->
+  <section class="tl-page" id="ranking" role="tabpanel" aria-labelledby="tab-ranking">
+    <div class="wb">
+      <!-- 1 · data sources -->
+      <div class="wb-col" id="wb-sources">
+        <div class="wb-colhead"><h3>Data sources</h3><span class="wb-step">1 · in</span></div>
+
+        <div class="src" id="src-kalshi">
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="kalshi"></span>Kalshi</span>
+            <label class="tg" title="Use Kalshi components in the score"><input type="checkbox" id="p-src_kalshi" aria-label="Use Kalshi in the score"><span></span></label></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="kalshi_markets">—</span> open markets · <span data-source="latest_run" data-field="topics">—</span> topics</span>
+          <span class="src-feeds">money_flow · money_stock · market_move, and gates G2 / G3</span>
+        </div>
+
+        <div class="src" id="src-adanos">
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="adanos"></span>Adanos · Reddit</span>
+            <label class="tg"><input type="checkbox" id="p-src_adanos" aria-label="Use Adanos in the score"><span></span></label></div>
+          <span class="src-sub">Status <span data-source="latest_run" data-field="adanos">—</span> · <span data-source="latest_run" data-field="adanos_calls">—</span> calls this pull</span>
+          <span class="src-feeds">attention_shift · activity_shift · sentiment_shift (complete UTC days t−1 vs t−2)</span>
+        </div>
+
+        <div class="src" id="src-prices">
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="prices"></span>Prices · Yahoo</span>
+            <label class="tg"><input type="checkbox" id="p-src_momentum" aria-label="Use momentum in the score"><span></span></label></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="priced">—</span> symbols priced</span>
+          <span class="src-feeds">momentum: |24h move| ÷ the month's daily volatility</span>
+        </div>
+
+        <div class="src ph"><span class="src-name">eToro</span><span class="src-feeds">Live trades and trader portfolios. Not connected yet.</span></div>
+        <div class="src ph"><span class="src-name">Polymarket</span><span class="src-feeds">Volume and odds for the same topics. Not connected yet.</span></div>
+        <div class="src ph"><span class="src-name">Metrixx AI upload</span><span class="src-feeds">Market data upload (agenda 2). Not linked yet.</span></div>
+
+        <div class="alg" id="universe">
+          <h4>Universe <small>asset classes that compete</small></h4>
+          <div class="tl-controls" id="uni-chips" data-source="topic_log"></div>
+        </div>
+
+        <div class="alg" id="card-coverage">
+          <h4>Inputs with data <small>share of topics, this pull</small></h4>
+          <div class="tl-comp" id="coverage" data-source="coverage"></div>
+          <p class="tl-note">Volume and open-interest changes need a pull from 24h earlier. Missing inputs drop out and the weights renormalise.</p>
+        </div>
+      </div>
+
+      <!-- 2 · algorithm -->
+      <div class="wb-col" id="wb-algo">
+        <div class="wb-colhead"><h3>Algorithm</h3><span class="wb-step">2 · score</span></div>
+        <div class="formula">score = quality × cooldown × Σ wᵢ·pctrank(xᵢ) / Σ wᵢ</div>
+        <div class="btns">
+          <button class="btn" id="btn-reset" type="button">Reset to w0</button>
+          <button class="btn" id="btn-yaml" type="button" aria-expanded="false">Export as YAML</button>
+        </div>
+        <div id="yaml-box" hidden>
+          <pre class="yaml" id="yaml"></pre>
+          <div class="btns" style="margin-top:6px"><button class="btn primary" id="btn-copy" type="button">Copy</button><span class="tl-note" id="copy-msg"></span></div>
+        </div>
+        <div class="alg" id="alg-weights"><h4>Weights <small>bar = share of the total</small></h4></div>
+        <div class="alg" id="alg-gates"><h4>Hard gates <small>fail one and the topic is out</small></h4></div>
+        <div class="alg" id="alg-quality"><h4>Quality multiplier <small>spread × zero-trade × sources</small></h4></div>
+        <div class="alg" id="alg-tiers"><h4>Priority tiers <small>tier first, then score</small></h4></div>
+      </div>
+
+      <!-- 3 · output -->
+      <div class="wb-col wb-out" id="wb-out">
+        <div class="wb-colhead"><h3>Output</h3><span class="wb-step">3 · out</span></div>
+        <div class="pick" id="pick">
+          <div class="tl-tile"><span class="tl-tile-k">Your pick</span><span class="tl-tile-v" id="pk-topic">—</span><span class="tl-tile-s" id="pk-sub"></span></div>
+          <div class="tl-tile"><span class="tl-tile-k">Pool</span><span class="tl-tile-v" id="pk-pool">—</span><span class="tl-tile-s" id="pk-pool-sub"></span></div>
+          <div class="tl-tile"><span class="tl-tile-k">Top 10 shared with w0</span><span class="tl-tile-v" id="pk-overlap">—</span><span class="tl-tile-s">topics in both top 10s</span></div>
+        </div>
+
+        <div class="tl-card" id="card-table">
+          <div class="tl-controls">
+            <input class="tl-search" id="rk-search" type="search" placeholder="Search topic or name" aria-label="Search topics">
+            <button class="tl-chip" id="rk-gated" aria-pressed="false">Show gated</button>
+          </div>
+          <div class="tl-scroll">
+            <table class="tl-table click" id="rk-table" data-source="topic_log" data-row-key="topic">
+              <thead><tr>
+                <th><button class="tl-th-btn" data-sort="my_rank">#</button></th>
+                <th data-field="rank"><button class="tl-th-btn" data-sort="rank">w0 #</button></th>
+                <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
+                <th class="l tl-hide-sm" data-field="name"><button class="tl-th-btn" data-sort="name">Name</button></th>
+                <th class="l" data-field="asset_class"><button class="tl-th-btn" data-sort="asset_class">Class</button></th>
+                <th class="l"><button class="tl-th-btn" data-sort="my_tier">Tier</button></th>
+                <th><button class="tl-th-btn" data-sort="my_score">Score</button></th>
+                <th><button class="tl-th-btn" data-sort="p_attention_shift">attn</button></th>
+                <th><button class="tl-th-btn" data-sort="p_activity_shift">activity</button></th>
+                <th><button class="tl-th-btn" data-sort="p_money_flow">flow</button></th>
+                <th><button class="tl-th-btn" data-sort="p_money_stock">OI</button></th>
+                <th><button class="tl-th-btn" data-sort="p_market_move">move</button></th>
+                <th><button class="tl-th-btn" data-sort="p_sentiment_shift">sent</button></th>
+                <th><button class="tl-th-btn" data-sort="p_momentum">mom</button></th>
+                <th><button class="tl-th-btn" data-sort="my_quality">Quality</button></th>
+                <th class="l"><button class="tl-th-btn" data-sort="my_gate">Gate</button></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="tl-note" id="rk-count"></p>
+        </div>
+
+        <div class="tl-card" id="card-detail">
+          <div class="tl-detail-head"><h3 id="detail-title">Click a topic for its breakdown</h3><span class="big" id="detail-score"></span></div>
+          <p class="tl-note" id="detail-meta"></p>
+          <div class="tl-grid">
+            <div><p class="tl-note">Percentile (bar), weight share and points added to the score</p><div class="tl-comp" id="detail-comp" data-source="topic_log"></div></div>
+            <div><p class="tl-note">w0 rank across pulls, last 10 days</p><div class="tl-chart sm" id="detail-hist" data-source="score_history"></div></div>
+          </div>
+        </div>
+
+        <div class="tl-card" id="card-scatter">
+          <h3>Your score vs momentum</h3>
+          <p class="tl-note">Right = higher score with your settings; up = bigger abnormal price move. Top-right topics are picked by both.</p>
+          <div class="tl-chart" id="scatter" data-source="topic_log"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Daily picks -->
+  <section class="tl-page" id="daily" role="tabpanel" aria-labelledby="tab-daily" hidden>
+    <div class="tl-card" id="card-daily-chart">
+      <h3>Daily pick, 15:00 ET pull</h3>
+      <p class="tl-note">The rank-1 topic's demand_score each day, labelled with the topic. This is Sheet 2 (2_topic_log) as of the pick time; Step 4 (the editor's pick) and the episode log come later.</p>
+      <div class="tl-chart" id="daily-chart" data-source="daily_log"></div>
+    </div>
+    <div class="tl-card" id="card-daily-table">
+      <h3>Top 5 per day</h3>
+      <div class="tl-scroll">
+        <table class="tl-table" id="daily-table" data-source="daily_log" data-row-key="date,topic">
+          <thead><tr>
+            <th class="l" data-field="date"><button class="tl-th-btn" data-sort="date">Date</button></th>
+            <th data-field="rank"><button class="tl-th-btn" data-sort="rank">#</button></th>
+            <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
+            <th class="l tl-hide-sm" data-field="name"><button class="tl-th-btn" data-sort="name">Name</button></th>
+            <th class="l" data-field="tier"><button class="tl-th-btn" data-sort="tier">Tier</button></th>
+            <th data-field="demand_score"><button class="tl-th-btn" data-sort="demand_score">demand_score</button></th>
+            <th data-field="momentum_rank"><button class="tl-th-btn" data-sort="momentum_rank">Momentum rank</button></th>
+            <th data-field="chg_24h"><button class="tl-th-btn" data-sort="chg_24h">Price 24h</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Daily steps (runs) -->
+  <section class="tl-page" id="runs" role="tabpanel" aria-labelledby="tab-runs" hidden>
+    <div class="tl-card" id="card-runs-chart">
+      <h3>Topics scored and gated per pull</h3>
+      <p class="tl-note">Eight pulls a day at 15, 18, 21, 00, 03, 06, 09 and 12 ET (playbook v2). A missing bar means a pull did not run.</p>
+      <div class="tl-chart" id="runs-chart" data-source="runs"></div>
+    </div>
+    <div class="tl-card" id="card-runs-table">
+      <h3>Pull log</h3>
+      <div class="tl-scroll">
+        <table class="tl-table" id="runs-table" data-source="runs" data-row-key="run_ts">
+          <thead><tr>
+            <th class="l" data-field="run_ts"><button class="tl-th-btn" data-sort="run_ts">Pull (UTC)</button></th>
+            <th data-field="pull_hour_et"><button class="tl-th-btn" data-sort="pull_hour_et">Slot ET</button></th>
+            <th class="l" data-field="kalshi"><button class="tl-th-btn" data-sort="kalshi">Kalshi</button></th>
+            <th data-field="kalshi_markets"><button class="tl-th-btn" data-sort="kalshi_markets">Markets</button></th>
+            <th class="l" data-field="adanos"><button class="tl-th-btn" data-sort="adanos">Adanos</button></th>
+            <th data-field="adanos_quota_left"><button class="tl-th-btn" data-sort="adanos_quota_left">Adanos quota left</button></th>
+            <th class="l" data-field="prices"><button class="tl-th-btn" data-sort="prices">Prices</button></th>
+            <th data-field="scored"><button class="tl-th-btn" data-sort="scored">Scored</button></th>
+            <th data-field="gated"><button class="tl-th-btn" data-sort="gated">Gated</button></th>
+            <th class="l" data-field="top_topic"><button class="tl-th-btn" data-sort="top_topic">Top</button></th>
+            <th class="l" data-field="momentum_top"><button class="tl-th-btn" data-sort="momentum_top">Momentum top</button></th>
+            <th data-field="seconds"><button class="tl-th-btn" data-sort="seconds">Seconds</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="tl-card" id="card-adanos">
+      <h3>Adanos days on hand</h3>
+      <p class="tl-note">Adanos Reddit metrics cached per complete UTC day for every topic with an Adanos symbol. The score uses day t−1 against t−2, so it needs two days.</p>
+      <div class="tl-scroll" style="max-height: 14rem">
+        <table class="tl-table" id="adanos-table" data-source="adanos_days" data-row-key="date,kind">
+          <thead><tr>
+            <th class="l" data-field="date">Date</th><th class="l" data-field="kind">List</th><th data-field="symbols">Symbols</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Market data -->
+  <section class="tl-page" id="market" role="tabpanel" aria-labelledby="tab-market" hidden>
+    <div class="tl-placeholder" id="metrixx-upload">
+      <span><b>Metrixx AI upload</b> · not linked yet</span>
+      <span>Agenda item 2. This tab currently reads Yahoo Finance prices for every topic that has a listed symbol. Once the Metrixx market-data upload exists, it replaces or joins this source.</span>
+    </div>
+    <div class="tl-card" id="card-market-chart">
+      <h3>Biggest abnormal moves, last 24h</h3>
+      <p class="tl-note">24h price change divided by the month's daily volatility. This is the momentum input shown next to demand_score.</p>
+      <div class="tl-chart" id="market-chart" data-source="market_data"></div>
+    </div>
+    <div class="tl-card" id="card-market-table">
+      <h3>Prices</h3>
+      <div class="tl-controls"><input class="tl-search" id="mk-search" type="search" placeholder="Search" aria-label="Search market data"></div>
+      <div class="tl-scroll">
+        <table class="tl-table" id="mk-table" data-source="market_data" data-row-key="topic">
+          <thead><tr>
+            <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
+            <th class="l tl-hide-sm" data-field="name"><button class="tl-th-btn" data-sort="name">Name</button></th>
+            <th class="l" data-field="asset_class"><button class="tl-th-btn" data-sort="asset_class">Class</button></th>
+            <th class="l" data-field="symbol"><button class="tl-th-btn" data-sort="symbol">Symbol</button></th>
+            <th data-field="price"><button class="tl-th-btn" data-sort="price">Price</button></th>
+            <th data-field="chg_24h"><button class="tl-th-btn" data-sort="chg_24h">24h</button></th>
+            <th data-field="chg_5d"><button class="tl-th-btn" data-sort="chg_5d">5d</button></th>
+            <th data-field="vol_daily"><button class="tl-th-btn" data-sort="vol_daily">Daily vol</button></th>
+            <th data-field="abnormal_move"><button class="tl-th-btn" data-sort="abnormal_move">Abnormal move (σ)</button></th>
+            <th data-field="kalshi_volume_24h"><button class="tl-th-btn" data-sort="kalshi_volume_24h">Kalshi vol 24h</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Symbol appendix -->
+  <section class="tl-page" id="symbols" role="tabpanel" aria-labelledby="tab-symbols" hidden>
+    <div class="tl-tiles" id="sym-tiles" data-source="appendix_classes"></div>
+    <div class="tl-placeholder" id="other-venues">
+      <span><b>Polymarket and Coinbase listings</b> · not added yet</span>
+      <span>Agenda item 3. Kalshi's open Financials, Crypto, Commodities and Companies series are mapped below; Adanos sentiment is joined by symbol. Polymarket markets and Coinbase-listed coins will be added as extra columns once their pulls are in.</span>
+    </div>
+    <div class="tl-card" id="card-sym-table">
+      <h3>Kalshi series → topic</h3>
+      <p class="tl-note">Every open series in the four financial categories, grouped into the topic an episode would cover. "Unmapped" series fall back to their own ticker as the topic.</p>
+      <div class="tl-controls">
+        <input class="tl-search" id="sym-search" type="search" placeholder="Search series, title or topic" aria-label="Search symbol appendix">
+        <span id="sym-classes"></span>
+        <button class="tl-chip" id="sym-unmapped" aria-pressed="false">Unmapped only</button>
+      </div>
+      <div class="tl-scroll">
+        <table class="tl-table" id="sym-table" data-source="symbol_appendix" data-row-key="series">
+          <thead><tr>
+            <th class="l" data-field="series"><button class="tl-th-btn" data-sort="series">Series</button></th>
+            <th class="l" data-field="title"><button class="tl-th-btn" data-sort="title">Title</button></th>
+            <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
+            <th class="l" data-field="asset_class"><button class="tl-th-btn" data-sort="asset_class">Class</button></th>
+            <th class="l tl-hide-sm" data-field="category"><button class="tl-th-btn" data-sort="category">Kalshi category</button></th>
+            <th class="l tl-hide-sm" data-field="frequency"><button class="tl-th-btn" data-sort="frequency">Frequency</button></th>
+            <th class="l" data-field="price_symbol"><button class="tl-th-btn" data-sort="price_symbol">Price symbol</button></th>
+            <th class="l" data-field="adanos"><button class="tl-th-btn" data-sort="adanos">Adanos</button></th>
+            <th data-field="open_markets"><button class="tl-th-btn" data-sort="open_markets">Open markets</button></th>
+            <th data-field="volume_24h"><button class="tl-th-btn" data-sort="volume_24h">Vol 24h</button></th>
+            <th data-field="open_interest"><button class="tl-th-btn" data-sort="open_interest">Open interest</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="tl-note" id="sym-count"></p>
+    </div>
+  </section>
+</div>
+
+<script>
+dash.calc('latest_run', {
+  title: 'Latest pull',
+  description: 'The most recent row of the pull log.',
+  inputs: ['runs'],
+  fn: (runs) => runs.slice(-1),
+});
+dash.calc('coverage', {
+  title: 'Inputs with data',
+  description: 'Share of topics with a value for each score input this pull (raw inputs, before gates).',
+  inputs: ['topic_log'],
+  fn: (topic_log) => {
+    const inputs = {
+      attention_shift: 'buzz_delta_1d', activity_shift: 'mentions_chg_pct', money_flow: 'mkt_volume_delta_1d',
+      money_stock: 'mkt_oi_delta_1d', market_move: 'mkt_prob_delta_1d', sentiment_shift: 'sentiment_delta_1d', momentum: 'abnormal_move',
+    };
+    const n = topic_log.length;
+    return Object.entries(inputs).map(([component, col]) => ({
+      component, input: col, coverage: n ? topic_log.filter((r) => r[col] != null).length / n : null,
+    }));
+  },
+});
+dash.calc('adanos_days', {
+  title: 'Adanos days cached',
+  description: 'Number of symbols in each cached Adanos day, by list.',
+  inputs: ['adanos_daily'],
+  fn: (adanos_daily) => {
+    const m = new Map();
+    for (const r of adanos_daily) { const k = r.date + '|' + r.kind; m.set(k, (m.get(k) || 0) + 1); }
+    return [...m].map(([k, n]) => ({ date: k.split('|')[0], kind: k.split('|')[1], symbols: n })).sort((a, b) => b.date.localeCompare(a.date));
+  },
+});
+dash.calc('appendix_classes', {
+  title: 'Series by asset class',
+  description: 'Open Kalshi series and distinct topics per asset class.',
+  inputs: ['symbol_appendix'],
+  fn: (symbol_appendix) => {
+    const m = new Map();
+    for (const r of symbol_appendix) {
+      const g = m.get(r.asset_class) || { asset_class: r.asset_class, series: 0, topics: new Set(), volume_24h: 0 };
+      g.series += 1; g.topics.add(r.topic); g.volume_24h += r.volume_24h || 0; m.set(r.asset_class, g);
+    }
+    return [...m.values()].map((g) => ({ asset_class: g.asset_class, series: g.series, topics: g.topics.size, volume_24h: g.volume_24h })).sort((a, b) => b.volume_24h - a.volume_24h);
+  },
+});
+
+window.TL = (() => {
+  const f3 = d3.format('.3f'), fpct = d3.format('.0%'), fpct1 = d3.format('+.1%');
+  const fc = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+  const fsig = d3.format('+.1f');
+  const show = (x, fmt) => (x == null || Number.isNaN(x) ? '–' : fmt(x));
+  const ok = (id) => dash.data(id).status === 'ok';
+  const rows = (id) => (ok(id) ? dash.data(id).data : []);
+  const state = { page: 'ranking', sel: null, gated: false, q: '', sort: {}, symClasses: new Set(), unmapped: false, symQ: '', mkQ: '' };
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const classColor = (c) => {
+    const order = ['crypto', 'index', 'commodity', 'fx', 'rates', 'equity', 'private', 'theme'];
+    const i = order.indexOf(c); return i >= 0 ? dash.colors[i % dash.colors.length] : 'var(--cds-chart-muted)';
+  };
+  const heat = (v) => {
+    const s = el('span', 'tl-heat', v == null ? '–' : fpct(v));
+    if (v != null) s.style.background = `color-mix(in srgb, ${dash.colors[0]} ${Math.round(v * 70)}%, transparent)`;
+    else s.classList.add('tl-muted');
+    return s;
+  };
+  const signed = (v, fmt) => el('span', v == null ? 'tl-muted' : v > 0 ? 'tl-pos' : v < 0 ? 'tl-neg' : '', show(v, fmt));
+  function sortRows(key, data, defKey, defDir) {
+    const s = state.sort[key] || { k: defKey, dir: defDir };
+    const out = data.slice().sort((a, b) => {
+      const x = a[s.k], y = b[s.k];
+      if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+      const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y));
+      return s.dir === 'asc' ? c : -c;
+    });
+    return { out, s };
+  }
+  const ASC = ['rank', 'my_rank', 'topic', 'name', 'asset_class', 'tier', 'my_tier', 'gate', 'my_gate', 'series', 'title', 'date', 'momentum_rank'];
+  function wireSort(tableId, key, defKey, defDir, redraw) {
+    document.getElementById(tableId).querySelectorAll('.tl-th-btn').forEach((b) => b.addEventListener('click', () => {
+      const cur = state.sort[key] || { k: defKey, dir: defDir };
+      const k = b.dataset.sort;
+      state.sort[key] = { k, dir: cur.k === k ? (cur.dir === 'asc' ? 'desc' : 'asc') : (ASC.includes(k) ? 'asc' : 'desc') };
+      redraw();
+    }));
+  }
+  function ariaSort(tableId, s) {
+    document.getElementById(tableId).querySelectorAll('th').forEach((th) => {
+      const b = th.querySelector('.tl-th-btn'); if (!b) return;
+      th.setAttribute('aria-sort', b.dataset.sort === s.k ? (s.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+    });
+  }
+  function chips(holderId, values, set, redraw) {
+    const h = document.getElementById(holderId);
+    const want = values.join('|');
+    if (h.dataset.v !== want) {
+      h.dataset.v = want; h.replaceChildren();
+      for (const v of values) {
+        const b = el('button', 'tl-chip', v); b.type = 'button'; b.dataset.v = v;
+        b.addEventListener('click', () => { set.has(v) ? set.delete(v) : set.add(v); redraw(); });
+        h.append(b, document.createTextNode(' '));
+      }
+    }
+    h.querySelectorAll('.tl-chip').forEach((b) => b.setAttribute('aria-pressed', set.has(b.dataset.v) ? 'true' : 'false'));
+  }
+  function emptyRow(tbody, cols, text) { const tr = el('tr'); const td = el('td', 'tl-empty l', text); td.colSpan = cols; tr.append(td); tbody.replaceChildren(tr); }
+  function axisStyle(g) { g.attr('font-size', null).attr('font-family', null); g.select('.domain').remove(); g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)'); }
+
+  // =================================================================== algorithm settings
+  // w0 = config/weights_w0.yaml. Settings live in the dashboard's filters (dash.params), defaults in dash/params.
+  const W0 = {
+    w_attention_shift: 0.25, w_activity_shift: 0.10, w_money_flow: 0.20, w_money_stock: 0.10, w_market_move: 0.20, w_sentiment_shift: 0.15, w_momentum: 0,
+    src_kalshi: true, src_adanos: true, src_momentum: true, classes_off: [],
+    g2_on: true, g3_zero: 0.80, g3_spread: 0.30,
+    q_free: 0.05, q_slope: 0.5, q_floor: 0.6, q_zero_pen: 0.4, q_single: 0.9,
+    tiers_on: true, t1_days: 2, t1_pct: 0.70, t2_flow: 0.70, t2_attn: 0.50, t3_attn: 0.80,
+  };
+  const COMP = [
+    ['attention_shift', 'Attention', 'Adanos buzz Δ1d', 'adanos'], ['activity_shift', 'Activity', 'Adanos mentions Δ%', 'adanos'],
+    ['money_flow', 'Money flow', 'Kalshi 24h volume Δ%', 'kalshi'], ['money_stock', 'Money stock', 'Kalshi open interest Δ%', 'kalshi'],
+    ['market_move', 'Market move', 'Kalshi |prob Δ1d|', 'kalshi'], ['sentiment_shift', 'Sentiment', 'Adanos |sentiment Δ1d|', 'adanos'],
+    ['momentum', 'Momentum', '|24h move| / daily vol (not in w0)', 'momentum'],
+  ];
+  const S = {};           // current settings
+  const P = () => { const p = dash.params() || {}; const o = {}; for (const k in W0) o[k] = p[k] ?? W0[k]; return o; };
+  function syncFromParams() { Object.assign(S, P()); }
+  syncFromParams();
+  const setParam = (k, v) => { S[k] = v; dash.setParams({ [k]: v }); };
+
+  const sliders = [];
+  function slider(holder, key, label, sub, min, max, step, fmt) {
+    const id = 'p-' + key;
+    const row = el('div', 'sl');
+    const lab = el('label', null, label); lab.htmlFor = id; if (sub) lab.append(el('small', null, sub));
+    const inp = el('input'); inp.type = 'range'; inp.id = id; inp.min = min; inp.max = max; inp.step = step;
+    const out = el('output'); out.htmlFor = id;
+    row.append(lab, inp, out);
+    let share = null;
+    if (key.startsWith('w_')) { share = el('div', 'share'); share.append(el('b')); row.append(el('span'), share); }
+    inp.addEventListener('input', () => { S[key] = Number(inp.value); paintSliders(); recompute(); });
+    inp.addEventListener('change', () => setParam(key, Number(inp.value)));
+    document.getElementById(holder).append(row);
+    sliders.push({ key, inp, out, fmt, share });
+  }
+  function toggle(holder, key, label) {
+    const row = el('div', 'row-tg'); const id = 'p-' + key;
+    const lab = el('label', null, label); lab.htmlFor = id;
+    const tg = el('label', 'tg'); const inp = el('input'); inp.type = 'checkbox'; inp.id = id; tg.append(inp, el('span'));
+    row.append(lab, tg); document.getElementById(holder).append(row);
+    wireToggle(inp, key);
+  }
+  function wireToggle(inp, key) {
+    inp.addEventListener('change', () => { setParam(key, inp.checked); recompute(); paintSources(); });
+  }
+  function paintSliders() {
+    const wsum = COMP.reduce((a, [c]) => a + (activeComp(c) ? S['w_' + c] : 0), 0);
+    for (const s of sliders) {
+      if (document.activeElement !== s.inp) s.inp.value = S[s.key];
+      s.out.textContent = s.fmt(S[s.key]);
+      s.out.classList.toggle('changed', S[s.key] !== W0[s.key]);
+      if (s.share) { const c = s.key.slice(2); s.share.firstChild.style.width = (wsum && activeComp(c) ? (S[s.key] / wsum) * 100 : 0) + '%'; }
+    }
+    for (const k of ['src_kalshi', 'src_adanos', 'src_momentum', 'g2_on', 'tiers_on']) { const i = document.getElementById('p-' + k); if (i) i.checked = !!S[k]; }
+  }
+  const activeComp = (c) => { const src = COMP.find((x) => x[0] === c)[3]; return S['src_' + src] !== false; };
+  const f2 = (v) => Number(v).toFixed(2);
+  for (const [c, label, sub] of COMP) slider('alg-weights', 'w_' + c, label, sub, 0, 1, 0.05, f2);
+  toggle('alg-gates', 'g2_on', 'G2 · needs an open market with 24h volume');
+  slider('alg-gates', 'g3_zero', 'G3 max zero-trade', '3 strikes nearest 50%', 0, 1, 0.05, fpct);
+  slider('alg-gates', 'g3_spread', 'G3 max spread', 'avg bid-ask, $', 0, 1, 0.01, f2);
+  slider('alg-quality', 'q_free', 'Free spread', 'no cost up to', 0, 0.3, 0.01, f2);
+  slider('alg-quality', 'q_slope', 'Spread slope', 'divisor', 0.1, 2, 0.05, f2);
+  slider('alg-quality', 'q_floor', 'Spread floor', 'minimum factor', 0, 1, 0.05, f2);
+  slider('alg-quality', 'q_zero_pen', 'Zero-trade penalty', '× zero-trade share', 0, 1, 0.05, f2);
+  slider('alg-quality', 'q_single', 'Single source', 'factor with 1 source', 0.5, 1, 0.05, f2);
+  toggle('alg-tiers', 'tiers_on', 'Use tiers (off = rank by score only)');
+  slider('alg-tiers', 't1_days', 'T1 catalyst within', 'trading days', 0, 10, 1, (v) => v + 'd');
+  slider('alg-tiers', 't1_pct', 'T1 move or flow ≥', 'percentile', 0, 1, 0.05, fpct);
+  slider('alg-tiers', 't2_flow', 'T2 money flow ≥', 'percentile', 0, 1, 0.05, fpct);
+  slider('alg-tiers', 't2_attn', 'T2 attention ≥', 'percentile', 0, 1, 0.05, fpct);
+  slider('alg-tiers', 't3_attn', 'T3 attention ≥', 'percentile', 0, 1, 0.05, fpct);
+  for (const k of ['src_kalshi', 'src_adanos', 'src_momentum']) wireToggle(document.getElementById('p-' + k), k);
+
+  // =================================================================== scoring (port of scoring/scoring.py)
+  function pctrank(values) {
+    const idx = values.map((v, i) => (v == null ? -1 : i)).filter((i) => i >= 0);
+    const out = values.map(() => null); const n = idx.length;
+    if (!n) return out; if (n === 1) { out[idx[0]] = 0.5; return out; }
+    idx.sort((a, b) => values[a] - values[b]);
+    let i = 0;
+    while (i < n) { let j = i; while (j + 1 < n && values[idx[j + 1]] === values[idx[i]]) j++; const p = ((i + j) / 2) / (n - 1); for (let k = i; k <= j; k++) out[idx[k]] = p; i = j + 1; }
+    return out;
+  }
+  function inputs(r) {
+    const k = S.src_kalshi, a = S.src_adanos, m = S.src_momentum;
+    const pd = r.mkt_prob_delta_1d, rg = r.mkt_prob_range_1d;
+    return {
+      attention_shift: a ? r.buzz_delta_1d : null,
+      activity_shift: a ? r.mentions_chg_pct : null,
+      money_flow: k ? r.mkt_volume_delta_1d : null,
+      money_stock: k ? r.mkt_oi_delta_1d : null,
+      market_move: k && !(pd == null && rg == null) ? Math.max(Math.abs(pd || 0), (rg || 0) / 2) : null,
+      sentiment_shift: a && r.sentiment_delta_1d != null ? Math.abs(r.sentiment_delta_1d) : null,
+      momentum: m && r.abnormal_move != null ? Math.abs(r.abnormal_move) : null,
+    };
+  }
+  function gate(r) {
+    if (S.g2_on && r.has_market_evidence === false) return 'G2';
+    if (r.zero_trade_market_pct != null && r.zero_trade_market_pct > S.g3_zero) return 'G3';
+    if (r.avg_spread != null && r.avg_spread > S.g3_spread) return 'G3';
+    if (r.days_since_covered != null && r.days_since_covered <= 3) return 'G4';
+    return null;
+  }
+  function quality(r, adanosOk) {
+    let sf = 1;
+    if (r.avg_spread != null) sf = Math.min(1, Math.max(S.q_floor, 1 - Math.max(0, r.avg_spread - S.q_free) / S.q_slope));
+    const zf = r.zero_trade_market_pct == null ? 1 : 1 - S.q_zero_pen * r.zero_trade_market_pct;
+    const src = (S.src_kalshi ? 1 : 0) + (adanosOk ? 1 : 0);
+    return sf * zf * (src >= 2 ? 1 : S.q_single);
+  }
+  function tier(p, r) {
+    if (!S.tiers_on) return 'T4';
+    const cat = r.catalyst_in_trading_days;
+    if (cat != null && cat <= S.t1_days && ((p.market_move || 0) >= S.t1_pct || (p.money_flow || 0) >= S.t1_pct)) return 'T1';
+    if ((p.money_flow || 0) >= S.t2_flow && (p.attention_shift || 0) >= S.t2_attn) return 'T2';
+    if ((p.attention_shift || 0) >= S.t3_attn) return 'T3';
+    return 'T4';
+  }
+  let result = { live: [], gated: [], out: [] };
+  function recompute() {
+    if (!ok('topic_log')) { result = { live: [], gated: [], out: [] }; drawOutput(); return; }
+    const off = new Set(S.classes_off || []);
+    const pool = rows('topic_log').filter((r) => !off.has(r.asset_class));
+    const live = [], gated = [];
+    for (const r of pool) { const g = gate(r); (g ? gated : live).push({ ...r, my_gate: g }); }
+    const raw = live.map(inputs);
+    for (const [c] of COMP) { const pr = pctrank(raw.map((x) => x[c])); live.forEach((r, i) => { (r.my_p ||= {})[c] = pr[i]; r['p_' + c] = pr[i]; }); }
+    for (const r of live) {
+      let num = 0, den = 0;
+      for (const [c] of COMP) { const v = r.my_p[c], w = S['w_' + c]; if (v != null && w > 0) { num += w * v; den += w; } }
+      const adanosOk = S.src_adanos && ['buzz_delta_1d', 'mentions_chg_pct', 'sentiment_delta_1d'].some((k) => r[k] != null);
+      r.my_den = den; r.my_raw = den ? num / den : 0; r.my_quality = quality(r, adanosOk);
+      r.my_sources = (S.src_kalshi ? 1 : 0) + (adanosOk ? 1 : 0);
+      r.my_score = r.my_raw * r.my_quality; r.my_tier = tier(r.my_p, r);
+    }
+    live.sort((a, b) => a.my_tier.localeCompare(b.my_tier) || b.my_score - a.my_score || b.my_sources - a.my_sources || (b.mkt_ladder_depth || 0) - (a.mkt_ladder_depth || 0));
+    live.forEach((r, i) => { r.my_rank = i + 1; });
+    for (const r of gated) { for (const [c] of COMP) r['p_' + c] = null; r.my_score = null; r.my_tier = null; r.my_rank = null; r.my_quality = null; }
+    result = { live, gated, out: live.concat(gated) };
+    drawOutput();
+  }
+
+  // =================================================================== sources panel
+  function paintSources() {
+    const lr = rows('latest_run')[0];
+    document.querySelectorAll('#wb-sources .tl-dot[data-k]').forEach((d) => {
+      const v = lr ? lr[d.dataset.k] : null;
+      d.className = 'tl-dot ' + (v === 'ok' || v === 'fetched' || v === 'cached' ? 'ok' : v === 'no key' ? 'warn' : v ? 'bad' : '');
+    });
+    document.getElementById('src-kalshi').classList.toggle('off', !S.src_kalshi);
+    document.getElementById('src-adanos').classList.toggle('off', !S.src_adanos);
+    document.getElementById('src-prices').classList.toggle('off', !S.src_momentum);
+    // universe chips
+    const h = document.getElementById('uni-chips');
+    const classes = [...new Set(rows('topic_log').map((r) => r.asset_class))].sort();
+    if (h.dataset.v !== classes.join('|')) {
+      h.dataset.v = classes.join('|'); h.replaceChildren();
+      for (const c of classes) {
+        const b = el('button', 'tl-chip', c); b.type = 'button'; b.dataset.v = c;
+        b.addEventListener('click', () => { const off = new Set(S.classes_off || []); off.has(c) ? off.delete(c) : off.add(c); setParam('classes_off', [...off]); recompute(); paintSources(); });
+        h.append(b, document.createTextNode(' '));
+      }
+    }
+    const off = new Set(S.classes_off || []);
+    h.querySelectorAll('.tl-chip').forEach((b) => b.setAttribute('aria-pressed', off.has(b.dataset.v) ? 'false' : 'true'));
+    const cv = document.getElementById('coverage'); cv.replaceChildren();
+    for (const r of rows('coverage')) {
+      const i = el('i'); const b = el('b'); b.style.width = ((r.coverage || 0) * 100) + '%'; b.style.background = dash.colors[1]; i.append(b);
+      cv.append(el('span', null, r.component), i, el('span', null, show(r.coverage, fpct)), el('span'));
+    }
+  }
+  function fillMarks() {
+    document.querySelectorAll('.tl-head [data-field], #wb-sources [data-field]').forEach((e) => {
+      const id = e.dataset.source;
+      if (!ok(id)) { e.textContent = '—'; return; }
+      const d = rows(id); let r = d[0];
+      if (e.dataset.where) { const [k, v] = e.dataset.where.split('='); r = d.find((x) => String(x[k]) === decodeURIComponent(v)); }
+      const v = r ? r[e.dataset.field] : null;
+      e.textContent = v == null ? '—' : String(v);
+    });
+  }
+
+  // =================================================================== output panel
+  function drawOutput() {
+    const { live, gated, out } = result;
+    const top = live[0];
+    document.getElementById('take-pick').textContent = top ? top.topic : '—';
+    document.getElementById('pk-topic').textContent = top ? top.topic : '—';
+    document.getElementById('pk-sub').textContent = top ? `${top.my_tier} · score ${f3(top.my_score)} · w0 #${top.rank ?? '–'}` : '';
+    document.getElementById('pk-pool').textContent = String(live.length);
+    document.getElementById('pk-pool-sub').textContent = `scored · ${gated.length} gated`;
+    const mine = new Set(live.slice(0, 10).map((r) => r.topic));
+    const w0 = rows('topic_log').filter((r) => r.rank != null && r.rank <= 10).map((r) => r.topic);
+    document.getElementById('pk-overlap').textContent = live.length ? `${w0.filter((t) => mine.has(t)).length} / 10` : '—';
+    drawTable(); drawDetail(); drawScatter();
+  }
+  function drawTable() {
+    const tbody = document.querySelector('#rk-table tbody');
+    if (!ok('topic_log')) { emptyRow(tbody, 16, 'Loading…'); return; }
+    document.getElementById('rk-gated').setAttribute('aria-pressed', state.gated ? 'true' : 'false');
+    const q = state.q.toLowerCase();
+    const data = (state.gated ? result.out : result.live).filter((r) => !q || (r.topic + ' ' + (r.name || '')).toLowerCase().includes(q));
+    const { out, s } = sortRows('rk', data, 'my_rank', 'asc');
+    ariaSort('rk-table', s);
+    const frag = document.createDocumentFragment();
+    for (const r of out.slice(0, 400)) {
+      const tr = el('tr'); tr.dataset.key = r.topic; if (r.topic === state.sel) tr.classList.add('sel');
+      const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c; tr.append(t); };
+      td(r.my_rank == null ? '–' : String(r.my_rank));
+      const d = r.my_rank != null && r.rank != null ? r.rank - r.my_rank : null;
+      const w = el('span', null, r.rank == null ? '–' : String(r.rank));
+      if (d) { const dd = el('span', d > 0 ? 'delta-up' : 'delta-dn', ` ${d > 0 ? '▲' : '▼'}${Math.abs(d)}`); w.append(dd); }
+      td(w);
+      td(r.topic, 'l'); td(r.name || '', 'l tl-hide-sm'); td(r.asset_class, 'l');
+      td(r.my_tier ? el('span', 'tl-tier ' + r.my_tier, r.my_tier) : el('span', 'tl-muted', '–'), 'l');
+      const bar = el('span', 'tl-bar'); bar.append(document.createTextNode(show(r.my_score, f3)));
+      const i = el('i'); const b = el('b'); b.style.width = ((r.my_score || 0) * 100) + '%'; b.style.background = dash.colors[0]; i.append(b); bar.append(i); td(bar);
+      for (const [c] of COMP) td(heat(r['p_' + c]));
+      td(show(r.my_quality, d3.format('.2f')));
+      td(r.my_gate ? el('span', 'tl-gate', r.my_gate) : el('span', 'tl-muted', '–'), 'l');
+      frag.append(tr);
+    }
+    tbody.replaceChildren(frag);
+    if (!out.length) emptyRow(tbody, 16, 'No topic matches. Check the universe or the gates.');
+    document.getElementById('rk-count').textContent = `${out.length} topics shown · ▲▼ = places gained or lost against the stored w0 run`;
+  }
+  function drawDetail() {
+    const r = result.out.find((x) => x.topic === state.sel) || result.live[0];
+    const t = document.getElementById('detail-title'), sc = document.getElementById('detail-score'), meta = document.getElementById('detail-meta'), comp = document.getElementById('detail-comp');
+    comp.replaceChildren();
+    if (!r) { t.textContent = 'Click a topic for its breakdown'; sc.textContent = ''; meta.textContent = ''; drawHist(null); return; }
+    t.textContent = `${r.topic} · ${r.name || ''}`;
+    sc.textContent = r.my_score == null ? `gated ${r.my_gate}` : f3(r.my_score);
+    meta.textContent = r.my_score == null ? `Fails ${r.my_gate} with these settings.` :
+      `#${r.my_rank} · ${r.my_tier} · raw ${f3(r.my_raw)} × quality ${r.my_quality.toFixed(2)} · ${r.my_sources} source${r.my_sources === 1 ? '' : 's'} · ${r.n_series} Kalshi series, ${r.n_markets} markets · w0 #${r.rank ?? '–'}`;
+    for (const [c, label] of COMP) {
+      const v = r['p_' + c]; const w = S['w_' + c];
+      const i = el('i'); const b = el('b'); b.style.width = ((v || 0) * 100) + '%'; b.style.background = dash.colors[0]; i.append(b);
+      const pts = v != null && w > 0 && r.my_den ? (w * v) / r.my_den : null;
+      comp.append(el('span', null, label), i, el('span', v == null ? 'tl-muted' : null, v == null ? 'n/a' : fpct(v)), el('span', 'tl-muted', pts == null ? '' : '+' + pts.toFixed(2)));
+    }
+    drawHist(r.topic);
+  }
+  function drawHist(topic) {
+    const box = document.getElementById('detail-hist');
+    if (state.page !== 'ranking' || !box.clientWidth) return;
+    box.replaceChildren();
+    if (!ok('score_history') || !topic) return;
+    const data = rows('score_history').filter((h) => h.topic === topic && h.rank != null).map((h) => ({ t: new Date(h.run_ts), rank: h.rank })).sort((a, b) => a.t - b.t);
+    if (data.length < 2) { box.append(el('p', 'tl-note', data.length ? `w0 rank ${data[0].rank} in the only pull so far. The line starts after the next pull.` : 'No ranked pulls yet for this topic.')); return; }
+    const W = box.clientWidth, H = 150, m = { t: 10, r: 30, b: 24, l: 30 };
+    const x = d3.scaleUtc(d3.extent(data, (d) => d.t), [m.l, W - m.r]);
+    const y = d3.scaleLinear([1, Math.max(10, d3.max(data, (d) => d.rank))], [m.t, H - m.b]);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    axisStyle(svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.max(2, Math.floor(W / 110))).tickFormat(d3.utcFormat('%b %-d'))));
+    axisStyle(svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(-(W - m.l - m.r))));
+    svg.append('path').datum(data).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').attr('d', d3.line((d) => x(d.t), (d) => y(d.rank)));
+    const last = data[data.length - 1];
+    svg.append('circle').attr('cx', x(last.t)).attr('cy', y(last.rank)).attr('r', 3.5).attr('fill', dash.colors[0]);
+    svg.append('text').attr('x', x(last.t) + 6).attr('y', y(last.rank) + 4).attr('fill', 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').text('#' + last.rank);
+  }
+  function drawScatter() {
+    const box = document.getElementById('scatter');
+    if (state.page !== 'ranking' || !box.clientWidth) return;
+    box.replaceChildren();
+    const data = result.live.filter((r) => r.my_score != null && r.abnormal_move != null);
+    if (!data.length) return;
+    const mp = pctrank(data.map((r) => Math.abs(r.abnormal_move)));
+    data.forEach((r, i) => { r._mp = mp[i]; });
+    const W = box.clientWidth, H = 260, m = { t: 10, r: 12, b: 34, l: 40 };
+    const x = d3.scaleLinear([0, Math.max(1, d3.max(data, (d) => d.my_score))], [m.l, W - m.r]), y = d3.scaleLinear([0, 1], [H - m.b, m.t]);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Score against momentum percentile');
+    axisStyle(svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5).tickSize(-(H - m.t - m.b)).tickFormat(d3.format('.1f'))));
+    axisStyle(svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(d3.format('.0%'))));
+    svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text('score →');
+    svg.append('text').attr('x', m.l + 4).attr('y', m.t + 10).attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text('↑ momentum pct');
+    const tip = el('div', 'tl-tip'); tip.hidden = true; box.append(tip);
+    svg.append('g').selectAll('circle').data(data).join('circle')
+      .attr('cx', (d) => x(d.my_score)).attr('cy', (d) => y(d._mp)).attr('r', (d) => (d.topic === state.sel ? 6 : 4))
+      .attr('fill', (d) => classColor(d.asset_class)).attr('fill-opacity', 0.8).attr('stroke', (d) => (d.topic === state.sel ? 'var(--color-fg)' : 'none')).attr('stroke-width', 1.5).style('cursor', 'pointer')
+      .on('mouseenter', (ev, d) => {
+        tip.replaceChildren(el('div', 'k', `${d.topic} · ${d.asset_class}`), el('div', null, `score ${f3(d.my_score)} · #${d.my_rank}`), el('div', null, `momentum ${fpct(d._mp)} (${fsig(d.abnormal_move)}σ)`));
+        tip.hidden = false;
+        tip.style.left = Math.min(Math.max(0, x(d.my_score) + 10), W - tip.offsetWidth) + 'px'; tip.style.top = Math.max(0, y(d._mp) - tip.offsetHeight - 8) + 'px';
+      })
+      .on('mouseleave', () => { tip.hidden = true; })
+      .on('click', (ev, d) => select(d.topic));
+    const used = [];
+    svg.append('g').selectAll('text').data(data.slice().sort((a, b) => a.my_rank - b.my_rank).slice(0, 5)).join('text')
+      .attr('x', (d) => Math.min(x(d.my_score) + 6, W - m.r - 40)).attr('y', (d) => { let yy = y(d._mp) - 6; while (used.some((u) => Math.abs(u - yy) < 12)) yy += 12; used.push(yy); return yy; })
+      .attr('fill', 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').text((d) => d.topic);
+  }
+  function select(topic) { state.sel = topic; drawTable(); drawDetail(); drawScatter(); }
+
+  // =================================================================== YAML export
+  function yaml() {
+    const n = (v) => String(+Number(v).toFixed(4));
+    const L = [
+      '# Exported from the Metrixx Topic Log dashboard. Copy to config/weights_wN.yaml,',
+      '# bump `version`, and add an entry to config/CHANGELOG.md.',
+      'version: wN', `effective_from: ${new Date().toISOString().slice(0, 10)}`, 'status: draft', '',
+      'gates:', '  G1_freshness:', '    max_age_hours: 24', '  G2_market_evidence:', `    min_open_contracts_with_volume: ${S.g2_on ? 1 : 0}`,
+      '  G3_liquidity_floor:', `    max_zero_trade_market_pct: ${n(S.g3_zero)}`, `    max_avg_spread: ${n(S.g3_spread)}`,
+      '  G4_cooldown:', '    window_days: 3', '  G5_not_settled:', '    min_implied_prob: 0.01', '    max_implied_prob: 0.99', '',
+      'components:',
+      ...COMP.filter(([c]) => c !== 'momentum').flatMap(([c]) => [`  ${c}:`, `    weight: ${n(activeComp(c) ? S['w_' + c] : 0)}`]),
+    ];
+    if (S.w_momentum > 0 && S.src_momentum) L.push('  momentum:            # candidate change 2 in the playbook; scoring.py needs this input before use', `    weight: ${n(S.w_momentum)}`, '    input: abs(abnormal_move_24h)');
+    L.push('', 'quality:', '  spread:', `    free_below: ${n(S.q_free)}`, `    slope_divisor: ${n(S.q_slope)}`, `    floor: ${n(S.q_floor)}`,
+      '  zero_trade:', `    penalty: ${n(S.q_zero_pen)}`, '  sources:', '    min_for_full_credit: 2', `    single_source_factor: ${n(S.q_single)}`, '',
+      'cooldown:', '  soft_band_days: 4', '  soft_band_multiplier: 0.85', '',
+      `tiers:${S.tiers_on ? '' : '                 # tiers were switched off in the dashboard'}`,
+      '  T1:', '    label: Event with money behind it', `    catalyst_within_trading_days: ${n(S.t1_days)}`, '    any_of:', `      market_move_pct_min: ${n(S.t1_pct)}`, `      money_flow_pct_min: ${n(S.t1_pct)}`,
+      '  T2:', '    label: Money moving', '    all_of:', `      money_flow_pct_min: ${n(S.t2_flow)}`, `      attention_shift_pct_min: ${n(S.t2_attn)}`,
+      '  T3:', '    label: Attention only', '    all_of:', `      attention_shift_pct_min: ${n(S.t3_attn)}`, '  T4:', '    label: Baseline');
+    if (S.classes_off && S.classes_off.length) L.push('', `# universe: excluded asset classes = [${S.classes_off.join(', ')}]`);
+    return L.join('\n');
+  }
+  const yb = document.getElementById('btn-yaml');
+  yb.addEventListener('click', () => { const box = document.getElementById('yaml-box'); box.hidden = !box.hidden; yb.setAttribute('aria-expanded', String(!box.hidden)); document.getElementById('yaml').textContent = yaml(); });
+  document.getElementById('btn-copy').addEventListener('click', () => {
+    const txt = yaml(); const msg = document.getElementById('copy-msg');
+    const sel = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById('yaml')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = 'Selected. Press Ctrl/Cmd+C to copy.'; };
+    try { navigator.clipboard.writeText(txt).then(() => { msg.textContent = 'Copied'; }, sel); } catch (e) { sel(); }
+  });
+  document.getElementById('btn-reset').addEventListener('click', () => { dash.resetParams(); Object.assign(S, W0); paintSliders(); paintSources(); recompute(); });
+  document.getElementById('rk-search').addEventListener('input', (e) => { state.q = e.target.value; drawTable(); });
+  document.getElementById('rk-gated').addEventListener('click', () => { state.gated = !state.gated; drawTable(); });
+  document.querySelector('#rk-table tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-key]'); if (tr) select(tr.dataset.key); });
+  wireSort('rk-table', 'rk', 'my_rank', 'asc', drawTable);
+
+  // ---------- daily
+  function drawDaily() {
+    const tbody = document.querySelector('#daily-table tbody');
+    const box = document.getElementById('daily-chart');
+    if (!ok('daily_log')) { emptyRow(tbody, 8, dash.data('daily_log').status === 'loading' ? 'Loading…' : 'The first entry lands with the 15:00 ET pull.'); box.replaceChildren(); return; }
+    const all = rows('daily_log').filter((r) => r.rank != null && r.rank <= 5);
+    const { out, s } = sortRows('daily', all, 'date', 'desc');
+    ariaSort('daily-table', s);
+    if (!out.length) emptyRow(tbody, 8, 'The first entry lands with the 15:00 ET pull.');
+    else {
+      const frag = document.createDocumentFragment();
+      for (const r of out) {
+        const tr = el('tr'); tr.dataset.key = [r.date, r.topic].map(encodeURIComponent).join(',');
+        const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c; tr.append(t); };
+        td(r.date, 'l'); td(String(r.rank)); td(r.topic, 'l'); td(r.name || '', 'l tl-hide-sm');
+        td(r.tier ? el('span', 'tl-tier ' + r.tier, r.tier) : '–', 'l'); td(show(r.demand_score, f3));
+        td(r.momentum_rank == null ? '–' : String(r.momentum_rank)); td(signed(r.chg_24h, fpct1));
+        frag.append(tr);
+      }
+      tbody.replaceChildren(frag);
+    }
+    if (state.page !== 'daily' || !box.clientWidth) return;
+    box.replaceChildren();
+    const picks = rows('daily_log').filter((r) => r.rank === 1).map((r) => ({ d: new Date(r.date + 'T00:00:00Z'), s: r.demand_score, topic: r.topic })).sort((a, b) => a.d - b.d);
+    if (!picks.length) { box.append(el('p', 'tl-note', 'No daily pick recorded yet. The 15:00 ET pull writes the first one.')); return; }
+    const W = box.clientWidth, H = 260, m = { t: 20, r: 16, b: 28, l: 40 };
+    const x = d3.scaleBand(picks.map((p) => +p.d), [m.l, W - m.r]).padding(0.3);
+    const y = d3.scaleLinear([0, 1], [H - m.b, m.t]);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const every = Math.ceil(picks.length / Math.max(1, Math.floor(W / 70)));
+    const gx = svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(x.domain().filter((_, i) => i % every === 0)).tickFormat((v) => d3.utcFormat('%b %-d')(new Date(v))));
+    const gy = svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(d3.format('.1f')));
+    for (const g of [gx, gy]) { g.attr('font-size', null).attr('font-family', null); g.select('.domain').remove(); g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)'); }
+    svg.append('g').selectAll('rect').data(picks).join('rect').attr('x', (p) => x(+p.d)).attr('width', Math.min(32, x.bandwidth())).attr('y', (p) => y(p.s || 0)).attr('height', (p) => y(0) - y(p.s || 0)).attr('rx', 4).attr('fill', dash.colors[0]);
+    if (x.bandwidth() >= 22) svg.append('g').selectAll('text').data(picks).join('text').attr('x', (p) => x(+p.d) + Math.min(32, x.bandwidth()) / 2).attr('y', (p) => y(p.s || 0) - 4).attr('text-anchor', 'middle').attr('fill', 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').text((p) => p.topic);
+  }
+
+  // ---------- runs
+  function drawRuns() {
+    const tbody = document.querySelector('#runs-table tbody');
+    if (!ok('runs')) { emptyRow(tbody, 12, 'Loading…'); return; }
+    const { out, s } = sortRows('runs', rows('runs'), 'run_ts', 'desc');
+    ariaSort('runs-table', s);
+    const frag = document.createDocumentFragment();
+    for (const r of out) {
+      const tr = el('tr'); tr.dataset.key = r.run_ts;
+      const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
+      td(r.run_ts, 'l'); td(String(r.pull_hour_et).padStart(2, '0') + ':00'); td(r.kalshi, 'l'); td(show(r.kalshi_markets, d3.format(','))); td(r.adanos, 'l');
+      td(r.adanos_quota_left == null ? '–' : String(r.adanos_quota_left)); td(r.prices, 'l'); td(String(r.scored)); td(String(r.gated));
+      td(r.top_topic, 'l'); td(r.momentum_top, 'l'); td(String(r.seconds));
+      frag.append(tr);
+    }
+    tbody.replaceChildren(frag);
+    const at = document.querySelector('#adanos-table tbody');
+    if (!ok('adanos_days')) emptyRow(at, 3, dash.data('adanos_days').status === 'loading' ? 'Loading…' : 'Nothing cached yet. Adanos is fetched once the API key is set.');
+    else {
+      const a = rows('adanos_days');
+      if (!a.length) emptyRow(at, 3, 'Nothing cached yet. Adanos is fetched once the API key is set.');
+      else at.replaceChildren(...a.map((r) => { const tr = el('tr'); tr.dataset.key = [r.date, r.kind].map(encodeURIComponent).join(','); tr.append(el('td', 'l', r.date), el('td', 'l', r.kind), el('td', null, String(r.symbols))); return tr; }));
+    }
+    const box = document.getElementById('runs-chart');
+    if (state.page !== 'runs' || !box.clientWidth) return;
+    box.replaceChildren();
+    const data = rows('runs').map((r) => ({ t: new Date(r.run_ts), scored: r.scored, gated: r.gated })).sort((a, b) => a.t - b.t).slice(-48);
+    const W = box.clientWidth, H = 260, m = { t: 12, r: 16, b: 28, l: 40 };
+    const x = d3.scaleBand(data.map((d) => +d.t), [m.l, W - m.r]).padding(0.25);
+    const y = d3.scaleLinear([0, d3.max(data, (d) => d.scored + d.gated) || 1], [H - m.b, m.t]).nice();
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const every = Math.ceil(data.length / Math.max(1, Math.floor(W / 80)));
+    const gx = svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(x.domain().filter((_, i) => i % every === 0)).tickFormat((v) => d3.timeFormat('%b %-d %H:%M')(new Date(v))));
+    const gy = svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)));
+    for (const g of [gx, gy]) { g.attr('font-size', null).attr('font-family', null); g.select('.domain').remove(); g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)'); }
+    const bw = Math.min(32, x.bandwidth());
+    svg.append('g').selectAll('rect').data(data).join('rect').attr('x', (d) => x(+d.t)).attr('width', bw).attr('y', (d) => y(d.scored)).attr('height', (d) => y(0) - y(d.scored)).attr('fill', dash.colors[0]);
+    svg.append('g').selectAll('rect').data(data).join('rect').attr('x', (d) => x(+d.t)).attr('width', bw).attr('y', (d) => y(d.scored + d.gated)).attr('height', (d) => y(d.scored) - y(d.scored + d.gated)).attr('fill', 'var(--cds-chart-muted)');
+    const lg = svg.append('g').attr('transform', `translate(${m.l + 4},${m.t + 2})`);
+    [['Scored', dash.colors[0]], ['Gated', 'var(--cds-chart-muted)']].forEach(([t, c], i) => { lg.append('rect').attr('x', i * 76).attr('width', 10).attr('height', 10).attr('rx', 2).attr('fill', c); lg.append('text').attr('x', i * 76 + 14).attr('y', 9).attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text(t); });
+  }
+
+  // ---------- market data
+  function drawMarket() {
+    const tbody = document.querySelector('#mk-table tbody');
+    if (!ok('market_data')) { emptyRow(tbody, 10, 'Loading…'); return; }
+    const q = state.mkQ.toLowerCase();
+    const data = rows('market_data').filter((r) => !q || (r.topic + ' ' + r.name + ' ' + r.symbol).toLowerCase().includes(q));
+    const { out, s } = sortRows('mk', data, 'abnormal_move', 'desc');
+    ariaSort('mk-table', s);
+    const frag = document.createDocumentFragment();
+    for (const r of out) {
+      const tr = el('tr'); tr.dataset.key = r.topic;
+      const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c; tr.append(t); };
+      td(r.topic, 'l'); td(r.name || '', 'l tl-hide-sm'); td(r.asset_class, 'l'); td(r.symbol, 'l');
+      td(show(r.price, (v) => (Math.abs(v) >= 1000 ? d3.format(',.0f')(v) : Math.abs(v) >= 1 ? d3.format(',.2f')(v) : d3.format('.4~g')(v))));
+      td(signed(r.chg_24h, fpct1)); td(signed(r.chg_5d, fpct1)); td(show(r.vol_daily, d3.format('.1%')));
+      td(signed(r.abnormal_move, (v) => fsig(v) + 'σ')); td(show(r.kalshi_volume_24h, (v) => fc.format(v)));
+      frag.append(tr);
+    }
+    tbody.replaceChildren(frag);
+    const box = document.getElementById('market-chart');
+    if (state.page !== 'market' || !box.clientWidth) return;
+    box.replaceChildren();
+    const top = rows('market_data').filter((r) => r.abnormal_move != null).sort((a, b) => Math.abs(b.abnormal_move) - Math.abs(a.abnormal_move)).slice(0, 12);
+    if (!top.length) return;
+    const W = box.clientWidth, rowH = 20, m = { t: 8, r: 50, b: 22, l: 64 }, H = m.t + m.b + top.length * rowH;
+    box.style.minHeight = H + 'px';
+    const ext = d3.max(top, (d) => Math.abs(d.abnormal_move));
+    const x = d3.scaleLinear([-ext, ext], [m.l, W - m.r]).nice();
+    const y = d3.scaleBand(top.map((d) => d.topic), [m.t, H - m.b]).padding(0.25);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const gx = svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5).tickSize(-(H - m.t - m.b)).tickFormat((v) => v + 'σ'));
+    gx.attr('font-size', null).attr('font-family', null); gx.select('.domain').remove(); gx.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); gx.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)');
+    svg.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-axis)');
+    svg.append('g').selectAll('rect').data(top).join('rect').attr('x', (d) => Math.min(x(0), x(d.abnormal_move))).attr('width', (d) => Math.abs(x(d.abnormal_move) - x(0))).attr('y', (d) => y(d.topic)).attr('height', y.bandwidth()).attr('rx', 3)
+      .attr('fill', (d) => (d.abnormal_move < 0 ? 'var(--color-bad)' : 'var(--color-ok)')).attr('fill-opacity', 0.75);
+    svg.append('g').selectAll('text').data(top).join('text').attr('x', m.l - 6).attr('y', (d) => y(d.topic) + y.bandwidth() / 2 + 4).attr('text-anchor', 'end').attr('fill', 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').text((d) => d.topic);
+    svg.append('g').selectAll('text').data(top).join('text').attr('x', (d) => (d.abnormal_move < 0 ? x(d.abnormal_move) - 4 : x(d.abnormal_move) + 4)).attr('text-anchor', (d) => (d.abnormal_move < 0 ? 'end' : 'start'))
+      .attr('y', (d) => y(d.topic) + y.bandwidth() / 2 + 4).attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text((d) => fpct1(d.chg_24h));
+  }
+
+  // ---------- symbol appendix
+  function drawSymbols() {
+    const tiles = document.getElementById('sym-tiles');
+    if (ok('appendix_classes')) {
+      tiles.replaceChildren(...rows('appendix_classes').map((g) => {
+        const t = el('div', 'tl-tile'); t.append(el('span', 'tl-tile-k', g.asset_class), el('span', 'tl-tile-v', String(g.topics)), el('span', 'tl-tile-s', `topics · ${g.series} series · ${fc.format(g.volume_24h)} vol 24h`)); return t;
+      }));
+    }
+    const tbody = document.querySelector('#sym-table tbody');
+    if (!ok('symbol_appendix')) { emptyRow(tbody, 11, 'Loading…'); return; }
+    const all = rows('symbol_appendix');
+    chips('sym-classes', [...new Set(all.map((r) => r.asset_class))].sort(), state.symClasses, drawSymbols);
+    document.getElementById('sym-unmapped').setAttribute('aria-pressed', state.unmapped ? 'true' : 'false');
+    const q = state.symQ.toLowerCase();
+    const data = all.filter((r) => (!state.unmapped || !r.mapped) && (!state.symClasses.size || state.symClasses.has(r.asset_class)) &&
+      (!q || (r.series + ' ' + (r.title || '') + ' ' + r.topic + ' ' + (r.topic_name || '')).toLowerCase().includes(q)));
+    const { out, s } = sortRows('sym', data, 'volume_24h', 'desc');
+    ariaSort('sym-table', s);
+    const frag = document.createDocumentFragment();
+    for (const r of out) {
+      const tr = el('tr'); tr.dataset.key = r.series;
+      const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
+      td(r.series, 'l'); td(r.title, 'l'); td(r.mapped ? r.topic : el('span', 'tl-gate', r.topic + ' (unmapped)'), 'l'); td(r.asset_class, 'l');
+      td(r.category, 'l tl-hide-sm'); td(r.frequency, 'l tl-hide-sm'); td(r.price_symbol, 'l'); td(r.adanos, 'l');
+      td(String(r.open_markets)); td(fc.format(r.volume_24h || 0)); td(fc.format(r.open_interest || 0));
+      frag.append(tr);
+    }
+    tbody.replaceChildren(frag);
+    if (!out.length) emptyRow(tbody, 11, 'No series match.');
+    const un = all.filter((r) => !r.mapped).length;
+    document.getElementById('sym-count').textContent = `${out.length} of ${all.length} series shown · ${un} unmapped`;
+  }
+
+  // =================================================================== tabs
+  const PAGES = ['ranking', 'daily', 'runs', 'market', 'symbols'];
+  function go(page, link) {
+    if (!PAGES.includes(page)) return;
+    state.page = page;
+    document.querySelectorAll('.tl-tab').forEach((b) => b.setAttribute('aria-selected', b.dataset.page === page ? 'true' : 'false'));
+    PAGES.forEach((p) => { document.getElementById(p).hidden = p !== page; });
+    if (link) dash.setLink(page);
+    drawAll();
+  }
+  document.querySelectorAll('.tl-tab').forEach((b) => b.addEventListener('click', () => go(b.dataset.page, true)));
+  document.getElementById('sym-search').addEventListener('input', (e) => { state.symQ = e.target.value; drawSymbols(); });
+  document.getElementById('sym-unmapped').addEventListener('click', () => { state.unmapped = !state.unmapped; drawSymbols(); });
+  document.getElementById('mk-search').addEventListener('input', (e) => { state.mkQ = e.target.value; drawMarket(); });
+  wireSort('daily-table', 'daily', 'date', 'desc', drawDaily);
+  wireSort('runs-table', 'runs', 'run_ts', 'desc', drawRuns);
+  wireSort('mk-table', 'mk', 'abnormal_move', 'desc', drawMarket);
+  wireSort('sym-table', 'sym', 'volume_24h', 'desc', drawSymbols);
+
+  let synced = false;
+  function drawAll() {
+    if (!synced) { syncFromParams(); synced = true; }
+    paintSliders(); fillMarks(); paintSources(); recompute();
+    drawDaily(); drawRuns(); drawMarket(); drawSymbols();
+  }
+  const first = location.hash.slice(1);
+  if (PAGES.includes(first)) go(first, false);
+  return { drawAll };
+})();
+dash.onData(() => window.TL.drawAll());
+</script>
