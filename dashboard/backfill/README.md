@@ -22,8 +22,11 @@ History for Topic Log backtests. All timestamps are UTC (`ts`). See CATALOG.md f
 - `prices_1h.parquet`: hourly YES price, last 30 days (the API caps hourly history at about a month).
 - `prices_1d.parquet`: daily YES price over each market's whole life.
 
+## adanos/ (added after the key arrived)
+- `daily_by_symbol.parquet`: daily buzz, mentions, sentiment, bullish/bearish % (and Polymarket trade_count) per symbol, 2026-07-25 to 2026-10-21 (the hobby key's ~90-day limit). Platforms: reddit, x, news, polymarket (stocks) and reddit (crypto). Symbols: every Topic Log topic with an Adanos symbol plus the 1,000 largest US stocks.
+- `trending_stocks.parquet`, `trending_tokens.parquet`, `trending_sectors.parquet`: each day's top-100 trending lists per platform, same window.
+
 ## Not included
-- Adanos (needs the API key; history is limited to 90 days on the hobby account, so pull it soon after the key is in).
 - eToro, minute-level Kalshi (too large for one pass; easy to add for chosen series).
 
 Scripts: `dashboard/backfill/` on branch `feat/dashboard` of sock-wy/Metrixx-TopicLOG.
