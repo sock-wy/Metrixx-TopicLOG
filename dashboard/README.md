@@ -126,7 +126,7 @@ Why: study `broad_v2` (`backtest/broad_*.py`, results page `backtest/broad/resul
 
 ## Desktop app (`Topic Log.app`)
 
-- **App bar**: last and next pull · **Pull every** (15 min, 30 min, 1 h, 3 h; changing it also pulls at once) · **Pull now** (fetch every source now, a few minutes) · **Refresh view** (reload the page from data already on the Mac) · **Adanos key…** (stored in `~/Library/Application Support/TopicLog/settings.json`, mode 600) · **Quit**.
+- **App bar**: last and next pull · **Pull every** (15 min, 30 min, 1 h, 3 h; the next pull moves to the new interval) · **Pull now** (fetch every source now, a few minutes) · **Refresh view** (reload the page from data already on the Mac) · **Adanos key…** (stored in `~/Library/Application Support/TopicLog/settings.json`, mode 600) · **Quit**.
 - Data and history live in `~/Library/Application Support/TopicLog/data/`, separate from the cloud dashboard. Settings you change on the page are kept per Mac.
 - First start after an update replaces the data with the pull shipped in the app, then pulls on schedule.
 - Build: `SEED=<dir of a pull> ./desktop/build.sh [ADANOS_API_KEY]` → `desktop/dist/Topic Log.app`. Build without a key for anyone else; they can enter their own key in the app bar.
