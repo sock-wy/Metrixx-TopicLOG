@@ -1,0 +1,262 @@
+<title>Topic Log Backtest v3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; verdict first, then the overall race, then each direction, then rules and limits. */
+:root {
+  --bg: #f6f7f5; --panel: #ffffff; --ink: #1b2125; --muted: #5d686e; --line: #dde1dc;
+  --acc: #1f6f8b; --mom: #b5651d; --old: #8a9399; --s2: #6b8f3a; --hold: rgba(31,111,139,.06);
+  --serif: "Newsreader", Georgia, serif; --sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131618; --panel: #1a1e21; --ink: #e6e8e5; --muted: #98a1a5; --line: #2b3135;
+  --acc: #5fb3d1; --mom: #e0a060; --old: #7c868c; --s2: #a3c46a; --hold: rgba(95,179,209,.08); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #131618; --panel: #1a1e21; --ink: #e6e8e5; --muted: #98a1a5; --line: #2b3135;
+  --acc: #5fb3d1; --mom: #e0a060; --old: #7c868c; --s2: #a3c46a; --hold: rgba(95,179,209,.08); color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+main { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
+h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--serif); font-weight: 600; font-size: 1.35rem; margin: 0; text-wrap: balance; }
+h3 { font: 600 13px/1.3 var(--sans); margin: 0; }
+p { margin: 0; max-width: 70ch; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+section { display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.card ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 6px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.kpi b { font: 500 1.6rem/1.1 var(--serif); } .kpi span { font-size: 12px; color: var(--muted); }
+.chart { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 14px 6px; overflow-x: auto; }
+.chart .sub { font-size: 12px; color: var(--muted); margin: 2px 0 6px; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 14px; }
+svg { width: 100%; height: auto; display: block; min-width: 440px; }
+svg text { fill: var(--muted); font: 11px var(--sans); } svg .lab { fill: var(--ink); font-size: 12px; }
+svg .lab.acc { fill: var(--acc); font-weight: 600; } svg .lab.mom { fill: var(--mom); font-weight: 600; }
+svg .grid { stroke: var(--line); } svg .ref { stroke: var(--muted); stroke-dasharray: 3 3; } svg .hold { fill: var(--hold); }
+svg .ci { stroke-width: 2; stroke: var(--old); opacity: .6; } svg .pt { fill: var(--old); stroke: var(--panel); stroke-width: 1.5; }
+svg .ci.acc { stroke: var(--acc); opacity: 1; } svg .pt.acc { fill: var(--acc); } svg .ci.mom { stroke: var(--mom); opacity: 1; } svg .pt.mom { fill: var(--mom); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: 3px; border-radius: 2px; }
+.tbl { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font: 12.5px/1.35 var(--mono); font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th { font: 500 11px/1.3 var(--sans); color: var(--muted); }
+th:first-child, td.l { text-align: left; font-family: var(--sans); white-space: normal; min-width: 14rem; }
+tr.acc td { color: var(--acc); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; } .kv dt { color: var(--muted); } .kv dd { margin: 0; }
+code { font-family: var(--mono); font-size: .92em; }
+</style>
+<main>
+<header style="display:flex;flex-direction:column;gap:10px">
+  <span class="eyebrow">Study v3 · four directions · 43 days of social data, 437 days of prices, 173 days of Kalshi</span>
+  <h1>w2: what the Topic Log should rank by</h1>
+  <p>Every trading day at 15:00 ET the backtest rebuilds what the dashboard could see, ranks the topics, and checks the next day: how much the topic is talked about (70% of the target) and how much its price moves (30%). Each direction (social, price, prediction markets, rules) gets its own champion; the champions are then combined.</p>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><span>Holdout rank IC, w2</span><b>+0.37</b><span>w1 +0.28 · w0 +0.02 · momentum +0.11</span></div>
+  <div class="kpi"><span>Top 5 land at, w2</span><b>72%</b><span>of the pool on the next day's outcome (random 50%)</span></div>
+  <div class="kpi"><span>w2 minus w1, holdout IC</span><b>+0.10</b><span>95% CI +0.05 to +0.14</span></div>
+  <div class="kpi"><span>Topics per day in the pool</span><b>73</b><span>with a prediction market (G2), out of ~1679 with social data</span></div>
+</div>
+
+<section class="card">
+  <h2>Result</h2>
+  <ul>
+    <li><b>Social (A) is the strongest direction.</b> How far a topic's mentions sit above its own 20-day normal predicts the next day best. X on its own adds to the all-platform figure. 1-day changes are weak, and sentiment changes point the wrong way (on X, big sentiment swings come before <i>less</i> attention).</li>
+    <li><b>Price (B): trading volume beats the price move.</b> Over 437 trading days and ~1918 stocks a day, volume traded so far vs normal is the best single price input (IC +0.100 with the next move; |24h move| +0.088). The champion uses both.</li>
+    <li><b>Prediction markets (C) are weak.</b> Open interest and volume vs their own normal beat the 24h changes used so far, but none holds up on the holdout. They stay in w2 with weight 0.05 and keep their role as the G2 gate.</li>
+    <li><b>Rules (D):</b> median vs dropping missing inputs makes no difference; a cooldown costs a little accuracy but spreads picks over more topics; capping the top 5 at two per asset class costs a lot.</li>
+    <li><b>w2 = attention 0.35 · attention on X 0.35 · volume 0.125 · momentum 0.125 · open interest vs normal 0.05.</b> It beats w1 by +0.10 IC on the holdout and momentum alone by +0.26.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>The overall race</h2>
+  <p>Topics with a prediction market (the dashboard's G2 pool), daily rank IC with the combined target. Shaded: holdout days, never used to choose anything.</p>
+  <div class="chart">
+    <div class="legend"><span><i style="background:var(--acc)"></i>w2 (new default)</span><span><i style="background:var(--s2)"></i>w1 (current)</span><span><i style="background:var(--old)"></i>w0 (playbook)</span><span><i style="background:var(--mom)"></i>momentum only</span></div>
+    <svg viewBox="0 0 720 260" role="img" aria-label="Daily rank IC by version">
+<line x1="44" x2="704" y1="232.0" y2="232.0" class="grid"/><text x="38" y="236.0" text-anchor="end" class="tick">-0.2</text>
+<line x1="44" x2="704" y1="183.6" y2="183.6" class="ref"/><text x="38" y="187.6" text-anchor="end" class="tick">0</text>
+<line x1="44" x2="704" y1="135.1" y2="135.1" class="grid"/><text x="38" y="139.1" text-anchor="end" class="tick">0.2</text>
+<line x1="44" x2="704" y1="86.7" y2="86.7" class="grid"/><text x="38" y="90.7" text-anchor="end" class="tick">0.4</text>
+<line x1="44" x2="704" y1="38.2" y2="38.2" class="grid"/><text x="38" y="42.2" text-anchor="end" class="tick">0.6</text>
+<rect x="478.6" y="14" width="225.4" height="218" class="hold"/><text x="484.6" y="26" class="tick">holdout</text>
+<text x="44.0" y="252" text-anchor="middle" class="tick">08-24</text>
+<text x="156.7" y="252" text-anchor="middle" class="tick">09-02</text>
+<text x="269.4" y="252" text-anchor="middle" class="tick">09-14</text>
+<text x="382.0" y="252" text-anchor="middle" class="tick">09-23</text>
+<text x="494.7" y="252" text-anchor="middle" class="tick">10-02</text>
+<text x="607.4" y="252" text-anchor="middle" class="tick">10-13</text>
+<polyline points="44.0,176.0 60.1,226.2 76.2,112.3 92.3,149.0 108.4,167.6 124.5,147.8 140.6,196.6 156.7,138.3 172.8,190.3 188.9,175.8 205.0,163.8 221.1,117.5 237.2,178.6 253.3,193.7 269.4,147.3 285.5,140.2 301.6,195.2 317.7,220.0 333.8,191.4 349.9,199.1 366.0,178.2 382.0,180.2 398.1,188.5 414.2,164.1 430.3,170.8 446.4,156.1 462.5,197.2 478.6,185.7 494.7,155.9 510.8,208.2 526.9,172.5 543.0,128.6 559.1,209.9 575.2,162.0 591.3,202.9 607.4,228.2 623.5,157.2 639.6,175.1 655.7,170.3 671.8,211.8 687.9,170.3 704.0,159.4" fill="none" stroke="var(--old)" stroke-width="1.4" opacity="0.8"/>
+<polyline points="44.0,116.8 60.1,172.8 76.2,173.6 92.3,140.1 108.4,119.3 124.5,142.1 140.6,156.8 156.7,212.2 172.8,108.0 188.9,180.2 205.0,131.4 221.1,109.5 237.2,183.7 253.3,144.6 269.4,211.6 285.5,111.1 301.6,175.8 317.7,136.6 333.8,139.0 349.9,164.1 366.0,142.3 382.0,169.2 398.1,158.6 414.2,148.5 430.3,145.6 446.4,189.1 462.5,150.1 478.6,144.5 494.7,111.8 510.8,130.5 526.9,194.0 543.0,173.5 559.1,143.3 575.2,130.8 591.3,170.0 607.4,122.9 623.5,191.6 639.6,153.5 655.7,159.5 671.8,197.7 687.9,156.9 704.0,161.8" fill="none" stroke="var(--mom)" stroke-width="1.4" opacity="0.8"/>
+<polyline points="44.0,95.7 60.1,110.0 76.2,79.0 92.3,126.6 108.4,128.9 124.5,97.7 140.6,129.4 156.7,132.7 172.8,109.7 188.9,132.7 205.0,153.5 221.1,113.0 237.2,112.2 253.3,95.1 269.4,138.7 285.5,73.4 301.6,97.5 317.7,97.0 333.8,103.1 349.9,175.9 366.0,103.3 382.0,140.3 398.1,153.2 414.2,77.9 430.3,128.2 446.4,147.6 462.5,135.5 478.6,141.7 494.7,79.6 510.8,115.5 526.9,142.0 543.0,121.6 559.1,146.2 575.2,110.1 591.3,90.9 607.4,74.6 623.5,88.0 639.6,90.1 655.7,121.1 671.8,104.1 687.9,131.5 704.0,182.4" fill="none" stroke="var(--s2)" stroke-width="1.4" opacity="1"/>
+<polyline points="44.0,105.0 60.1,88.0 76.2,97.2 92.3,107.0 108.4,114.8 124.5,99.6 140.6,116.9 156.7,108.1 172.8,111.4 188.9,103.6 205.0,163.9 221.1,122.9 237.2,86.7 253.3,45.7 269.4,111.7 285.5,60.0 301.6,53.1 317.7,61.5 333.8,84.3 349.9,151.3 366.0,83.7 382.0,92.4 398.1,116.4 414.2,70.7 430.3,126.7 446.4,151.1 462.5,132.2 478.6,118.3 494.7,92.3 510.8,100.2 526.9,123.1 543.0,116.9 559.1,120.0 575.2,89.6 591.3,42.4 607.4,48.8 623.5,49.4 639.6,55.6 655.7,73.8 671.8,64.6 687.9,114.5 704.0,202.2" fill="none" stroke="var(--acc)" stroke-width="2.4" opacity="1"/>
+</svg>
+  </div>
+  <div class="stack">
+    <div class="chart"><h3>Holdout rank IC</h3><p class="sub">95% intervals over days</p><svg viewBox="0 0 720 144" role="img">
+<line x1="310.0" x2="310.0" y1="16" y2="120" class="grid"/><text x="310.0" y="136" text-anchor="middle" class="tick">-0.2</text>
+<line x1="358.2" x2="358.2" y1="16" y2="120" class="grid"/><text x="358.2" y="136" text-anchor="middle" class="tick">-0.1</text>
+<line x1="406.5" x2="406.5" y1="16" y2="120" class="ref"/><text x="406.5" y="136" text-anchor="middle" class="tick">0.0</text>
+<line x1="454.8" x2="454.8" y1="16" y2="120" class="grid"/><text x="454.8" y="136" text-anchor="middle" class="tick">0.1</text>
+<line x1="503.0" x2="503.0" y1="16" y2="120" class="grid"/><text x="503.0" y="136" text-anchor="middle" class="tick">0.2</text>
+<line x1="551.2" x2="551.2" y1="16" y2="120" class="grid"/><text x="551.2" y="136" text-anchor="middle" class="tick">0.3</text>
+<line x1="599.5" x2="599.5" y1="16" y2="120" class="grid"/><text x="599.5" y="136" text-anchor="middle" class="tick">0.4</text>
+<line x1="647.8" x2="647.8" y1="16" y2="120" class="grid"/><text x="647.8" y="136" text-anchor="middle" class="tick">0.5</text>
+<line x1="696.0" x2="696.0" y1="16" y2="120" class="grid"/><text x="696.0" y="136" text-anchor="middle" class="tick">0.6</text>
+<text x="300" y="38.0" text-anchor="end" class="lab acc">w2 (new default)</text>
+<line x1="540.3" x2="622.8" y1="34.0" y2="34.0" class="ci acc"/><circle cx="584.7" cy="34.0" r="5" class="pt acc"><title>w2 (new default): 0.369 (95% CI 0.277 to 0.448)</title></circle>
+<text x="300" y="62.0" text-anchor="end" class="lab oth">w1 (current)</text>
+<line x1="511.7" x2="568.3" y1="58.0" y2="58.0" class="ci oth"/><circle cx="541.1" cy="58.0" r="5" class="pt oth"><title>w1 (current): 0.279 (95% CI 0.218 to 0.335)</title></circle>
+<text x="300" y="86.0" text-anchor="end" class="lab oth">w0 (playbook)</text>
+<line x1="387.8" x2="439.2" y1="82.0" y2="82.0" class="ci oth"/><circle cx="413.9" cy="82.0" r="5" class="pt oth"><title>w0 (playbook): 0.015 (95% CI -0.039 to 0.068)</title></circle>
+<text x="300" y="110.0" text-anchor="end" class="lab mom">momentum only</text>
+<line x1="436.3" x2="487.6" y1="106.0" y2="106.0" class="ci mom"/><circle cx="461.1" cy="106.0" r="5" class="pt mom"><title>momentum only: 0.113 (95% CI 0.062 to 0.168)</title></circle>
+</svg></div>
+    <div class="chart"><h3>Holdout top-5 percentile</h3><p class="sub">where the day's top 5 land; 0.5 = random</p><svg viewBox="0 0 720 144" role="img">
+<line x1="310.0" x2="310.0" y1="16" y2="120" class="grid"/><text x="310.0" y="136" text-anchor="middle" class="tick">0.3</text>
+<line x1="374.3" x2="374.3" y1="16" y2="120" class="grid"/><text x="374.3" y="136" text-anchor="middle" class="tick">0.4</text>
+<line x1="438.7" x2="438.7" y1="16" y2="120" class="ref"/><text x="438.7" y="136" text-anchor="middle" class="tick">0.5</text>
+<line x1="503.0" x2="503.0" y1="16" y2="120" class="grid"/><text x="503.0" y="136" text-anchor="middle" class="tick">0.6</text>
+<line x1="567.3" x2="567.3" y1="16" y2="120" class="grid"/><text x="567.3" y="136" text-anchor="middle" class="tick">0.7</text>
+<line x1="631.7" x2="631.7" y1="16" y2="120" class="grid"/><text x="631.7" y="136" text-anchor="middle" class="tick">0.8</text>
+<line x1="696.0" x2="696.0" y1="16" y2="120" class="grid"/><text x="696.0" y="136" text-anchor="middle" class="tick">0.9</text>
+<text x="300" y="38.0" text-anchor="end" class="lab acc">w2 (new default)</text>
+<line x1="527.8" x2="626.4" y1="34.0" y2="34.0" class="ci acc"/><circle cx="577.4" cy="34.0" r="5" class="pt acc"><title>w2 (new default): 0.716 (95% CI 0.638 to 0.792)</title></circle>
+<text x="300" y="62.0" text-anchor="end" class="lab oth">w1 (current)</text>
+<line x1="498.6" x2="585.9" y1="58.0" y2="58.0" class="ci oth"/><circle cx="541.9" cy="58.0" r="5" class="pt oth"><title>w1 (current): 0.660 (95% CI 0.593 to 0.729)</title></circle>
+<text x="300" y="86.0" text-anchor="end" class="lab oth">w0 (playbook)</text>
+<line x1="418.2" x2="498.4" y1="82.0" y2="82.0" class="ci oth"/><circle cx="457.1" cy="82.0" r="5" class="pt oth"><title>w0 (playbook): 0.529 (95% CI 0.468 to 0.593)</title></circle>
+<text x="300" y="110.0" text-anchor="end" class="lab mom">momentum only</text>
+<line x1="492.5" x2="580.6" y1="106.0" y2="106.0" class="ci mom"/><circle cx="537.2" cy="106.0" r="5" class="pt mom"><title>momentum only: 0.653 (95% CI 0.584 to 0.721)</title></circle>
+</svg></div>
+  </div>
+</section>
+
+<section>
+  <h2>A · Social (Adanos)</h2>
+  <p>43 trading days (2026-08-24 to 2026-10-22), ~1679 topics a day. Rank IC with the combined target, all days. ★ = in the champion: <b>mentions vs 20-day normal, all platforms (w1) + mentions vs 20-day normal, x</b>.</p>
+  <div class="chart"><svg viewBox="0 0 720 336" role="img">
+<line x1="310.0" x2="310.0" y1="16" y2="312" class="grid"/><text x="310.0" y="328" text-anchor="middle" class="tick">-0.2</text>
+<line x1="374.3" x2="374.3" y1="16" y2="312" class="grid"/><text x="374.3" y="328" text-anchor="middle" class="tick">-0.1</text>
+<line x1="438.7" x2="438.7" y1="16" y2="312" class="ref"/><text x="438.7" y="328" text-anchor="middle" class="tick">0.0</text>
+<line x1="503.0" x2="503.0" y1="16" y2="312" class="grid"/><text x="503.0" y="328" text-anchor="middle" class="tick">0.1</text>
+<line x1="567.3" x2="567.3" y1="16" y2="312" class="grid"/><text x="567.3" y="328" text-anchor="middle" class="tick">0.2</text>
+<line x1="631.7" x2="631.7" y1="16" y2="312" class="grid"/><text x="631.7" y="328" text-anchor="middle" class="tick">0.3</text>
+<line x1="696.0" x2="696.0" y1="16" y2="312" class="grid"/><text x="696.0" y="328" text-anchor="middle" class="tick">0.4</text>
+<text x="300" y="38.0" text-anchor="end" class="lab oth">buzz vs 20-day normal, x</text>
+<line x1="551.5" x2="592.3" y1="34.0" y2="34.0" class="ci oth"/><circle cx="570.9" cy="34.0" r="5" class="pt oth"><title>buzz vs 20-day normal, x: 0.206 (95% CI 0.175 to 0.239)</title></circle>
+<text x="300" y="62.0" text-anchor="end" class="lab acc">mentions vs 20-day normal, all platforms (w1)</text>
+<line x1="542.3" x2="577.0" y1="58.0" y2="58.0" class="ci acc"/><circle cx="560.3" cy="58.0" r="5" class="pt acc"><title>mentions vs 20-day normal, all platforms (w1): 0.189 (95% CI 0.161 to 0.215)</title></circle>
+<text x="300" y="86.0" text-anchor="end" class="lab acc">mentions vs 20-day normal, x</text>
+<line x1="533.9" x2="568.5" y1="82.0" y2="82.0" class="ci acc"/><circle cx="551.5" cy="82.0" r="5" class="pt acc"><title>mentions vs 20-day normal, x: 0.175 (95% CI 0.148 to 0.202)</title></circle>
+<text x="300" y="110.0" text-anchor="end" class="lab oth">mentions vs 14-day normal</text>
+<line x1="533.9" x2="567.5" y1="106.0" y2="106.0" class="ci oth"/><circle cx="550.9" cy="106.0" r="5" class="pt oth"><title>mentions vs 14-day normal: 0.174 (95% CI 0.148 to 0.200)</title></circle>
+<text x="300" y="134.0" text-anchor="end" class="lab oth">mentions vs 30-day normal</text>
+<line x1="523.8" x2="561.0" y1="130.0" y2="130.0" class="ci oth"/><circle cx="542.8" cy="130.0" r="5" class="pt oth"><title>mentions vs 30-day normal: 0.162 (95% CI 0.132 to 0.190)</title></circle>
+<text x="300" y="158.0" text-anchor="end" class="lab oth">mentions vs 7-day normal</text>
+<line x1="505.4" x2="533.0" y1="154.0" y2="154.0" class="ci oth"/><circle cx="519.1" cy="154.0" r="5" class="pt oth"><title>mentions vs 7-day normal: 0.125 (95% CI 0.104 to 0.147)</title></circle>
+<text x="300" y="182.0" text-anchor="end" class="lab oth">mentions vs 20-day normal, news</text>
+<line x1="500.1" x2="520.5" y1="178.0" y2="178.0" class="ci oth"/><circle cx="511.4" cy="178.0" r="5" class="pt oth"><title>mentions vs 20-day normal, news: 0.113 (95% CI 0.096 to 0.127)</title></circle>
+<text x="300" y="206.0" text-anchor="end" class="lab oth">buzz vs 20-day normal, reddit</text>
+<line x1="493.4" x2="516.9" y1="202.0" y2="202.0" class="ci oth"/><circle cx="505.0" cy="202.0" r="5" class="pt oth"><title>buzz vs 20-day normal, reddit: 0.103 (95% CI 0.085 to 0.122)</title></circle>
+<text x="300" y="230.0" text-anchor="end" class="lab oth">buzz vs 20-day normal, news</text>
+<line x1="487.5" x2="505.1" y1="226.0" y2="226.0" class="ci oth"/><circle cx="496.7" cy="226.0" r="5" class="pt oth"><title>buzz vs 20-day normal, news: 0.090 (95% CI 0.076 to 0.103)</title></circle>
+<text x="300" y="254.0" text-anchor="end" class="lab oth">mentions vs 20-day normal, reddit</text>
+<line x1="484.0" x2="500.8" y1="250.0" y2="250.0" class="ci oth"/><circle cx="492.4" cy="250.0" r="5" class="pt oth"><title>mentions vs 20-day normal, reddit: 0.084 (95% CI 0.070 to 0.097)</title></circle>
+<text x="300" y="278.0" text-anchor="end" class="lab oth">mentions 3 days vs 3 before (w1)</text>
+<line x1="478.1" x2="501.0" y1="274.0" y2="274.0" class="ci oth"/><circle cx="489.4" cy="274.0" r="5" class="pt oth"><title>mentions 3 days vs 3 before (w1): 0.079 (95% CI 0.061 to 0.097)</title></circle>
+<text x="300" y="302.0" text-anchor="end" class="lab oth">buzz 1-day change, x</text>
+<line x1="464.0" x2="490.8" y1="298.0" y2="298.0" class="ci oth"/><circle cx="478.0" cy="298.0" r="5" class="pt oth"><title>buzz 1-day change, x: 0.061 (95% CI 0.039 to 0.081)</title></circle>
+</svg></div>
+  <div class="tbl"><table><thead><tr><th>Input</th><th>IC discovery</th><th>IC holdout</th><th>IC all days</th><th>Top-5 pct</th><th>Significant (Holm)</th><th>Topics / day</th></tr></thead><tbody><tr class=""><td class="l">buzz vs 20-day normal, x</td><td>+0.179</td><td>+0.253</td><td title="95% CI +0.175 to +0.239">+0.206</td><td>0.60</td><td>yes</td><td>632</td></tr><tr class="acc"><td class="l">mentions vs 20-day normal, all platforms (w1) ★</td><td>+0.177</td><td>+0.210</td><td title="95% CI +0.161 to +0.215">+0.189</td><td>0.60</td><td>yes</td><td>1678</td></tr><tr class="acc"><td class="l">mentions vs 20-day normal, x ★</td><td>+0.162</td><td>+0.199</td><td title="95% CI +0.148 to +0.202">+0.175</td><td>0.62</td><td>yes</td><td>1627</td></tr><tr class=""><td class="l">mentions vs 14-day normal</td><td>+0.160</td><td>+0.201</td><td title="95% CI +0.148 to +0.200">+0.174</td><td>0.59</td><td>yes</td><td>1678</td></tr><tr class=""><td class="l">mentions vs 30-day normal</td><td>+0.144</td><td>+0.194</td><td title="95% CI +0.132 to +0.190">+0.162</td><td>0.59</td><td>yes</td><td>1678</td></tr><tr class=""><td class="l">mentions vs 7-day normal</td><td>+0.104</td><td>+0.162</td><td title="95% CI +0.104 to +0.147">+0.125</td><td>0.56</td><td>yes</td><td>1678</td></tr><tr class=""><td class="l">mentions vs 20-day normal, news</td><td>+0.126</td><td>+0.090</td><td title="95% CI +0.096 to +0.127">+0.113</td><td>0.59</td><td>yes</td><td>1673</td></tr><tr class=""><td class="l">buzz vs 20-day normal, reddit</td><td>+0.113</td><td>+0.086</td><td title="95% CI +0.085 to +0.122">+0.103</td><td>0.62</td><td>yes</td><td>365</td></tr><tr class=""><td class="l">buzz vs 20-day normal, news</td><td>+0.099</td><td>+0.074</td><td title="95% CI +0.076 to +0.103">+0.090</td><td>0.54</td><td>yes</td><td>919</td></tr><tr class=""><td class="l">mentions vs 20-day normal, reddit</td><td>+0.094</td><td>+0.065</td><td title="95% CI +0.070 to +0.097">+0.084</td><td>0.62</td><td>yes</td><td>1541</td></tr><tr class=""><td class="l">mentions 3 days vs 3 before (w1)</td><td>+0.063</td><td>+0.107</td><td title="95% CI +0.061 to +0.097">+0.079</td><td>0.47</td><td>yes</td><td>1678</td></tr><tr class=""><td class="l">buzz 1-day change, x</td><td>+0.057</td><td>+0.068</td><td title="95% CI +0.039 to +0.081">+0.061</td><td>0.55</td><td>yes</td><td>555</td></tr><tr class=""><td class="l">best rank in Adanos trending lists</td><td>+0.067</td><td>+0.002</td><td title="95% CI +0.012 to +0.076">+0.044</td><td>0.52</td><td>yes</td><td>135</td></tr><tr class=""><td class="l">mentions 1-day change</td><td>+0.036</td><td>+0.057</td><td title="95% CI +0.031 to +0.057">+0.044</td><td>0.50</td><td>yes</td><td>1678</td></tr><tr class=""><td class="l">buzz 1-day change, news</td><td>+0.042</td><td>+0.038</td><td title="95% CI +0.028 to +0.054">+0.040</td><td>0.53</td><td>yes</td><td>673</td></tr><tr class=""><td class="l">buzz 1-day change, reddit</td><td>+0.032</td><td>+0.038</td><td title="95% CI +0.016 to +0.055">+0.034</td><td>0.54</td><td>yes</td><td>313</td></tr><tr class=""><td class="l">mentions, raw level</td><td>-0.008</td><td>+0.099</td><td title="95% CI -0.019 to +0.077">+0.030</td><td>0.56</td><td>no</td><td>1678</td></tr><tr class=""><td class="l">|sentiment 1-day change|, reddit</td><td>-0.013</td><td>-0.003</td><td title="95% CI -0.029 to +0.010">-0.010</td><td>0.48</td><td>no</td><td>313</td></tr><tr class=""><td class="l">|sentiment vs 20-day normal|, reddit</td><td>-0.011</td><td>-0.014</td><td title="95% CI -0.029 to +0.004">-0.012</td><td>0.50</td><td>no</td><td>365</td></tr><tr class=""><td class="l">|sentiment vs 20-day normal|, news</td><td>-0.009</td><td>-0.035</td><td title="95% CI -0.036 to +0.001">-0.018</td><td>0.49</td><td>no</td><td>919</td></tr><tr class=""><td class="l">|bullish % vs normal|, news</td><td>-0.016</td><td>-0.029</td><td title="95% CI -0.038 to -0.001">-0.020</td><td>0.51</td><td>no</td><td>919</td></tr><tr class=""><td class="l">|sentiment 1-day change|, news</td><td>-0.016</td><td>-0.035</td><td title="95% CI -0.041 to -0.003">-0.023</td><td>0.50</td><td>no</td><td>673</td></tr><tr class=""><td class="l">|bullish % vs normal|, reddit</td><td>-0.051</td><td>-0.017</td><td title="95% CI -0.060 to -0.017">-0.039</td><td>0.49</td><td>no</td><td>365</td></tr><tr class=""><td class="l">|bullish % vs normal|, x</td><td>-0.042</td><td>-0.139</td><td title="95% CI -0.109 to -0.043">-0.077</td><td>0.50</td><td>no</td><td>632</td></tr><tr class=""><td class="l">|sentiment vs 20-day normal|, x</td><td>-0.048</td><td>-0.167</td><td title="95% CI -0.126 to -0.054">-0.090</td><td>0.45</td><td>no</td><td>632</td></tr><tr class=""><td class="l">|sentiment 1-day change|, x</td><td>-0.055</td><td>-0.167</td><td title="95% CI -0.136 to -0.055">-0.095</td><td>0.46</td><td>no</td><td>555</td></tr></tbody></table></div>
+</section>
+
+<section>
+  <h2>B · Price and momentum</h2>
+  <p>437 trading days (2025-01-28 to 2026-10-22), ~1918 stocks and topics a day. Rank IC with the next session's abnormal move. Champion: <b>volume so far vs normal + |24h move| / 20-day σ (w1)</b>.</p>
+  <div class="chart"><svg viewBox="0 0 720 192" role="img">
+<line x1="310.0" x2="310.0" y1="16" y2="168" class="grid"/><text x="310.0" y="184" text-anchor="middle" class="tick">-0.1</text>
+<line x1="438.7" x2="438.7" y1="16" y2="168" class="ref"/><text x="438.7" y="184" text-anchor="middle" class="tick">0.0</text>
+<line x1="567.3" x2="567.3" y1="16" y2="168" class="grid"/><text x="567.3" y="184" text-anchor="middle" class="tick">0.1</text>
+<line x1="696.0" x2="696.0" y1="16" y2="168" class="grid"/><text x="696.0" y="184" text-anchor="middle" class="tick">0.2</text>
+<text x="300" y="38.0" text-anchor="end" class="lab acc">volume so far vs normal</text>
+<line x1="561.0" x2="573.8" y1="34.0" y2="34.0" class="ci acc"/><circle cx="567.3" cy="34.0" r="5" class="pt acc"><title>volume so far vs normal: 0.100 (95% CI 0.095 to 0.105)</title></circle>
+<text x="300" y="62.0" text-anchor="end" class="lab acc">|24h move| / 20-day σ (w1)</text>
+<line x1="544.8" x2="559.6" y1="58.0" y2="58.0" class="ci acc"/><circle cx="552.1" cy="58.0" r="5" class="pt acc"><title>|24h move| / 20-day σ (w1): 0.088 (95% CI 0.082 to 0.094)</title></circle>
+<text x="300" y="86.0" text-anchor="end" class="lab oth">|move since yesterday&#x27;s close| / σ</text>
+<line x1="544.2" x2="559.2" y1="82.0" y2="82.0" class="ci oth"/><circle cx="551.5" cy="82.0" r="5" class="pt oth"><title>|move since yesterday&#x27;s close| / σ: 0.088 (95% CI 0.082 to 0.094)</title></circle>
+<text x="300" y="110.0" text-anchor="end" class="lab oth">intraday range so far vs normal</text>
+<line x1="538.8" x2="552.9" y1="106.0" y2="106.0" class="ci oth"/><circle cx="545.7" cy="106.0" r="5" class="pt oth"><title>intraday range so far vs normal: 0.083 (95% CI 0.078 to 0.089)</title></circle>
+<text x="300" y="134.0" text-anchor="end" class="lab oth">|24h move| / 60-day σ</text>
+<line x1="493.0" x2="507.9" y1="130.0" y2="130.0" class="ci oth"/><circle cx="500.3" cy="130.0" r="5" class="pt oth"><title>|24h move| / 60-day σ: 0.048 (95% CI 0.042 to 0.054)</title></circle>
+<text x="300" y="158.0" text-anchor="end" class="lab oth">|5-day move| / σ</text>
+<line x1="492.9" x2="506.3" y1="154.0" y2="154.0" class="ci oth"/><circle cx="499.5" cy="154.0" r="5" class="pt oth"><title>|5-day move| / σ: 0.047 (95% CI 0.042 to 0.053)</title></circle>
+</svg></div>
+  <div class="tbl"><table><thead><tr><th>Input</th><th>IC discovery</th><th>IC holdout</th><th>IC all days</th><th>Top-5 pct</th><th>Significant (Holm)</th><th>Topics / day</th></tr></thead><tbody><tr class="acc"><td class="l">volume so far vs normal ★</td><td>+0.103</td><td>+0.088</td><td title="95% CI +0.095 to +0.105">+0.100</td><td>0.62</td><td>yes</td><td>1916</td></tr><tr class="acc"><td class="l">|24h move| / 20-day σ (w1) ★</td><td>+0.089</td><td>+0.084</td><td title="95% CI +0.082 to +0.094">+0.088</td><td>0.68</td><td>yes</td><td>1916</td></tr><tr class=""><td class="l">|move since yesterday&#x27;s close| / σ</td><td>+0.089</td><td>+0.083</td><td title="95% CI +0.082 to +0.094">+0.088</td><td>0.68</td><td>yes</td><td>1916</td></tr><tr class=""><td class="l">intraday range so far vs normal</td><td>+0.085</td><td>+0.076</td><td title="95% CI +0.078 to +0.089">+0.083</td><td>0.67</td><td>yes</td><td>1916</td></tr><tr class=""><td class="l">|24h move| / 60-day σ</td><td>+0.048</td><td>+0.049</td><td title="95% CI +0.042 to +0.054">+0.048</td><td>0.66</td><td>yes</td><td>1911</td></tr><tr class=""><td class="l">|5-day move| / σ</td><td>+0.047</td><td>+0.050</td><td title="95% CI +0.042 to +0.053">+0.047</td><td>0.67</td><td>yes</td><td>1914</td></tr></tbody></table></div>
+  <p>On the combined target (social era) the order is the same: volume +0.134, range +0.096, |24h move| +0.085.</p>
+</section>
+
+<section>
+  <h2>C · Prediction markets (Kalshi, Polymarket, perps)</h2>
+  <p>173 trading days of Kalshi (2026-02-17 to 2026-10-22), ~49 topics a day with volume. Rank IC with the next session's abnormal move. Champion (chosen on the combined target): <b>Kalshi OI vs 20-day normal</b>.</p>
+  <div class="chart"><svg viewBox="0 0 720 216" role="img">
+<line x1="310.0" x2="310.0" y1="16" y2="192" class="grid"/><text x="310.0" y="208" text-anchor="middle" class="tick">-0.1</text>
+<line x1="438.7" x2="438.7" y1="16" y2="192" class="ref"/><text x="438.7" y="208" text-anchor="middle" class="tick">0.0</text>
+<line x1="567.3" x2="567.3" y1="16" y2="192" class="grid"/><text x="567.3" y="208" text-anchor="middle" class="tick">0.1</text>
+<line x1="696.0" x2="696.0" y1="16" y2="192" class="grid"/><text x="696.0" y="208" text-anchor="middle" class="tick">0.2</text>
+<text x="300" y="38.0" text-anchor="end" class="lab oth">Kalshi OI vs 24h earlier (w0/w1)</text>
+<line x1="458.7" x2="548.2" y1="34.0" y2="34.0" class="ci oth"/><circle cx="503.3" cy="34.0" r="5" class="pt oth"><title>Kalshi OI vs 24h earlier (w0/w1): 0.050 (95% CI 0.016 to 0.085)</title></circle>
+<text x="300" y="62.0" text-anchor="end" class="lab oth">Kalshi 24h volume vs 20-day normal</text>
+<line x1="452.1" x2="532.4" y1="58.0" y2="58.0" class="ci oth"/><circle cx="493.2" cy="58.0" r="5" class="pt oth"><title>Kalshi 24h volume vs 20-day normal: 0.042 (95% CI 0.010 to 0.073)</title></circle>
+<text x="300" y="86.0" text-anchor="end" class="lab acc">Kalshi OI vs 20-day normal</text>
+<line x1="446.2" x2="524.9" y1="82.0" y2="82.0" class="ci acc"/><circle cx="485.0" cy="82.0" r="5" class="pt acc"><title>Kalshi OI vs 20-day normal: 0.036 (95% CI 0.006 to 0.067)</title></circle>
+<text x="300" y="110.0" text-anchor="end" class="lab oth">Kalshi 24h volume, level</text>
+<line x1="439.7" x2="516.7" y1="106.0" y2="106.0" class="ci oth"/><circle cx="478.0" cy="106.0" r="5" class="pt oth"><title>Kalshi 24h volume, level: 0.031 (95% CI 0.001 to 0.061)</title></circle>
+<text x="300" y="134.0" text-anchor="end" class="lab oth">Kalshi 24h volume vs prior 24h (w0/w1)</text>
+<line x1="431.4" x2="504.5" y1="130.0" y2="130.0" class="ci oth"/><circle cx="468.2" cy="130.0" r="5" class="pt oth"><title>Kalshi 24h volume vs prior 24h (w0/w1): 0.023 (95% CI -0.006 to 0.051)</title></circle>
+<text x="300" y="158.0" text-anchor="end" class="lab oth">Kalshi |prob move| vs normal</text>
+<line x1="420.0" x2="501.0" y1="154.0" y2="154.0" class="ci oth"/><circle cx="461.5" cy="154.0" r="5" class="pt oth"><title>Kalshi |prob move| vs normal: 0.018 (95% CI -0.015 to 0.048)</title></circle>
+<text x="300" y="182.0" text-anchor="end" class="lab oth">Kalshi |prob move| 24h (w0/w1)</text>
+<line x1="397.3" x2="480.6" y1="178.0" y2="178.0" class="ci oth"/><circle cx="439.1" cy="178.0" r="5" class="pt oth"><title>Kalshi |prob move| 24h (w0/w1): 0.000 (95% CI -0.032 to 0.033)</title></circle>
+</svg></div>
+  <div class="tbl"><table><thead><tr><th>Input</th><th>IC discovery</th><th>IC holdout</th><th>IC all days</th><th>Top-5 pct</th><th>Significant (Holm)</th><th>Topics / day</th></tr></thead><tbody><tr class="acc"><td class="l">Kalshi OI vs 20-day normal ★</td><td>+0.122</td><td>-0.008</td><td title="95% CI +0.028 to +0.124">+0.075</td><td>0.57</td><td>yes</td><td>56</td></tr><tr class=""><td class="l">Kalshi 24h volume vs 20-day normal</td><td>+0.077</td><td>+0.022</td><td title="95% CI +0.010 to +0.106">+0.057</td><td>0.58</td><td>no</td><td>58</td></tr><tr class=""><td class="l">Kalshi |prob move| vs normal</td><td>+0.047</td><td>+0.015</td><td title="95% CI -0.022 to +0.088">+0.036</td><td>0.53</td><td>no</td><td>49</td></tr><tr class=""><td class="l">Kalshi 24h volume vs prior 24h (w0/w1)</td><td>+0.026</td><td>+0.009</td><td title="95% CI -0.025 to +0.066">+0.020</td><td>0.50</td><td>no</td><td>58</td></tr><tr class=""><td class="l">Kalshi 24h volume, level</td><td>+0.045</td><td>-0.027</td><td title="95% CI -0.032 to +0.068">+0.020</td><td>0.47</td><td>no</td><td>61</td></tr><tr class=""><td class="l">Kalshi OI vs 24h earlier (w0/w1)</td><td>+0.017</td><td>-0.020</td><td title="95% CI -0.041 to +0.053">+0.004</td><td>0.48</td><td>no</td><td>58</td></tr><tr class=""><td class="l">Kalshi |prob move| 24h (w0/w1)</td><td>-0.030</td><td>-0.076</td><td title="95% CI -0.096 to +0.008">-0.046</td><td>0.47</td><td>no</td><td>56</td></tr><tr class=""><td class="l">Polymarket |prob move| 1 day</td><td>–</td><td>-0.089</td><td title="95% CI -0.304 to +0.005">-0.143</td><td>0.45</td><td>no</td><td>18</td></tr></tbody></table></div>
+  <p>Kalshi perps only cover 28 underlyings since June, about 15 of them priced topics on a given day: too few to test. Their funding and volume are now archived on every pull.</p>
+</section>
+
+<section>
+  <h2>D · Rules</h2>
+  <div class="tbl"><table><thead><tr><th>Rule</th><th>All days</th><th>Holdout</th><th>Note</th></tr></thead><tbody>
+    <tr><td class="l">Missing input = median (w2)</td><td>+0.345</td><td>+0.368</td><td>rank IC</td></tr>
+    <tr><td class="l">Missing input left out, weights rescaled</td><td>+0.345</td><td>+0.368</td><td>rank IC; same</td></tr>
+    <tr><td class='l'>Daily pick, no repeat within 0 days</td><td>0.727</td><td>0.734</td><td>pick's percentile; 32 different topics</td></tr><tr><td class='l'>Daily pick, no repeat within 1 days</td><td>0.712</td><td>0.716</td><td>pick's percentile; 34 different topics</td></tr><tr><td class='l'>Daily pick, no repeat within 3 days</td><td>0.702</td><td>0.713</td><td>pick's percentile; 38 different topics</td></tr><tr><td class='l'>Daily pick, no repeat within 5 days</td><td>0.709</td><td>0.713</td><td>pick's percentile; 39 different topics</td></tr>
+    <tr><td class="l">Top 5, no class limit</td><td>0.710</td><td>0.719</td><td>top-5 percentile</td></tr>
+    <tr><td class="l">Top 5, at most 2 per asset class</td><td>0.591</td><td>0.566</td><td>top-5 percentile</td></tr>
+    <tr><td class="l">G2 off: every topic with social data competes</td><td>+0.205</td><td>+0.213</td><td>best weights there: A 0.45, B 0.55; top 5 at 0.73</td></tr>
+  </tbody></table></div>
+  <p>Quality multiplier and tiers were tested in the previous study and are off by default; G3 needs order-book spreads the backfill does not have.</p>
+</section>
+
+<section>
+  <h2>Is momentum in?</h2>
+  <p>Yes, twice. The price direction tested six versions of it on 437 days: the plain |24h move| ÷ σ is good (IC +0.088), trading volume vs normal is better (+0.100), and w2 uses both with 0.125 each. Momentum alone is also the benchmark every version is compared with: on the holdout w2 beats it by +0.26 IC (95% CI +0.16 to +0.35).</p>
+</section>
+
+<section class="card">
+  <h2>Method and limits</h2>
+  <ul>
+    <li>Data: Yahoo hourly bars for ~2,000 stocks and every priced topic (2 years); Adanos daily for ~4,500 symbols on Reddit, X, News (90 days, the key's limit); Kalshi hourly candles since February (4.2M rows, before and after the historical cutoff); Kalshi perps since June; Polymarket daily prices.</li>
+    <li>No look-ahead: prices from bars ended by 15:00 ET, Adanos from complete UTC days up to t−1, Kalshi from candles ended by 15:00 ET. Labels start after the pick.</li>
+    <li>Discovery chose every champion and weight; the holdout (Oct 1–22, 15 days) was used once. One-sided t-tests on daily IC with Holm correction inside each direction.</li>
+    <li>The social era is short (43 days). The archive now records every pull, so the holdout grows by a day each day; re-run in mid-November with fresh, unseen data.</li>
+    <li>Attention is persistent: busy topics tend to stay busy. That is what an editor wants to know, and it is why the social inputs say little about price moves.</li>
+    <li>Kalshi coverage per day is thin (~50 topics) and history before the cutoff keeps the 4 most traded markets of the most traded event per series and day.</li>
+  </ul>
+  <p style="color:var(--muted);font-size:13px">Code: <code>backtest/v3/build.py</code>, <code>evaluate.py</code>, <code>page.py</code> on branch <code>feat/dashboard</code>.</p>
+</section>
+</main>

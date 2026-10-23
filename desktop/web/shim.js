@@ -4,8 +4,8 @@
   const IDS = ['topic_log', 'score_history', 'daily_log', 'runs', 'adanos_daily', 'symbol_appendix', 'market_data',
     'us_stocks', 'earnings_calendar', 'us_movers', 'polymarket', 'crypto_spot', 'events'];
   const DEFAULTS = {
-    w_attention_shift: 0.30, w_activity_shift: 0.10, w_money_flow: 0.15, w_money_stock: 0.10, w_market_move: 0.10, w_sentiment_shift: 0, w_momentum: 0.25,
-    attn_mode: 'level', act_mode: '3d', missing_mode: 'median', _v: 3,
+    w_attention_shift: 0.35, w_attention_x: 0.35, w_activity_shift: 0, w_money_flow: 0, w_money_stock: 0.05, w_market_move: 0, w_sentiment_shift: 0, w_momentum: 0.125, w_volume_abn: 0.125,
+    attn_mode: 'level', act_mode: '3d', missing_mode: 'median', stock_mode: 'abn', _v: 4,
     src_kalshi: true, src_polymarket: true, src_reddit: true, src_x: true, src_news: true, src_momentum: true,
     uni_kalshi: true, uni_polymarket: true, uni_adanos: true, uni_movers: true, classes_off: [],
     g2_mode: 'prediction', g3_zero: 0.8, g3_spread: 0.3,
@@ -15,7 +15,7 @@
   const store = {}; const calcs = {}; const subs = [];
   let params = { ...DEFAULTS };
   try { Object.assign(params, JSON.parse(localStorage.getItem('tl.params') || '{}')); } catch (e) { /* first run */ }
-  if (params._v !== 3) { params = { ...DEFAULTS }; }  // first start of v0.3: begin from the w1 defaults
+  if (params._v !== 4) { params = { ...DEFAULTS }; }  // first start of v0.4: begin from the w2 defaults
   const save = () => { try { localStorage.setItem('tl.params', JSON.stringify(params)); } catch (e) { /* ignore */ } };
 
   function compute() {

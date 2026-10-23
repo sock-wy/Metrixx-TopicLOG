@@ -245,18 +245,18 @@ def crypto_spot():
 
 
 def crypto_daily(sym, primary, kraken_pair=None, days=31):
-    """Daily closes [(ts, close)] for one coin from its source-of-record venue."""
+    """Daily bars [(ts, close, USD volume)] for one coin from its source-of-record venue."""
     try:
         if primary == "binance":
             d = _get(f"https://data-api.binance.vision/api/v3/klines?symbol={sym}USDT&interval=1d&limit={days + 1}")
-            return [(int(k[0] / 1000), float(k[4])) for k in d]
+            return [(int(k[0] / 1000), float(k[4]), float(k[7])) for k in d]  # close, quote (USD) volume
         if primary == "coinbase":
             d = _get(f"https://api.exchange.coinbase.com/products/{sym}-USD/candles?granularity=86400")
-            return sorted((int(k[0]), float(k[4])) for k in d)[-(days + 1):]
+            return sorted((int(k[0]), float(k[4]), float(k[5]) * float(k[4])) for k in d)[-(days + 1):]
         if primary == "kraken" and kraken_pair:
             d = _get(f"https://api.kraken.com/0/public/OHLC?pair={kraken_pair}&interval=1440")
             res = [v for k, v in d.get("result", {}).items() if k != "last"]
-            return [(int(k[0]), float(k[4])) for k in (res[0] if res else [])][-(days + 1):]
+            return [(int(k[0]), float(k[4]), float(k[6]) * float(k[4])) for k in (res[0] if res else [])][-(days + 1):]
     except Exception:
         return []
     return []

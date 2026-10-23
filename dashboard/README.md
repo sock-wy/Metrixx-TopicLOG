@@ -1,6 +1,6 @@
 # Topic Log dashboard
 
-**Status:** v2 · scoring w1 (default) · live on claude.ai (refreshed eight times a day) and as the desktop app `Topic Log.app` v0.3
+**Status:** v2 · scoring w2 (default) · live on claude.ai (refreshed eight times a day) and as the desktop app `Topic Log.app` v0.4 · every pull archived
 
 ## What it is for
 
@@ -46,12 +46,14 @@ No manual mapping is needed. New topics are listed in **Topics & events** (filte
 | Component | Sources | Raw value |
 |---|---|---|
 | Money flow | Kalshi + Polymarket, weighted by each venue's 24h volume | Kalshi: 24h volume vs the pull 24h earlier. Polymarket: 24h volume vs its 1-week daily average |
-| Money stock | Kalshi + Polymarket, weighted by open interest | open interest vs 24h earlier |
+| Money stock | Kalshi + Polymarket, weighted by open interest | **w2:** open interest vs its own mean over earlier pulls (up to 10 days, at least 3). **w0, w1:** open interest vs 24h earlier |
 | Market move | Kalshi + Polymarket, weighted by volume | volume-weighted \|probability change\| over 24h, two-sided traded markets only |
-| Attention | Adanos, platforms switched on | **w1:** mentions yesterday vs the topic's own mean over the 19 days before (log ratio, platforms summed). **w0:** 1-day buzz change |
+| Attention | Adanos, platforms switched on | **w1, w2:** mentions yesterday vs the topic's own mean over the 19 days before (log ratio, platforms summed). **w0:** 1-day buzz change |
+| Attention on X | Adanos X | X mentions yesterday vs X's own 20-day normal (w2) |
 | Activity | Adanos | **w1:** mentions over the last 3 days vs the 3 before. **w0:** 1-day mention change |
 | Sentiment | Adanos | \|1-day sentiment change\| (weight 0 in w1) |
 | Momentum | prices | \|24h price change\| ÷ the month's daily volatility |
+| Volume | prices | shares traded so far in the session vs the same hours of the previous 20 sessions (log ratio); coins: 24h volume on the price venue vs its 20-day mean (w2) |
 
 Adanos uses complete UTC days only (yesterday and earlier). Crypto has Reddit only. Coinbase and Kraken supply prices for coins Binance does not list and the "On Coinbase / On Kraken" flags.
 
@@ -66,24 +68,31 @@ G4 (cooldown after an episode) is defined in the playbook but inactive until the
 
 ### 6 · Score
 
-`score = quality × Σ wᵢ · pctrank(xᵢ) / Σ wᵢ`. In w1 a component the topic lacks counts as 0.5 (the median); in w0 it is left out and the other weights are rescaled. `pctrank` is the topic's percentile among the topics that passed the gates this pull, so a score of 0.8 means "higher than about 80% of today's pool on the weighted inputs".
+`score = quality × Σ wᵢ · pctrank(xᵢ) / Σ wᵢ`. In w1 and w2 a component the topic lacks counts as 0.5 (the median); in w0 it is left out and the other weights are rescaled. `pctrank` is the topic's percentile among the topics that passed the gates this pull, so a score of 0.8 means "higher than about 80% of today's pool on the weighted inputs".
 
-**Quality multiplier** (off in w1): `spread factor × zero-trade factor × source factor`. Spread factor = 1 up to the free spread, then falls by `(spread − free) / slope`, never below the floor. Zero-trade factor = 1 − penalty × zero-trade share. Source factor = 1 with both market and social data, else the single-source factor.
+**Quality multiplier** (off in w1 and w2): `spread factor × zero-trade factor × source factor`. Spread factor = 1 up to the free spread, then falls by `(spread − free) / slope`, never below the floor. Zero-trade factor = 1 − penalty × zero-trade share. Source factor = 1 with both market and social data, else the single-source factor.
 
 **Tiers**: T1 a catalyst (earnings, KPI market, CPI/FOMC) within N trading days and a strong move or flow; T2 strong flow and attention; T3 strong attention; T4 the rest.
 
-### w0 and w1
+### w0, w1 and w2
 
-| | w0 (playbook) | w1 (default, from the backtest) |
-|---|---|---|
-| Weights attention / activity / flow / OI / move / sentiment / momentum | .25 / .10 / .20 / .10 / .20 / .15 / 0 | .30 / .10 / .15 / .10 / .10 / 0 / .25 |
-| Attention | 1-day buzz change | mentions vs 20-day normal |
-| Activity | 1-day mention change | 3 days vs 3 before |
-| Missing input | left out, weights rescaled | counts as the pool median (0.5) |
-| Quality multiplier | on | off |
-| Tiers | rank by tier first | labels only |
+| | w0 (playbook) | w1 (Oct 23) | **w2 (default, Oct 24)** |
+|---|---|---|---|
+| Attention (all platforms) | .25, 1-day buzz change | .30, mentions vs 20-day normal | **.35**, mentions vs 20-day normal |
+| Attention on X | – | – | **.35** |
+| Activity | .10, 1-day change | .10, 3 days vs 3 before | 0 |
+| Money flow | .20 | .15 | 0 |
+| Money stock | .10, Δ24h | .10, Δ24h | **.05**, vs its normal |
+| Market move | .20 | .10 | 0 |
+| Sentiment | .15 | 0 | 0 |
+| Momentum | 0 | .25 | **.125** |
+| Volume | – | – | **.125** |
+| Missing input | left out, weights rescaled | median | median |
+| Quality multiplier · Tiers | on · rank by tier | off · labels | off · labels |
 
-Why: study `broad_v2` (`backtest/broad_*.py`, results page `backtest/broad/results.html`). Over 41 trading days w0 and v2 as shipped ranked no better than chance; w1 beat them on the next session's price move and on next-day attention, tied momentum on price moves and beat it on attention. The pipeline stores both: `rank` / `demand_score` = w0, `w1_rank` / `w1_score` = w1. Daily picks use w1 from Oct 23 on.
+Why w2: study v3 (`backtest/v3/`, report "Topic Log Backtest v3"). Four directions were tested separately, each with its own champion, then combined. Target: next-day attention (70%) and next-session abnormal price move (30%). On the 15 holdout days w2 reached a rank IC of 0.37 against 0.28 for w1, 0.02 for w0 and 0.11 for momentum alone; its daily top 5 landed at the 72nd percentile. Social data carries most of the signal (mentions vs normal, X in particular); trading volume vs normal is the best price input; prediction-market inputs add little beyond their role in G2.
+
+The pipeline stores w0 (`rank`, `demand_score`) and the default ranking (`pick_rank`, `pick_score`, `pick_tier`; `pick_version` in the run log). Daily picks: w0 until Oct 22, w1 on Oct 23, w2 from Oct 24.
 
 ## Every control
 
@@ -104,8 +113,8 @@ Why: study `broad_v2` (`backtest/broad_*.py`, results page `backtest/broad/resul
 - **Inputs with data**: share of topics in this pull that have a value for each component.
 
 ### 2 · Algorithm (middle)
-- **Reset to w1**: back to the default settings. **Load w0**: the playbook's original settings. **Export as YAML**: the current settings as a `weights_wN.yaml` draft to paste into `config/`.
-- **Weights**: one slider per component; the bar under each shows its share of the total. **Attention measure** and **Activity measure** switch between the w1 and w0 constructions. **Missing input**: a topic without a value for a component either gets the pool median for it (w1) or has that component left out with the other weights rescaled (w0).
+- **Reset to w2**: back to the default settings. **Load w1** / **Load w0**: the earlier settings, for comparison. **Export as YAML**: the current settings as a `weights_wN.yaml` draft to paste into `config/`.
+- **Weights**: one slider per component; the bar under each shows its share of the total. **Attention measure**, **Activity measure** and **Money stock measure** switch between the newer and the w0 constructions. **Missing input**: a topic without a value for a component either gets the pool median for it (w1) or has that component left out with the other weights rescaled (w0).
 - **Hard gates**: G2 mode (prediction-market volume · any market or social activity · off); G3 maximum zero-trade share and maximum spread.
 - **Quality multiplier**: on/off switch, then free spread, slope, floor, zero-trade penalty and single-source factor.
 - **Priority tiers**: rank by tier first · labels only · off; then the T1 catalyst window and the percentile thresholds for T1–T3.
@@ -113,7 +122,7 @@ Why: study `broad_v2` (`backtest/broad_*.py`, results page `backtest/broad/resul
 ### 3 · Output (right)
 - **Your pick / Pool / Top 10 shared with w0**: rank 1 with your settings; how many topics passed the gates and how many were gated; overlap with the stored w0 top 10.
 - **Search** and **Show gated** (include gated topics, with the gate that removed them).
-- **Table**: `#` your rank (▲▼ = places versus w0), `w0 #`, Topic (`new` = created this pull), Name, Class, From (K Kalshi · P Polymarket · A Adanos · M movers), Tier, Score, the seven component percentiles, Quality, Gate. Click a header to sort; click a row to open it below.
+- **Table**: `#` your rank (▲▼ = places versus w0), `w0 #`, Topic (`new` = created this pull), Name, Class, From (K Kalshi · P Polymarket · A Adanos · M movers), Tier, Score, the nine component percentiles (attn, attn X, activity, flow, OI, move, sent, mom, vol), Quality, Gate. Click a header to sort; click a row to open it below.
 - **Topic breakdown**: score arithmetic, catalyst, each component's percentile and points added, the raw inputs from every source (Kalshi, Polymarket, Adanos per platform, price), the topic's w0 rank over the last 10 days and its most traded events.
 - **Your score vs momentum**: every scored topic; right = higher score, up = larger abnormal price move.
 
@@ -135,7 +144,7 @@ Why: study `broad_v2` (`backtest/broad_*.py`, results page `backtest/broad/resul
 
 | File | Rows |
 |---|---|
-| `topic_log.json` | one per topic, latest pull: source columns, components, w0 and w1 score / rank / tier, gates |
+| `topic_log.json` | one per topic, latest pull: source columns, components, w0 and default (w2) score / rank / tier, gates |
 | `events.json` | every Kalshi event, Polymarket event and Yahoo mover with its topic |
 | `score_history.json` | one per topic per pull, last 10 days (also the 24h-earlier baseline for flow and OI) |
 | `daily_log.json` | the 15:00 ET pull of each day, last 45 days |
@@ -153,7 +162,11 @@ python -m dashboard.pipeline --state STATE_DIR --out OUT_DIR --adanos-key "$ADAN
 
 `STATE_DIR` holds the previous `score_history.json`, `daily_log.json`, `runs.json` and `adanos_daily.json` (any may be missing). The cloud scheduled task downloads them from the dashboard, runs this, uploads the 13 outputs and repoints the datasets. `page/index.html` is the page stored in the artifact and bundled in the app.
 
-Files: `pipeline.py` (steps 1–7, w1 ranking), `registry.py` (automatic topics), `symbols.py` (Kalshi rules, aliases, topic metadata), `sources.py` (free sources), `catalysts.yaml` (CPI/FOMC dates), `backfill/` (history pulls for backtests).
+Files: `pipeline.py` (steps 1–7, default ranking), `archive.py` + `archive_push.sh` (permanent archive), `registry.py` (automatic topics), `symbols.py` (Kalshi rules, aliases, topic metadata), `sources.py` (free sources), `catalysts.yaml` (CPI/FOMC dates), `backfill/` (history pulls for backtests).
+
+## Archive
+
+Every pull also writes what it saw to `archive/` (gzipped JSON): Kalshi markets, Kalshi perps (prices, open interest, funding), Polymarket, US movers, the topic log and events on every pull; US stocks, crypto spot and earnings once a day after 17:00 ET; one complete day of Adanos (about 4,800 stocks and 180 coins, Reddit / X / News) once a day. The cloud task appends it to the repo's `archive` branch (about 5 MB a day); the desktop app keeps it in its data folder. Backtests read it together with the backfill, so the test window grows by one day every day.
 
 ## Known limits
 

@@ -48,27 +48,35 @@ def kalshi_perps(now):
 
 
 def adanos_day(key, day, stat):
-    """One complete UTC day for the whole Adanos universe, every platform, 10 symbols per /compare call."""
+    """One complete UTC day for the whole Adanos universe (reddit / x / news; crypto: reddit), 10 symbols per /compare call."""
+    import concurrent.futures as cf
     try:
         uni = json.loads(UNIVERSE.read_text())
     except Exception:
         return None
-    out = []
-    for kind, plats in (("stocks", ("reddit", "x", "news", "polymarket")), ("crypto", ("reddit",))):
+    jobs = []
+    for kind, plats in (("stocks", ("reddit", "x", "news")), ("crypto", ("reddit",))):
         syms = uni.get(kind) or []
         arg = "tickers" if kind == "stocks" else "symbols"
         for plat in plats:
             for i in range(0, len(syms), 10):
-                chunk = syms[i:i + 10]
-                url = f"https://api.adanos.org/{plat}/{kind}/v1/compare?from={day}&to={day}&{arg}={urllib.parse.quote(','.join(chunk))}"
-                try:
-                    d = _get(url, {"X-API-Key": key})
-                    stat["archive_calls"] = stat.get("archive_calls", 0) + 1
-                except Exception:
-                    continue
-                for x in d.get("stocks") or d.get("tokens") or []:
-                    out.append({"platform": plat, "kind": kind, **{k: v for k, v in x.items() if k != "trend_history"}})
-                time.sleep(0.12)
+                jobs.append((kind, plat, f"https://api.adanos.org/{plat}/{kind}/v1/compare?from={day}&to={day}&{arg}={urllib.parse.quote(','.join(syms[i:i + 10]))}"))
+
+    def one(job):
+        kind, plat, url = job
+        for attempt in range(3):
+            try:
+                d = _get(url, {"X-API-Key": key})
+                return [{"platform": plat, "kind": kind, **{k: v for k, v in x.items() if k != "trend_history"}}
+                        for x in d.get("stocks") or d.get("tokens") or []]
+            except Exception:
+                time.sleep(1 + attempt)
+        return []
+    out = []
+    with cf.ThreadPoolExecutor(4) as ex:
+        for rows in ex.map(one, jobs):
+            out += rows
+    stat["archive_calls"] = stat.get("archive_calls", 0) + len(jobs)
     return out
 
 

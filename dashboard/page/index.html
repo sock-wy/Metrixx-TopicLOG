@@ -208,7 +208,8 @@
         <div class="wb-colhead"><h3>Algorithm</h3><span class="wb-step">2 · score</span></div>
         <div class="formula">score = quality × cooldown × Σ wᵢ·pctrank(xᵢ) / Σ wᵢ</div>
         <div class="btns">
-          <button class="btn" id="btn-reset" type="button" title="The default: weights chosen by the backtest">Reset to w1</button>
+          <button class="btn" id="btn-reset" type="button" title="The default: weights chosen by backtest study v3">Reset to w2</button>
+          <button class="btn" id="btn-w1" type="button" title="The previous default (study broad_v2)">Load w1</button>
           <button class="btn" id="btn-w0" type="button" title="The playbook's original weights and inputs">Load w0</button>
           <button class="btn" id="btn-yaml" type="button" aria-expanded="false">Export as YAML</button>
         </div>
@@ -248,12 +249,14 @@
                 <th class="l"><button class="tl-th-btn" data-sort="my_tier">Tier</button></th>
                 <th><button class="tl-th-btn" data-sort="my_score">Score</button></th>
                 <th><button class="tl-th-btn" data-sort="p_attention_shift">attn</button></th>
+                <th><button class="tl-th-btn" data-sort="p_attention_x">attn X</button></th>
                 <th><button class="tl-th-btn" data-sort="p_activity_shift">activity</button></th>
                 <th><button class="tl-th-btn" data-sort="p_money_flow">flow</button></th>
                 <th><button class="tl-th-btn" data-sort="p_money_stock">OI</button></th>
                 <th><button class="tl-th-btn" data-sort="p_market_move">move</button></th>
                 <th><button class="tl-th-btn" data-sort="p_sentiment_shift">sent</button></th>
                 <th><button class="tl-th-btn" data-sort="p_momentum">mom</button></th>
+                <th><button class="tl-th-btn" data-sort="p_volume_abn">vol</button></th>
                 <th><button class="tl-th-btn" data-sort="my_quality">Quality</button></th>
                 <th class="l"><button class="tl-th-btn" data-sort="my_gate">Gate</button></th>
               </tr></thead>
@@ -287,7 +290,7 @@
   <section class="tl-page" id="daily" role="tabpanel" aria-labelledby="tab-daily" hidden>
     <div class="tl-card" id="card-daily-chart">
       <h3>Daily pick, 15:00 ET pull</h3>
-      <p class="tl-note">The rank-1 topic's score each day, labelled with the topic. From the v2 release (Oct 23) the pick is the w1 ranking; earlier days show w0. This is Sheet 2 (2_topic_log) as of the pick time; Step 4 (the editor's pick) and the episode log come later.</p>
+      <p class="tl-note">The rank-1 topic's score each day, labelled with the topic. The pick is the default ranking of the day: w2 from Oct 24, w1 on Oct 23, w0 before. This is Sheet 2 (2_topic_log) as of the pick time; Step 4 (the editor's pick) and the episode log come later.</p>
       <div class="tl-chart" id="daily-chart" data-source="daily_log"></div>
     </div>
     <div class="tl-card" id="card-daily-table">
@@ -501,6 +504,7 @@ dash.calc('coverage', {
     const inputs = {
       attention_shift: 'attention_shift', activity_shift: 'activity_shift', money_flow: 'money_flow',
       money_stock: 'money_stock', market_move: 'market_move', sentiment_shift: 'sentiment_shift', momentum: 'momentum',
+      attention_x: 'attention_x', volume_abn: 'volume_abn',
     };
     const n = topic_log.length;
     return Object.entries(inputs).map(([component, col]) => ({
@@ -609,13 +613,13 @@ window.TL = (() => {
   // =================================================================== algorithm settings
   // w0 = config/weights_w0.yaml. Settings live in the dashboard's filters (dash.params), defaults in dash/params.
   const W0 = {
-    w_attention_shift: 0.25, w_activity_shift: 0.10, w_money_flow: 0.20, w_money_stock: 0.10, w_market_move: 0.20, w_sentiment_shift: 0.15, w_momentum: 0,
+    w_attention_shift: 0.25, w_attention_x: 0, w_activity_shift: 0.10, w_money_flow: 0.20, w_money_stock: 0.10, w_market_move: 0.20, w_sentiment_shift: 0.15, w_momentum: 0, w_volume_abn: 0,
     src_kalshi: true, src_polymarket: true, src_reddit: true, src_x: true, src_news: true, src_momentum: true,
     uni_kalshi: true, uni_polymarket: true, uni_adanos: true, uni_movers: true, classes_off: [],
     g2_mode: 'prediction', g3_zero: 0.80, g3_spread: 0.30,
     quality_on: true, q_free: 0.05, q_slope: 0.5, q_floor: 0.6, q_zero_pen: 0.4, q_single: 0.9,
     tier_mode: 'rank', t1_days: 2, t1_pct: 0.70, t2_flow: 0.70, t2_attn: 0.50, t3_attn: 0.80,
-    attn_mode: 'change', act_mode: '1d', missing_mode: 'drop',
+    attn_mode: 'change', act_mode: '1d', missing_mode: 'drop', stock_mode: 'chg',
   };
   // w1 = backtest study broad_v2 (backtest/broad_eval.py): attention as the abnormal level, 3-day activity,
   // momentum in the score, no sentiment, no quality multiplier, tiers as labels. The default.
@@ -623,14 +627,24 @@ window.TL = (() => {
     w_attention_shift: 0.30, w_activity_shift: 0.10, w_money_flow: 0.15, w_money_stock: 0.10, w_market_move: 0.10, w_sentiment_shift: 0, w_momentum: 0.25,
     attn_mode: 'level', act_mode: '3d', missing_mode: 'median', quality_on: false, tier_mode: 'labels',
   };
+  // w2 = backtest study v3 (backtest/v3/): the default. Attention level on all platforms and on X, abnormal trading volume,
+  // momentum, open interest vs its normal; everything else 0.
+  const W2 = { ...W1,
+    w_attention_shift: 0.35, w_attention_x: 0.35, w_activity_shift: 0, w_money_flow: 0, w_money_stock: 0.05, w_market_move: 0,
+    w_sentiment_shift: 0, w_momentum: 0.125, w_volume_abn: 0.125, stock_mode: 'abn',
+  };
   const COMP = [
-    ['attention_shift', 'Attention', 'Adanos mentions vs 20-day normal (w1) · buzz Δ1d (w0)', 'adanos'], ['activity_shift', 'Activity', 'Adanos mentions, 3 days vs 3 before (w1) · Δ1d (w0)', 'adanos'],
-    ['money_flow', 'Money flow', 'Kalshi + Polymarket 24h volume Δ%', 'pm'], ['money_stock', 'Money stock', 'Kalshi + Polymarket open interest Δ%', 'pm'],
+    ['attention_shift', 'Attention', 'Adanos mentions vs 20-day normal, all platforms (w1, w2) · buzz Δ1d (w0)', 'adanos'],
+    ['attention_x', 'Attention on X', 'X mentions vs 20-day normal (w2)', 'adanos'],
+    ['activity_shift', 'Activity', 'Adanos mentions, 3 days vs 3 before (w1) · Δ1d (w0)', 'adanos'],
+    ['money_flow', 'Money flow', 'Kalshi + Polymarket 24h volume Δ%', 'pm'],
+    ['money_stock', 'Money stock', 'Kalshi + Polymarket open interest vs normal (w2) · Δ24h (w0, w1)', 'pm'],
     ['market_move', 'Market move', 'Kalshi + Polymarket |prob Δ1d|', 'pm'], ['sentiment_shift', 'Sentiment', 'Adanos |sentiment Δ1d|', 'adanos'],
     ['momentum', 'Momentum', '|24h move| / daily vol', 'momentum'],
+    ['volume_abn', 'Volume', 'trading volume so far vs normal (w2)', 'momentum'],
   ];
   const S = {};           // current settings
-  const P = () => { const p = dash.params() || {}; const o = {}; for (const k in W1) o[k] = p[k] ?? W1[k]; return o; };
+  const P = () => { const p = dash.params() || {}; const o = {}; for (const k in W2) o[k] = p[k] ?? W2[k]; return o; };
   function syncFromParams() { Object.assign(S, P()); }
   syncFromParams();
   const setParam = (k, v) => { S[k] = v; dash.setParams({ [k]: v }); };
@@ -694,6 +708,7 @@ window.TL = (() => {
   for (const [c, label, sub] of COMP) slider('alg-weights', 'w_' + c, label, sub, 0, 1, 0.05, f2);
   selectCtl('alg-weights', 'attn_mode', 'Attention measure', [['level', 'mentions vs 20-day normal (w1)'], ['change', '1-day buzz change (w0)']]);
   selectCtl('alg-weights', 'act_mode', 'Activity measure', [['3d', '3 days vs 3 before (w1)'], ['1d', '1-day change (w0)']]);
+  selectCtl('alg-weights', 'stock_mode', 'Money stock measure', [['abn', 'open interest vs normal (w2)'], ['chg', 'change vs 24h earlier (w0, w1)']]);
   selectCtl('alg-weights', 'missing_mode', 'Missing input', [['median', 'counts as the median (w1)'], ['drop', 'left out, weights rescaled (w0)']]);
   selectCtl('alg-gates', 'g2_mode', 'G2 · topic needs', [['prediction', 'prediction-market volume'], ['any', 'any market or social activity'], ['off', 'nothing (off)']]);
   slider('alg-gates', 'g3_zero', 'G3 max zero-trade', '3 strikes nearest 50%', 0, 1, 0.05, fpct);
@@ -732,7 +747,12 @@ window.TL = (() => {
     const k = S.src_kalshi, p = S.src_polymarket;
     const plats = ['reddit', 'x', 'news'].filter((x) => S['src_' + x]);
     const flow = wmean([k ? [r.k_flow, r.k_vol] : [null, 0], p ? [r.p_flow, r.p_vol] : [null, 0]]);
-    const stock = wmean([k ? [r.k_oi_chg, r.k_oi] : [null, 0], p ? [r.p_oi_chg, r.p_oi] : [null, 0]]);
+    const abn = (v, b) => (v != null && b != null ? Math.log1p(v) - Math.log1p(b) : null);
+    const stock = S.stock_mode === 'abn'
+      ? wmean([k ? [abn(r.k_oi, r.k_oi_base), r.k_oi] : [null, 0], p ? [abn(r.p_oi, r.p_oi_base), r.p_oi] : [null, 0]])
+      : wmean([k ? [r.k_oi_chg, r.k_oi] : [null, 0], p ? [r.p_oi_chg, r.p_oi] : [null, 0]]);
+    const attnX = S.src_x && r.ad_mentions_x != null && r.ad_base_x != null ? Math.log1p(r.ad_mentions_x) - Math.log1p(r.ad_base_x) : null;
+    const volAbn = S.src_momentum ? (r.vol_abn ?? null) : null;
     const move = wmean([k ? [r.k_move, r.k_vol] : [null, 0], p ? [r.p_move, r.p_vol] : [null, 0]]);
     let attn;
     if (S.attn_mode === 'level') {
@@ -748,7 +768,7 @@ window.TL = (() => {
     else if (p && r.p_vol) { spread = r.p_spread; }
     const fam = ([flow, stock, move].some((v) => v != null) ? 1 : 0) + ([attn, act, sent].some((v) => v != null) ? 1 : 0);
     const social = plats.some((x) => (r['ad_mentions_' + x] || 0) > 0);
-    return { attention_shift: attn, activity_shift: act, money_flow: flow, money_stock: stock, market_move: move, sentiment_shift: sent,
+    return { attention_shift: attn, attention_x: attnX, volume_abn: volAbn, activity_shift: act, money_flow: flow, money_stock: stock, market_move: move, sentiment_shift: sent,
       momentum: mom, pm_evidence: pm, avg_spread: spread, zero_trade: zero, families: fam, social };
   }
   function gate(r, c) {
@@ -863,7 +883,7 @@ window.TL = (() => {
   }
   function drawTable() {
     const tbody = document.querySelector('#rk-table tbody');
-    if (!ok('topic_log')) { emptyRow(tbody, 17, 'Loading…'); return; }
+    if (!ok('topic_log')) { emptyRow(tbody, 19, 'Loading…'); return; }
     document.getElementById('rk-gated').setAttribute('aria-pressed', state.gated ? 'true' : 'false');
     const q = state.q.toLowerCase();
     const data = (state.gated ? result.out : result.live).filter((r) => !q || (r.topic + ' ' + (r.name || '')).toLowerCase().includes(q));
@@ -889,7 +909,7 @@ window.TL = (() => {
       frag.append(tr);
     }
     tbody.replaceChildren(frag);
-    if (!out.length) emptyRow(tbody, 17, 'No topic matches. Check the universe or the gates.');
+    if (!out.length) emptyRow(tbody, 19, 'No topic matches. Check the universe or the gates.');
     document.getElementById('rk-count').textContent = `${out.length} topics shown · ▲▼ = places gained or lost against the stored w0 run`;
   }
   function drawDetail() {
@@ -1001,7 +1021,7 @@ window.TL = (() => {
       '  T3:', '    label: Attention only', '    all_of:', `      attention_shift_pct_min: ${n(S.t3_attn)}`, '  T4:', '    label: Baseline');
     L.push('', '# dashboard switches (not read by scoring.py yet)', `# sources: kalshi=${S.src_kalshi} polymarket=${S.src_polymarket} reddit=${S.src_reddit} x=${S.src_x} news=${S.src_news} momentum=${S.src_momentum}`,
       `# universe: kalshi=${S.uni_kalshi} polymarket=${S.uni_polymarket} adanos=${S.uni_adanos} movers=${S.uni_movers}; excluded classes = [${(S.classes_off || []).join(', ')}]`,
-      `# g2_mode=${S.g2_mode} quality_on=${S.quality_on} tier_mode=${S.tier_mode} attn_mode=${S.attn_mode} act_mode=${S.act_mode} missing_mode=${S.missing_mode}`);
+      `# g2_mode=${S.g2_mode} quality_on=${S.quality_on} tier_mode=${S.tier_mode} attn_mode=${S.attn_mode} act_mode=${S.act_mode} stock_mode=${S.stock_mode} missing_mode=${S.missing_mode}`);
     return L.join('\n');
   }
   const yb = document.getElementById('btn-yaml');
@@ -1011,7 +1031,8 @@ window.TL = (() => {
     const sel = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById('yaml')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = 'Selected. Press Ctrl/Cmd+C to copy.'; };
     try { navigator.clipboard.writeText(txt).then(() => { msg.textContent = 'Copied'; }, sel); } catch (e) { sel(); }
   });
-  document.getElementById('btn-reset').addEventListener('click', () => { dash.resetParams(); Object.assign(S, W1); dash.setParams({ ...W1 }); paintSliders(); paintSources(); recompute(); });
+  document.getElementById('btn-reset').addEventListener('click', () => { dash.resetParams(); Object.assign(S, W2); dash.setParams({ ...W2 }); paintSliders(); paintSources(); recompute(); });
+  document.getElementById('btn-w1').addEventListener('click', () => { Object.assign(S, W1); dash.setParams({ ...W1 }); paintSliders(); paintSources(); recompute(); });
   document.getElementById('btn-w0').addEventListener('click', () => { Object.assign(S, W0); dash.setParams({ ...W0 }); paintSliders(); paintSources(); recompute(); });
   document.getElementById('rk-search').addEventListener('input', (e) => { state.q = e.target.value; drawTable(); });
   document.getElementById('rk-gated').addEventListener('click', () => { state.gated = !state.gated; drawTable(); });
@@ -1023,8 +1044,8 @@ window.TL = (() => {
     const tbody = document.querySelector('#daily-table tbody');
     const box = document.getElementById('daily-chart');
     if (!ok('daily_log')) { emptyRow(tbody, 8, dash.data('daily_log').status === 'loading' ? 'Loading…' : 'The first entry lands with the 15:00 ET pull.'); box.replaceChildren(); return; }
-    const RK = (r) => r.w1_rank ?? (r.w1_rank === undefined ? r.rank : null);  // w1 from v2 on; w0 for older days
-    const all = rows('daily_log').map((r) => ({ ...r, d_rank: RK(r), d_score: r.w1_score ?? r.demand_score, d_tier: r.w1_tier ?? r.tier })).filter((r) => r.d_rank != null && r.d_rank <= 5);
+    const RK = (r) => ('pick_rank' in r ? r.pick_rank : 'w1_rank' in r ? r.w1_rank : r.rank);  // the default of the day: w2 from Oct 24, w1 on Oct 23, w0 before
+    const all = rows('daily_log').map((r) => ({ ...r, d_rank: RK(r), d_score: r.pick_score ?? r.w1_score ?? r.demand_score, d_tier: r.pick_tier ?? r.w1_tier ?? r.tier })).filter((r) => r.d_rank != null && r.d_rank <= 5);
     const { out, s } = sortRows('daily', all, 'date', 'desc');
     ariaSort('daily-table', s);
     if (!out.length) emptyRow(tbody, 8, 'The first entry lands with the 15:00 ET pull.');
@@ -1042,7 +1063,7 @@ window.TL = (() => {
     }
     if (state.page !== 'daily' || !box.clientWidth) return;
     box.replaceChildren();
-    const picks = rows('daily_log').filter((r) => RK(r) === 1).map((r) => ({ d: new Date(r.date + 'T00:00:00Z'), s: r.w1_score ?? r.demand_score, topic: r.topic })).sort((a, b) => a.d - b.d);
+    const picks = rows('daily_log').filter((r) => RK(r) === 1).map((r) => ({ d: new Date(r.date + 'T00:00:00Z'), s: r.pick_score ?? r.w1_score ?? r.demand_score, topic: r.topic })).sort((a, b) => a.d - b.d);
     if (!picks.length) { box.append(el('p', 'tl-note', 'No daily pick recorded yet. The 15:00 ET pull writes the first one.')); return; }
     const W = box.clientWidth, H = 260, m = { t: 20, r: 16, b: 28, l: 40 };
     const x = d3.scaleBand(picks.map((p) => +p.d), [m.l, W - m.r]).padding(0.3);

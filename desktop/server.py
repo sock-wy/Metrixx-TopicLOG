@@ -29,7 +29,7 @@ DATASETS = ["topic_log", "score_history", "daily_log", "runs", "adanos_daily", "
             "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot", "events"]
 DEFAULT_SETTINGS = {"interval_min": 30, "adanos_key": ""}
 
-VERSION = "0.3"
+VERSION = "0.4"
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
 _old = _ver.read_text().strip() if _ver.exists() else None

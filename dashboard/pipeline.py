@@ -51,6 +51,7 @@ UTC = dt.timezone.utc
 KALSHI = "https://api.elections.kalshi.com/trade-api/v2"
 ADANOS = "https://api.adanos.org"
 YAHOO = "https://query1.finance.yahoo.com/v8/finance/spark"
+YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart/"
 UA = {"User-Agent": "Mozilla/5.0 (Metrixx TopicLog dashboard)"}
 PULL_HOURS_ET = [15, 18, 21, 0, 3, 6, 9, 12]
 HISTORY_DAYS, DAILY_DAYS, ADANOS_DAYS = 10, 45, 10
@@ -248,35 +249,60 @@ def kalshi_features(rows, now):
 
 # ------------------------------------------------------------------ prices / momentum
 def yahoo_prices(symbols):
-    out = {}
-    syms = sorted({s for s in symbols if s})
-    for i in range(0, len(syms), 20):
-        chunk = syms[i:i + 20]
-        q = urllib.parse.urlencode({"symbols": ",".join(chunk), "range": "1mo", "interval": "1h"})
+    """Hourly bars for one month per symbol (Yahoo chart API): [(ts, close, volume)]."""
+    import concurrent.futures as cf
+
+    def one(sym):
+        q = urllib.parse.urlencode({"range": "1mo", "interval": "1h", "includePrePost": "false"})
         try:
-            d, _ = get_json(f"{YAHOO}?{q}")
+            d, _ = get_json(f"{YAHOO_CHART}{urllib.parse.quote(sym)}?{q}")
+            r = d["chart"]["result"][0]
+            qq = r["indicators"]["quote"][0]
+            pts = [(t, c, v or 0) for t, c, v in zip(r.get("timestamp") or [], qq.get("close") or [], qq.get("volume") or []) if c is not None]
+            return sym, pts if len(pts) >= 10 else None
         except Exception:
-            continue
-        for s, v in d.items():
-            pts = [(t, c) for t, c in zip(v.get("timestamp") or [], v.get("close") or []) if c is not None]
-            if len(pts) >= 10:
-                out[s] = pts
+            return sym, None
+    out = {}
+    with cf.ThreadPoolExecutor(8) as ex:
+        for sym, pts in ex.map(one, sorted({s for s in symbols if s})):
+            if pts:
+                out[sym] = pts
     return out
+
+
+def volume_abn(pts, now):
+    """Volume traded so far in the latest session vs the same hours of the previous (up to 20) sessions, log ratio."""
+    by = collections.defaultdict(list)
+    for t, c, v in pts:
+        if t + 3600 <= now.timestamp():  # completed bars only
+            d = dt.datetime.fromtimestamp(t, ET)
+            by[d.date()].append((d.hour + d.minute / 60, v))
+    if len(by) < 6:
+        return None
+    days = sorted(by)
+    last = days[-1]
+    cut = max(h for h, _ in by[last])
+    today = sum(v for h, v in by[last])
+    base = [sum(v for h, v in by[d] if h <= cut) for d in days[-21:-1]]
+    base = [b for b in base if b > 0]
+    if today <= 0 or len(base) < 5:
+        return None
+    return math.log1p(today) - math.log1p(sum(base) / len(base))
 
 
 def price_stats(pts, now):
     """Last price, 24h and 5d change, and the abnormal 24h move (z vs the month's daily moves)."""
-    t_last, p_last = pts[-1]
+    t_last, p_last = pts[-1][0], pts[-1][1]
     if now.timestamp() - t_last > 4 * 86400:
         return None
 
     def at(sec_ago):
-        older = [p for t, p in pts if t <= t_last - sec_ago]
+        older = [p for t, p, *_ in pts if t <= t_last - sec_ago]
         return older[-1] if older else None
     p1, p5 = at(86400), at(5 * 86400)
     r1 = (p_last / p1 - 1) if p1 else None
     daily = {}
-    for t, p in pts:
+    for t, p, *_ in pts:
         daily[dt.datetime.fromtimestamp(t, UTC).date()] = p
     closes = [daily[k] for k in sorted(daily)]
     rets = [b / a - 1 for a, b in zip(closes, closes[1:]) if a]
@@ -289,12 +315,15 @@ def crypto_stats(row, closes, now):
     """Momentum for a coin from its source-of-record venue: 24h change over the daily volatility of the month."""
     if not row or not closes or len(closes) < 10:
         return None
-    rets = [b / a - 1 for (_, a), (_, b) in zip(closes, closes[1:]) if a]
+    rets = [b[1] / a[1] - 1 for a, b in zip(closes, closes[1:]) if a[1]]
     sd = statistics.pstdev(rets[:-1]) if len(rets) >= 8 else None
     r1 = (row.get("change_pct") or 0) / 100 if row.get("change_pct") is not None else None
     p5 = closes[-6][1] if len(closes) >= 6 else None
+    vols = [c[2] for c in closes[:-1] if len(c) > 2 and c[2]][-20:]
+    v24 = row.get(f"{row.get('primary')}_vol")
+    vab = (math.log1p(v24) - math.log1p(sum(vols) / len(vols))) if (v24 and len(vols) >= 5) else None
     return dict(price=row["price"], price_ts=now.isoformat(), chg_24h=r1, chg_5d=(row["price"] / p5 - 1) if p5 else None,
-                vol_daily=sd, abnormal_move=(r1 / sd) if (r1 is not None and sd) else None)
+                vol_daily=sd, abnormal_move=(r1 / sd) if (r1 is not None and sd) else None, vol_abn=vab)
 
 
 # ------------------------------------------------------------------ Adanos
@@ -470,6 +499,15 @@ def combine(r, on=None):
         act = mean([r.get(f"ad_ment_chg_{x}") for x in plats])
     sent = mean([abs(r[f"ad_sent_d_{x}"]) if r.get(f"ad_sent_d_{x}") is not None else None for x in plats])
     mom = abs(r["abnormal_move"]) if (on.get("momentum", True) and r.get("abnormal_move") is not None) else None
+    # w2: mentions on X vs X's own 20-day normal; trading volume so far vs normal; open interest vs its 10-day normal
+    attn_x = (math.log1p(r["ad_mentions_x"]) - math.log1p(r["ad_base_x"])) if (
+        "x" in plats and r.get("ad_mentions_x") is not None and r.get("ad_base_x") is not None) else None
+    vol_abn = r.get("vol_abn") if on.get("momentum", True) else None
+    if on.get("stock_mode", "abn") == "abn":
+        def _abn(v, b):
+            return (math.log1p(v) - math.log1p(b)) if (v is not None and b is not None) else None
+        stock = wmean([(_abn(r.get("k_oi"), r.get("k_oi_base")), r.get("k_oi")) if k else (None, 0),
+                       (_abn(r.get("p_oi"), r.get("p_oi_base")), r.get("p_oi")) if p else (None, 0)])
     pm_ev = (k and r.get("k_evidence")) or (p and (r.get("p_vol") or 0) > 0)
     if (r.get("k_vol") or 0) >= (r.get("p_vol") or 0) and k and r.get("k_evidence") is not None:
         spread, zero = r.get("k_spread"), r.get("k_zero")
@@ -479,43 +517,46 @@ def combine(r, on=None):
         spread, zero = None, None
     fam = int(any(v is not None for v in (flow, stock, move))) + int(any(v is not None for v in (attn, act, sent)))
     return dict(money_flow=flow, money_stock=stock, market_move=move, attention_shift=attn, activity_shift=act,
-                sentiment_shift=sent, momentum=mom, pm_evidence=bool(pm_ev), avg_spread=spread, zero_trade=zero, families=fam)
+                sentiment_shift=sent, momentum=mom, attention_x=attn_x, volume_abn=vol_abn, pm_evidence=bool(pm_ev), avg_spread=spread, zero_trade=zero, families=fam)
 
 
-# ------------------------------------------------------------------ w1 (mirrors the page's recompute with the w1 preset)
-W1 = dict(weights=dict(attention_shift=.30, activity_shift=.10, money_flow=.15, money_stock=.10, market_move=.10, sentiment_shift=0, momentum=.25),
+# ------------------------------------------------------------------ default ranking (w2; mirrors the page's recompute with the w2 preset)
+WD = dict(version="w2",
+          weights=dict(attention_shift=.35, attention_x=.35, volume_abn=.125, momentum=.125, money_stock=.05,
+                       activity_shift=0, money_flow=0, market_move=0, sentiment_shift=0),
           g3_zero=.80, g3_spread=.30, t1_days=2, t1_pct=.70, t2_flow=.70, t2_attn=.50, t3_attn=.80)
 
 
-def w1_rank(rows):
-    """w1 = backtest study broad_v2: abnormal attention level, 3-day activity, momentum in the score, no sentiment,
-    missing inputs at the median, no quality multiplier, tiers as labels only. Same gates as the dashboard (G2 prediction-market volume, G3)."""
+def rank_default(rows):
+    """w2 = backtest study v3: attention level (all platforms and X), abnormal trading volume, momentum, Kalshi/Polymarket
+    open interest vs normal; missing inputs at the median; no quality multiplier; tiers as labels only.
+    Same gates as the dashboard (G2 prediction-market volume, G3)."""
     live = []
     for r in rows:
         g = None
         if not r.get("pm_evidence"):
             g = "G2"
-        elif r.get("zero_trade") is not None and r["zero_trade"] > W1["g3_zero"]:
+        elif r.get("zero_trade") is not None and r["zero_trade"] > WD["g3_zero"]:
             g = "G3"
-        elif r.get("avg_spread") is not None and r["avg_spread"] > W1["g3_spread"]:
+        elif r.get("avg_spread") is not None and r["avg_spread"] > WD["g3_spread"]:
             g = "G3"
-        r["w1_gate"], r["w1_score"], r["w1_rank"], r["w1_tier"] = g, None, None, None
+        r["pick_gate"], r["pick_score"], r["pick_rank"], r["pick_tier"] = g, None, None, None
         if not g:
             live.append(r)
-    w = W1["weights"]
-    pct = {c_: scoring.pctrank([r.get(c_) for r in live]) for c_ in w}
+    w = WD["weights"]
+    pct = {c_: scoring.pctrank([r.get(c_) for r in live]) for c_ in set(w) | {"market_move", "money_flow", "attention_shift"}}
     for i, r in enumerate(live):
         # a missing input counts as the pool median (0.5), so a topic with one strong input and nothing else cannot top the list
         num = sum(w[c_] * (pct[c_][i] if pct[c_][i] is not None else 0.5) for c_ in w if w[c_] > 0)
         den = sum(w[c_] for c_ in w if w[c_] > 0)
-        r["w1_score"] = num / den if den else 0.0
+        r["pick_score"] = num / den if den else 0.0
         pm, pf, pa = (pct[c_][i] or 0 for c_ in ("market_move", "money_flow", "attention_shift"))
         cat = r.get("catalyst_in_trading_days")
-        r["w1_tier"] = ("T1" if cat is not None and cat <= W1["t1_days"] and (pm >= W1["t1_pct"] or pf >= W1["t1_pct"]) else
-                        "T2" if pf >= W1["t2_flow"] and pa >= W1["t2_attn"] else "T3" if pa >= W1["t3_attn"] else "T4")
-    live.sort(key=lambda r: (-r["w1_score"], -(r.get("families") or 0), -(r.get("k_ladder") or 0)))
+        r["pick_tier"] = ("T1" if cat is not None and cat <= WD["t1_days"] and (pm >= WD["t1_pct"] or pf >= WD["t1_pct"]) else
+                          "T2" if pf >= WD["t2_flow"] and pa >= WD["t2_attn"] else "T3" if pa >= WD["t3_attn"] else "T4")
+    live.sort(key=lambda r: (-r["pick_score"], -(r.get("families") or 0), -(r.get("k_ladder") or 0)))
     for k_, r in enumerate(live, 1):
-        r["w1_rank"] = k_
+        r["pick_rank"] = k_
 
 
 # ------------------------------------------------------------------ history
@@ -662,6 +703,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
             pstats[t] = price_stats(px[i["price_symbol"]], now)
             if pstats[t]:
                 pstats[t]["price_source"] = "yahoo"
+                pstats[t]["vol_abn"] = volume_abn(px[i["price_symbol"]], now)
     steps["prices"] = dict(status="ok" if pstats else "error", symbols=sum(1 for v in pstats.values() if v))
 
     # 6 · catalysts: macro calendar, Kalshi KPI markets, Nasdaq earnings
@@ -680,9 +722,19 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     for r in sorted(daily, key=lambda r: r["date"]):
         if r.get("k_vol") is not None:
             vol_hist[r["topic"]].append(r["k_vol"])
+    # open-interest baseline: mean over earlier pulls (at least 20h old, up to the 10 days kept), per day first
+    oi_base = collections.defaultdict(lambda: {"k": {}, "p": {}})
+    cutoff_ts = (now - dt.timedelta(hours=20)).isoformat()
+    for h in history:
+        if h["run_ts"] < cutoff_ts:
+            day_ = h["run_ts"][:10]
+            for src, key in (("k", "k_oi"), ("p", "p_oi")):
+                if h.get(key) is not None:
+                    oi_base[h["topic"]][src].setdefault(day_, h[key])
     rows = []
     for t in topics:
         i = infos[t]
+        ob = oi_base.get(t)
         r = dict(i, ticker=t, origin=",".join(sorted(origins[t])), match=match_how.get(t),
                  is_new=match_how.get(t) == "new")
         k = kfeat.get(t)
@@ -693,6 +745,11 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
             r.update(p_vol=pf["p_vol"], p_vol1wk=pf["p_vol1wk"], p_oi=pf["p_oi"], p_move=wmean(pf["moves"]),
                      p_spread=(pf["top"] or {}).get("top_spread"), n_pm_events=pf["n"],
                      p_flow=((pf["p_vol"] / (pf["p_vol1wk"] / 7) - 1) * 100) if pf["p_vol1wk"] > 0 else None)
+        if ob:
+            for src, key in (("k", "k_oi_base"), ("p", "p_oi_base")):
+                vals = list(ob[src].values())
+                if len(vals) >= 3:
+                    r[key] = sum(vals) / len(vals)
         pv = prev.get(t)
         if pv:
             pk_vol = pv.get("k_vol", pv.get("mkt_volume_24h"))
@@ -732,7 +789,8 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
             r["catalyst_in_trading_days"], r["catalyst"] = n, kind
         c = combine(r)  # w1 inputs (shown in the topic log)
         r.update(c)
-        c = combine(r, {"attn_mode": "change", "act_mode": "1d"})
+        c = combine(r, {"attn_mode": "change", "act_mode": "1d", "stock_mode": "chg"})
+        r["w0_money_stock"] = c["money_stock"]
         r["w0_attention_shift"], r["w0_activity_shift"] = c["attention_shift"], c["activity_shift"]
         # inputs for scoring.score_day (w0)
         r["buzz_delta_1d"], r["trade_count_pct_change_1d"] = c["attention_shift"], c["activity_shift"]
@@ -753,16 +811,17 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         ranked[i]["momentum_rank"] = kk
     for r, m in zip(ranked, mom):
         r["momentum_pct"] = m
-    w1_rank(ranked + gated)
+    rank_default(ranked + gated)
     steps["score"] = dict(scored=len(ranked), gated=len(gated), prior_pull=prev_ts,
-                          scored_w1=sum(1 for r in ranked + gated if r.get("w1_rank")))
+                          scored_pick=sum(1 for r in ranked + gated if r.get("pick_rank")))
 
     # 8 · outputs
     comp = scoring.COMPONENTS
     keep_cols = ["k_vol", "k_flow", "k_oi", "k_oi_chg", "k_move", "k_spread", "k_zero", "k_evidence", "k_ladder",
                  "p_vol", "p_vol1wk", "p_flow", "p_oi", "p_oi_chg", "p_move", "p_spread", "n_pm_events",
                  *[f"ad_{m}_{p}" for p in STOCK_PLATFORMS for m in ("buzz", "mentions", "buzz_d", "ment_chg", "sent_d", "base", "ment3_chg")],
-                 "w0_attention_shift", "w0_activity_shift", "w1_score", "w1_rank", "w1_tier", "w1_gate",
+                 "w0_attention_shift", "w0_activity_shift", "pick_score", "pick_rank", "pick_tier", "pick_gate",
+                 "attention_x", "volume_abn", "vol_abn", "k_oi_base", "p_oi_base",
                  "abnormal_move", "price", "chg_24h", "chg_5d", "price_source", "exchange_volume_usd", "on_coinbase", "on_kraken",
                  "money_flow", "money_stock", "market_move", "attention_shift", "activity_shift", "sentiment_shift", "momentum",
                  "pm_evidence", "avg_spread", "zero_trade", "families", "catalyst_in_trading_days", "catalyst",
@@ -787,12 +846,12 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     keep_ts = (now - dt.timedelta(days=HISTORY_DAYS)).isoformat()
     history = [h for h in history if h["run_ts"] >= keep_ts and h["run_ts"] != run_ts]
     history += [dict(run_ts=run_ts, topic=r["topic"], rank=r["rank"], tier=r["tier"], demand_score=r["demand_score"],
-                     w1_rank=r.get("w1_rank"), w1_score=r.get("w1_score"),
+                     pick_rank=r.get("pick_rank"), pick_score=r.get("pick_score"),
                      momentum_pct=r["momentum_pct"], k_vol=r["k_vol"], k_oi=r["k_oi"], p_vol=r["p_vol"], p_oi=r["p_oi"],
                      gate=r["gate"]) for r in out_rows]
     d = today.isoformat()
     if now_et.hour >= 15 and not any(r["date"] == d for r in daily):  # first pull at or after the 15:00 ET pick
-        daily += [dict(date=d, **{k_: r.get(k_) for k_ in ("rank", "w1_rank", "w1_score", "w1_tier", "topic", "name", "asset_class", "tier", "gate", "demand_score",
+        daily += [dict(date=d, **{k_: r.get(k_) for k_ in ("rank", "pick_rank", "pick_score", "pick_tier", "topic", "name", "asset_class", "tier", "gate", "demand_score",
                                                           "momentum_pct", "momentum_rank", "k_vol", "p_vol", "abnormal_move", "chg_24h")})
                   for r in out_rows]
         keep_d = (today - dt.timedelta(days=DAILY_DAYS)).isoformat()
@@ -846,7 +905,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         scored=len(ranked), gated=len(gated), prior_pull=prev_ts,
         top_topic=top["topic"] if top else None, top_tier=top["tier"] if top else None, top_score=top["demand_score"] if top else None,
         momentum_top=mtop["topic"] if mtop else None,
-        w1_top=next((r["topic"] for r in out_rows if r.get("w1_rank") == 1), None),
+        pick_top=next((r["topic"] for r in out_rows if r.get("pick_rank") == 1), None), pick_version=WD["version"],
         **{f"{st['dataset']}_status": st["status"] for st in raw_status},
         **{f"{st['dataset']}_rows": st["rows"] for st in raw_status},
         **{f"{st['dataset']}_error": st["error"] for st in raw_status if st["error"]},
