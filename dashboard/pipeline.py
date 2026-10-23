@@ -40,7 +40,7 @@ import zoneinfo
 import yaml
 
 from scoring import scoring
-from . import sources
+from . import archive, sources
 from .registry import Registry, ensure
 from .symbols import CATEGORIES, EXTRA, TOPICS, map_series, topic_info
 
@@ -183,7 +183,7 @@ def market_rows(events, series, now, reg):
             rows.append(dict(
                 topic=topic, rule=rule, series=st, event=e["event_ticker"], event_title=e.get("title"),
                 market=m["ticker"], category=e.get("category"), frequency=s.get("frequency"), tags=s.get("tags") or [],
-                bid=b, ask=a, mid=mid(b, a), prev_mid=mid(pb, pa),
+                bid=b, ask=a, mid=mid(b, a), prev_mid=mid(pb, pa), last=f(m.get("last_price_dollars")),
                 vol24=f(m.get("volume_24h_fp")) or 0.0, oi=f(m.get("open_interest_fp")) or 0.0,
                 old=bool(opened and opened <= day_ago), close=close, close_dt=close_dt,
             ))
@@ -857,6 +857,12 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     runs = runs[-240:]
 
     out.mkdir(parents=True, exist_ok=True)
+    try:  # permanent archive (never fails the pull)
+        arc = archive.write(out, state, now, now_et, run_ts, mrows=mrows, raw=raw, topic_log=out_rows, events=ev_rows,
+                            adanos_key=adanos_key, ad_stat=ad_stat, runs=runs[:-1])
+    except Exception as e:
+        arc = {"archive_files": 0, "archive_error": f"{type(e).__name__}: {e}"[:200]}
+    runs[-1].update(arc)
     files = dict(topic_log=out_rows, events=ev_rows, score_history=history, daily_log=daily, runs=runs, adanos_daily=ad_cache,
                  symbol_appendix=appendix, market_data=mkt, **raw)
     for k_, v in files.items():
