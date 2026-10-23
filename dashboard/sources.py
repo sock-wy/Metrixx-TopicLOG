@@ -119,7 +119,11 @@ PM_TAGS = ["finance", "economy", "stocks", "earnings", "fed-rates", "commodities
 
 
 def polymarket(per_tag=200):
-    """Active Polymarket events in the money tags, most 24h volume first (top `per_tag` per tag)."""
+    """Active Polymarket events in the money tags, most 24h volume first (top `per_tag` per tag).
+
+    Per event: volume (24h, 1 week, total), liquidity, open interest, the most traded market, and
+    move_1d = 24h-volume-weighted |1-day price change| over its traded, tightly quoted markets.
+    """
     t0, seen, err = time.time(), {}, None
     try:
         for tag in PM_TAGS:
@@ -132,10 +136,14 @@ def polymarket(per_tag=200):
                     if e["id"] in seen:
                         seen[e["id"]]["matched_tags"].add(tag)
                         continue
-                    ms = e.get("markets") or []
+                    ms = [m for m in (e.get("markets") or []) if not m.get("closed")]
                     top = max(ms, key=lambda m: _num(m.get("volume24hr")) or _num(m.get("volumeNum")) or 0) if ms else {}
+                    mv = [(abs(_num(m.get("oneDayPriceChange")) or 0.0), _num(m.get("volume24hr")) or 0.0) for m in ms
+                          if (_num(m.get("volume24hr")) or 0) > 0 and m.get("oneDayPriceChange") is not None
+                          and (_num(m.get("spread")) is None or _num(m.get("spread")) <= 0.30)]
+                    w = sum(x[1] for x in mv)
                     seen[e["id"]] = dict(
-                        event_id=e["id"], title=e.get("title"), slug=e.get("slug"),
+                        event_id=str(e["id"]), title=e.get("title"), slug=e.get("slug"),
                         tags=", ".join(t.get("label") for t in (e.get("tags") or []) if t.get("label")),
                         matched_tags={tag}, end_date=(e.get("endDate") or "")[:10] or None,
                         volume_24h=_num(e.get("volume24hr")), volume_1wk=_num(e.get("volume1wk")),
@@ -143,6 +151,7 @@ def polymarket(per_tag=200):
                         open_interest=_num(e.get("openInterest")), n_markets=len(ms), comments=e.get("commentCount"),
                         top_market=top.get("question"), top_price=_num(top.get("lastTradePrice")),
                         top_change_1d=_num(top.get("oneDayPriceChange")), top_spread=_num(top.get("spread")),
+                        move_1d=round(sum(x[0] * x[1] for x in mv) / w, 6) if w else None,
                     )
                 off += 100
                 if len(page) < 100:
@@ -159,38 +168,98 @@ def polymarket(per_tag=200):
 
 
 # ------------------------------------------------------------------ crypto: Binance + Coinbase
+KRAKEN_BASE = {"XBT": "BTC", "XXBT": "BTC", "XDG": "DOGE", "XXDG": "DOGE", "XETH": "ETH", "XXRP": "XRP", "XLTC": "LTC",
+               "XXLM": "XLM", "XZEC": "ZEC", "XETC": "ETC", "XXMR": "XMR", "XREP": "REP", "XMLN": "MLN"}
+
+
 def crypto_spot():
-    """Binance 24h stats for every USDT pair, flagged with whether Coinbase lists the coin against USD."""
-    t0, rows, err = time.time(), [], None
-    cb = set()
-    cb_err = None
-    try:
-        for p in _get("https://api.exchange.coinbase.com/products"):
-            if p.get("quote_currency") == "USD" and not p.get("trading_disabled"):
-                cb.add(p["base_currency"].upper())
-    except Exception as e:
-        cb_err = e
+    """24h stats per coin from Binance (USDT pairs), Coinbase and Kraken (USD pairs).
+
+    Source of record for a coin's price is Binance, then Coinbase, then Kraken; volumes are kept per venue
+    and summed in USD. on_coinbase / on_kraken say whether a US user can buy it there.
+    """
+    t0, err, coins = time.time(), [], {}
+
+    def c(sym):
+        return coins.setdefault(sym, dict(symbol=sym))
     try:
         for x in _get("https://data-api.binance.vision/api/v3/ticker/24hr"):
             s = x.get("symbol", "")
-            if not s.endswith("USDT") or _num(x.get("quoteVolume")) in (None, 0.0):
-                continue
-            base = s[:-4]
-            rows.append(dict(
-                symbol=base, pair=s, price=_num(x.get("lastPrice")), change_pct=_num(x.get("priceChangePercent")),
-                high=_num(x.get("highPrice")), low=_num(x.get("lowPrice")),
-                range_pct=round((_num(x.get("highPrice")) / _num(x.get("lowPrice")) - 1) * 100, 3) if _num(x.get("lowPrice")) else None,
-                quote_volume=_num(x.get("quoteVolume")), trades=_num(x.get("count")),
-                on_coinbase=(base in cb) if cb else None,
-            ))
-        rows.sort(key=lambda r: -(r["quote_volume"] or 0))
+            if s.endswith("USDT") and (_num(x.get("quoteVolume")) or 0) > 0:
+                r = c(s[:-4])
+                r.update(binance_price=_num(x.get("lastPrice")), binance_chg=_num(x.get("priceChangePercent")),
+                         binance_vol=_num(x.get("quoteVolume")), binance_trades=_num(x.get("count")),
+                         high=_num(x.get("highPrice")), low=_num(x.get("lowPrice")))
     except Exception as e:
-        err = e
-    st = _status("crypto_spot", rows, t0, err)
-    st["coinbase_usd_pairs"] = len(cb)
-    if cb_err and not err:
-        st["error"] = f"Coinbase: {type(cb_err).__name__}"
+        err.append(f"Binance: {type(e).__name__}")
+    try:
+        stats = _get("https://api.exchange.coinbase.com/products/stats")
+        for pid, st in stats.items():
+            if not pid.endswith("-USD"):
+                continue
+            d = st.get("stats_24hour") or {}
+            last, op, vol = _num(d.get("last")), _num(d.get("open")), _num(d.get("volume"))
+            r = c(pid[:-4])
+            r.update(on_coinbase=True, coinbase_price=last, coinbase_chg=((last / op - 1) * 100) if last and op else None,
+                     coinbase_vol=(vol * last) if vol and last else None)
+    except Exception as e:
+        err.append(f"Coinbase: {type(e).__name__}")
+    try:
+        pairs = _get("https://api.kraken.com/0/public/AssetPairs").get("result", {})
+        usd = {k: v for k, v in pairs.items() if v.get("quote") in ("ZUSD", "USD") and not v.get("altname", "").endswith(".d")}
+        tick = _get("https://api.kraken.com/0/public/Ticker").get("result", {})
+        for k, v in usd.items():
+            t = tick.get(k)
+            if not t:
+                continue
+            base = (v.get("wsname") or "").split("/")[0] or v.get("base")
+            base = KRAKEN_BASE.get(base, KRAKEN_BASE.get(v.get("base"), base))
+            last, op, vol = _num(t["c"][0]), _num(t.get("o")), _num(t["v"][1])
+            r = c(base)
+            r.update(on_kraken=True, kraken_price=last, kraken_chg=((last / op - 1) * 100) if last and op else None,
+                     kraken_vol=(vol * last) if vol and last else None, kraken_pair=k)
+    except Exception as e:
+        err.append(f"Kraken: {type(e).__name__}")
+    rows = []
+    for sym, r in coins.items():
+        for v in ("binance", "coinbase", "kraken"):
+            if r.get(f"{v}_price"):
+                r["primary"], r["price"], r["change_pct"] = v, r[f"{v}_price"], r.get(f"{v}_chg")
+                break
+        if not r.get("price"):
+            continue
+        r["usd_volume"] = sum(r.get(f"{v}_vol") or 0 for v in ("binance", "coinbase", "kraken"))
+        r["on_coinbase"], r["on_kraken"] = bool(r.get("on_coinbase")), bool(r.get("on_kraken"))
+        r["on_binance"] = r.get("binance_price") is not None
+        if r.get("high") and r.get("low"):
+            r["range_pct"] = round((r["high"] / r["low"] - 1) * 100, 3)
+        rows.append(r)
+    rows.sort(key=lambda r: -(r["usd_volume"] or 0))
+    st = _status("crypto_spot", rows, t0, None)
+    st["coinbase_usd_pairs"] = sum(r["on_coinbase"] for r in rows)
+    st["kraken_usd_pairs"] = sum(r["on_kraken"] for r in rows)
+    if err:
+        st["error"] = "; ".join(err)
+        st["status"] = "partial" if rows else "error"
     return rows, st
+
+
+def crypto_daily(sym, primary, kraken_pair=None, days=31):
+    """Daily closes [(ts, close)] for one coin from its source-of-record venue."""
+    try:
+        if primary == "binance":
+            d = _get(f"https://data-api.binance.vision/api/v3/klines?symbol={sym}USDT&interval=1d&limit={days + 1}")
+            return [(int(k[0] / 1000), float(k[4])) for k in d]
+        if primary == "coinbase":
+            d = _get(f"https://api.exchange.coinbase.com/products/{sym}-USD/candles?granularity=86400")
+            return sorted((int(k[0]), float(k[4])) for k in d)[-(days + 1):]
+        if primary == "kraken" and kraken_pair:
+            d = _get(f"https://api.kraken.com/0/public/OHLC?pair={kraken_pair}&interval=1440")
+            res = [v for k, v in d.get("result", {}).items() if k != "last"]
+            return [(int(k[0]), float(k[4])) for k in (res[0] if res else [])][-(days + 1):]
+    except Exception:
+        return []
+    return []
 
 
 def pull_all(today: dt.date):

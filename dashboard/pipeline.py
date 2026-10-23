@@ -1,21 +1,27 @@
-"""Topic Log dashboard pipeline: one run = one of the eight daily pulls.
+"""Topic Log dashboard pipeline (v2): one run = one pull.
 
     python -m dashboard.pipeline --state DIR --out DIR [--adanos-key KEY]      (from the repo root)
 
-Reads the previous run's files from --state (any may be missing on the first run):
-    score_history.json  adanos_daily.json  daily_log.json  runs.json
-Writes every dashboard dataset to --out:
-    topic_log.json      latest ranking, one row per topic (Sheet 2 for this pull)
-    score_history.json  per pull per topic, last 10 days (feeds deltas and charts)
-    daily_log.json      the 15:00 ET pull of each day, last 45 days (the daily pick record)
-    runs.json           one row per pull with the status of each step
-    adanos_daily.json   Adanos Reddit metrics per UTC day, last 21 days
-    symbol_appendix.json  every open Kalshi series -> topic
-    market_data.json    price, 24h / 5d change and abnormal move per priced topic
-  raw tables from the free sources (dashboard/sources.py), not scored yet:
-    us_stocks.json  earnings_calendar.json  us_movers.json  polymarket.json  crypto_spot.json
+Topics and events
+  A topic is what an episode is about (a company, coin, index, commodity, rate, FX pair, macro theme,
+  private company or theme). An event is one concrete market or list entry under it: a Kalshi event,
+  a Polymarket event, an Adanos trending entry, a Yahoo mover. Every item from every source is assigned
+  to a topic automatically (dashboard/registry.py); items that match nothing become their own topic.
 
-Scoring is scoring/scoring.py with config/weights_w0.yaml, unchanged. Momentum is reported next to it, never inside it.
+Universe = topics from Kalshi (Financials, Crypto, Commodities, Companies, Economics) + Polymarket
+(money tags) + Adanos trending lists (Reddit, X, news; Reddit crypto) + Yahoo movers.
+
+Source of record per signal (others only fill gaps or add to totals):
+  money_flow   Kalshi 24h volume vs the pull 24h earlier; Polymarket 24h volume vs its 1-week daily average;
+               combined weighted by each venue's 24h volume
+  money_stock  open interest change vs the pull 24h earlier, Kalshi + Polymarket, weighted by open interest
+  market_move  Kalshi |mid change 24h|, Polymarket |1-day price change|, weighted by 24h volume
+  attention / activity / sentiment   Adanos Reddit, X and news (stocks) or Reddit (crypto): mean over platforms
+  momentum     |24h price change| / daily volatility: Yahoo (stocks, indices, FX, commodities, rates),
+               Binance > Coinbase > Kraken (crypto). Reported next to the score; weight 0 in w0.
+
+Scoring is scoring/scoring.py with config/weights_w0.yaml, unchanged; G2 uses prediction-market evidence.
+Every per-source input is written to topic_log so the page can recombine them with sources switched off.
 """
 from __future__ import annotations
 
@@ -35,7 +41,8 @@ import yaml
 
 from scoring import scoring
 from . import sources
-from .symbols import CATEGORIES, map_series, topic_info
+from .registry import Registry, ensure
+from .symbols import CATEGORIES, EXTRA, TOPICS, map_series, topic_info
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -46,10 +53,12 @@ ADANOS = "https://api.adanos.org"
 YAHOO = "https://query1.finance.yahoo.com/v8/finance/spark"
 UA = {"User-Agent": "Mozilla/5.0 (Metrixx TopicLog dashboard)"}
 PULL_HOURS_ET = [15, 18, 21, 0, 3, 6, 9, 12]
-HISTORY_DAYS, DAILY_DAYS, ADANOS_DAYS = 10, 45, 21
+HISTORY_DAYS, DAILY_DAYS, ADANOS_DAYS = 10, 45, 10
+STOCK_PLATFORMS = ("reddit", "x", "news")
+TICKER_ALIAS = {"GOOG": "GOOGL", "BRK/B": "BRK.B", "BRK-B": "BRK.B"}
 
 
-# ------------------------------------------------------------------ http
+# ------------------------------------------------------------------ helpers
 def get_json(url, headers=None, tries=4, timeout=40):
     err = None
     for i in range(tries):
@@ -59,11 +68,11 @@ def get_json(url, headers=None, tries=4, timeout=40):
                 return json.load(r), dict(r.headers)
         except urllib.error.HTTPError as e:
             err = e
-            if e.code in (401, 403, 404, 422):
+            if e.code in (400, 401, 403, 404, 422):
                 raise
             wait = int(e.headers.get("Retry-After") or 0) or 2 * (i + 1)
             time.sleep(min(wait, 30))
-        except Exception as e:  # network hiccup
+        except Exception as e:
             err = e
             time.sleep(2 * (i + 1))
     raise err
@@ -89,9 +98,39 @@ def load(path, default):
         return default
 
 
-# ------------------------------------------------------------------ kalshi
+def rnd(x, n=4):
+    if x is None or (isinstance(x, float) and (math.isnan(x) or math.isinf(x))):
+        return None
+    return round(float(x), n)
+
+
+def pct(a, b):
+    return (a / b - 1) * 100 if (a is not None and b) else None
+
+
+def wmean(pairs):
+    """Weighted mean of (value, weight) pairs with a value and a positive weight."""
+    p = [(v, w) for v, w in pairs if v is not None and w and w > 0]
+    s = sum(w for _, w in p)
+    return sum(v * w for v, w in p) / s if s else None
+
+
+def mean(vals):
+    v = [x for x in vals if x is not None]
+    return sum(v) / len(v) if v else None
+
+
+def trading_days_until(d0: dt.date, d1: dt.date) -> int:
+    n, d = 0, d0
+    while d < d1:
+        d += dt.timedelta(days=1)
+        if d.weekday() < 5:
+            n += 1
+    return n
+
+
+# ------------------------------------------------------------------ Kalshi
 def kalshi_pull():
-    series, cur = [], ""
     d, _ = get_json(f"{KALSHI}/series?limit=10000")
     series = {s["ticker"]: s for s in d.get("series", [])}
     events, cur = [], ""
@@ -105,20 +144,35 @@ def kalshi_pull():
     return series, events
 
 
-def market_rows(events, series, now):
-    rows = []
+def kalshi_topic(series_ticker, s, reg):
+    """Topic for a Kalshi series: rules first, then free-text matching on its title, else its own ticker."""
+    m = map_series(series_ticker, s.get("title", ""), s.get("tags"), s.get("category"))
+    if m["mapped"]:
+        return m["topic"], m["rule"]
+    t, how, cls = reg.match(s.get("title", ""))
+    if t:
+        ensure(t, cls, reg.names.get(t))
+        return t, "name"
+    EXTRA.setdefault(m["topic"], (s.get("title") or m["topic"], m.get("fallback_class", "theme"), None, None))
+    return m["topic"], "new"
+
+
+def market_rows(events, series, now, reg):
+    rows, smap = [], {}
     day_ago = now - dt.timedelta(hours=24)
     for e in events:
-        s = series.get(e["series_ticker"], {})
-        m_s = map_series(e["series_ticker"], s.get("title", ""), s.get("tags"))
+        st = e["series_ticker"]
+        s = {**series.get(st, {}), "category": e.get("category") or series.get(st, {}).get("category")}
+        if st not in smap:
+            smap[st] = kalshi_topic(st, s, reg)
+        topic, rule = smap[st]
         for m in e.get("markets", []):
             if m.get("status") not in ("active", "open"):
                 continue
             b, a = f(m.get("yes_bid_dollars")), f(m.get("yes_ask_dollars"))
             pb, pa = f(m.get("previous_yes_bid_dollars")), f(m.get("previous_yes_ask_dollars"))
-            opened = m.get("open_time")
             try:
-                opened = dt.datetime.fromisoformat(opened.replace("Z", "+00:00"))
+                opened = dt.datetime.fromisoformat(m.get("open_time").replace("Z", "+00:00"))
             except Exception:
                 opened = None
             close = m.get("close_time") or m.get("expected_expiration_time")
@@ -127,89 +181,73 @@ def market_rows(events, series, now):
             except Exception:
                 close_dt = None
             rows.append(dict(
-                topic=m_s["topic"], series=e["series_ticker"], event=e["event_ticker"], market=m["ticker"],
-                category=e.get("category"), frequency=s.get("frequency"), tags=s.get("tags") or [],
+                topic=topic, rule=rule, series=st, event=e["event_ticker"], event_title=e.get("title"),
+                market=m["ticker"], category=e.get("category"), frequency=s.get("frequency"), tags=s.get("tags") or [],
                 bid=b, ask=a, mid=mid(b, a), prev_mid=mid(pb, pa),
                 vol24=f(m.get("volume_24h_fp")) or 0.0, oi=f(m.get("open_interest_fp")) or 0.0,
                 old=bool(opened and opened <= day_ago), close=close, close_dt=close_dt,
             ))
-    return rows
+    return rows, smap
 
 
-def trading_days_until(d0: dt.date, d1: dt.date) -> int:
-    n, d = 0, d0
-    while d < d1:
-        d += dt.timedelta(days=1)
-        if d.weekday() < 5:
-            n += 1
-    return n
-
-
-def topic_features(rows, now, catalysts):
+def kalshi_features(rows, now):
+    """Per topic: 24h volume, open interest, market_move, G3 liquidity on the primary ladder, KPI catalysts."""
     by = collections.defaultdict(list)
     for r in rows:
         by[r["topic"]].append(r)
     today = now.astimezone(ET).date()
-    out = {}
+    out, events = {}, []
     for t, ms in by.items():
-        info = topic_info(t)
-        vol = sum(m["vol24"] for m in ms)
-        oi = sum(m["oi"] for m in ms)
         live = [m for m in ms if m["mid"] is not None and 0.01 <= m["mid"] <= 0.99]  # G5
-        # primary ladder: the event with most 24h volume
         ev = collections.defaultdict(list)
         for m in live:
             ev[m["event"]].append(m)
         prim = max(ev.values(), key=lambda g: (sum(x["vol24"] for x in g), len(g))) if ev else []
-        # v2 / proposed w1: the 3 strikes nearest the implied median. A one-sided 0.01/0.99 quote
-        # also has a mid of 0.50, so look for the median among two-sided quotes first.
-        quoted = [m for m in prim if m["ask"] - m["bid"] <= 0.5] or prim
+        quoted = [m for m in prim if m["ask"] - m["bid"] <= 0.5] or prim  # a 0.01/0.99 quote also has a 0.50 mid
         near = sorted(quoted, key=lambda m: abs(m["mid"] - 0.5))[:3]
         traded = [m for m in near if m["vol24"] > 0]
         spreads = [m["ask"] - m["bid"] for m in traded]
-        # market_move: volume-weighted |mid change over 24h| on traded, two-sided markets that existed
-        # 24h ago. Markets closing within 24h are used only when nothing longer exists, because their
-        # prices drift to 0/1 as expiry nears (time decay, not a change of mind).
+
         def ok(m):
             return (m["old"] and m["prev_mid"] is not None and m["vol24"] > 0
                     and m["ask"] - m["bid"] <= 0.30 and 0.02 <= m["prev_mid"] <= 0.98)
         horizon = now + dt.timedelta(hours=24)
         cand = [m for m in live if ok(m)]
         longer = [m for m in cand if m["close_dt"] and m["close_dt"] > horizon]
-        mv = [(abs(m["mid"] - m["prev_mid"]), m["vol24"]) for m in (longer or cand)]
-        wsum = sum(w for _, w in mv)
-        move = sum(x * w for x, w in mv) / wsum if wsum else None
-        # catalyst: macro calendar (index/rates/fx) or a company KPI market resolving soon
-        cat = None
-        if info["asset_class"] in catalysts["applies_to"]:
-            ds = [trading_days_until(today, d) for d in catalysts["dates"] if d >= today]
-            cat = min(ds) if ds else None
-        kpi = [m for m in ms if "KPIs" in m["tags"] and m["vol24"] > 0 and m["close"]]
-        for m in kpi:
-            try:
-                cd = dt.datetime.fromisoformat(m["close"].replace("Z", "+00:00")).astimezone(ET).date()
-            except Exception:
-                continue
-            if cd >= today:
-                n = trading_days_until(today, cd)
-                cat = n if cat is None else min(cat, n)
-        top_ev = max(ev.items(), key=lambda kv: sum(x["vol24"] for x in kv[1]))[0] if ev else None
+        move = wmean([(abs(m["mid"] - m["prev_mid"]), m["vol24"]) for m in (longer or cand)])
+        kpi = None
+        for m in ms:
+            if "KPIs" in m["tags"] and m["vol24"] > 0 and m["close_dt"]:
+                cd = m["close_dt"].astimezone(ET).date()
+                if cd >= today:
+                    n = trading_days_until(today, cd)
+                    kpi = n if kpi is None else min(kpi, n)
         out[t] = dict(
-            **info,
-            n_series=len({m["series"] for m in ms}), n_markets=len(ms), n_live=len(live),
-            mkt_volume_24h=round(vol, 2), mkt_open_interest=round(oi, 2),
-            has_market_evidence=any(m["vol24"] > 0 for m in ms),
-            mkt_ladder_depth=len(prim), primary_event=top_ev,
-            zero_trade_market_pct=(1 - len(traded) / len(near)) if near else None,
-            avg_spread=(sum(spreads) / len(spreads)) if spreads else None,
-            mkt_prob_delta_1d=move, mkt_prob_range_1d=None,
-            catalyst_in_trading_days=cat,
+            k_vol=sum(m["vol24"] for m in ms), k_oi=sum(m["oi"] for m in ms), k_move=move,
+            k_spread=(sum(spreads) / len(spreads)) if spreads else None,
+            k_zero=(1 - len(traded) / len(near)) if near else None,
+            k_evidence=any(m["vol24"] > 0 for m in ms), k_ladder=len(prim),
+            n_series=len({m["series"] for m in ms}), n_markets=len(ms), kpi_days=kpi,
         )
-    return out
+        allev = collections.defaultdict(list)
+        for m in ms:
+            allev[m["event"]].append(m)
+        for e, g in allev.items():
+            q = [m for m in g if m["mid"] is not None]
+            top = max(q, key=lambda m: m["vol24"]) if q else None
+            cands = [m for m in g if ok(m)]
+            events.append(dict(
+                source="kalshi", event_id=e, title=g[0]["event_title"], topic=t, match=g[0]["rule"], series=g[0]["series"],
+                volume_24h=round(sum(m["vol24"] for m in g), 2), open_interest=round(sum(m["oi"] for m in g), 2),
+                n_markets=len(g), top_price=rnd(top["mid"]) if top else None,
+                move_1d=rnd(wmean([(abs(m["mid"] - m["prev_mid"]), m["vol24"]) for m in cands])),
+                end_date=(max((m["close"] or "") for m in g) or "")[:10] or None,
+            ))
+    return out, events
 
 
 # ------------------------------------------------------------------ prices / momentum
-def prices(symbols):
+def yahoo_prices(symbols):
     out = {}
     syms = sorted({s for s in symbols if s})
     for i in range(0, len(syms), 20):
@@ -220,11 +258,9 @@ def prices(symbols):
         except Exception:
             continue
         for s, v in d.items():
-            ts, cl = v.get("timestamp") or [], v.get("close") or []
-            pts = [(t, c) for t, c in zip(ts, cl) if c is not None]
-            if len(pts) < 10:
-                continue
-            out[s] = pts
+            pts = [(t, c) for t, c in zip(v.get("timestamp") or [], v.get("close") or []) if c is not None]
+            if len(pts) >= 10:
+                out[s] = pts
     return out
 
 
@@ -235,99 +271,154 @@ def price_stats(pts, now):
         return None
 
     def at(sec_ago):
-        cut = t_last - sec_ago
-        older = [p for t, p in pts if t <= cut]
+        older = [p for t, p in pts if t <= t_last - sec_ago]
         return older[-1] if older else None
-
     p1, p5 = at(86400), at(5 * 86400)
     r1 = (p_last / p1 - 1) if p1 else None
-    # daily closes (last point per UTC day) -> daily returns -> stdev
     daily = {}
     for t, p in pts:
         daily[dt.datetime.fromtimestamp(t, UTC).date()] = p
     closes = [daily[k] for k in sorted(daily)]
     rets = [b / a - 1 for a, b in zip(closes, closes[1:]) if a]
     sd = statistics.pstdev(rets[:-1]) if len(rets) >= 8 else None
-    z = (r1 / sd) if (r1 is not None and sd) else None
-    return dict(price=p_last, price_ts=dt.datetime.fromtimestamp(t_last, UTC).isoformat(),
-                chg_24h=r1, chg_5d=(p_last / p5 - 1) if p5 else None, vol_daily=sd, abnormal_move=z)
+    return dict(price=p_last, price_ts=dt.datetime.fromtimestamp(t_last, UTC).isoformat(), chg_24h=r1,
+                chg_5d=(p_last / p5 - 1) if p5 else None, vol_daily=sd, abnormal_move=(r1 / sd) if (r1 is not None and sd) else None)
 
 
-# ------------------------------------------------------------------ adanos
-def adanos_day(key, kind, day, symbols):
-    """Adanos Reddit metrics for one complete UTC day, 10 symbols per /compare call.
-    Unsupported symbols come back without a name and are dropped (missing, not zero)."""
-    path = "/reddit/stocks/v1/compare" if kind == "stocks" else "/reddit/crypto/v1/compare"
-    arg = "tickers" if kind == "stocks" else "symbols"
-    rows, calls, hdr = [], 0, {}
-    syms = sorted(set(symbols))
-    for i in range(0, len(syms), 10):
-        q = urllib.parse.urlencode({"from": day, "to": day, arg: ",".join(syms[i:i + 10])})
-        d, hdr = get_json(f"{ADANOS}{path}?{q}", headers={"X-API-Key": key})
-        calls += 1
-        items = d.get("stocks") if kind == "stocks" else d.get("tokens")
-        for x in items or []:
-            sym = x.get("ticker") or x.get("symbol")
-            if not sym or not (x.get("company_name") or x.get("name")):
-                continue
-            rows.append(dict(date=day, kind=kind, symbol=sym.upper(), buzz_score=f(x.get("buzz_score")),
-                             mentions=f(x.get("mentions")), sentiment_score=f(x.get("sentiment_score")),
-                             trend=x.get("trend")))
-        time.sleep(0.7)
+def crypto_stats(row, closes, now):
+    """Momentum for a coin from its source-of-record venue: 24h change over the daily volatility of the month."""
+    if not row or not closes or len(closes) < 10:
+        return None
+    rets = [b / a - 1 for (_, a), (_, b) in zip(closes, closes[1:]) if a]
+    sd = statistics.pstdev(rets[:-1]) if len(rets) >= 8 else None
+    r1 = (row.get("change_pct") or 0) / 100 if row.get("change_pct") is not None else None
+    p5 = closes[-6][1] if len(closes) >= 6 else None
+    return dict(price=row["price"], price_ts=now.isoformat(), chg_24h=r1, chg_5d=(row["price"] / p5 - 1) if p5 else None,
+                vol_daily=sd, abnormal_move=(r1 / sd) if (r1 is not None and sd) else None)
+
+
+# ------------------------------------------------------------------ Adanos
+def _adanos_get(key, path):
+    d, hdr = get_json(f"{ADANOS}{path}", headers={"X-API-Key": key})
     hl = {k.lower(): v for k, v in hdr.items()}
-    left = hl.get("x-ratelimit-remaining-monthly") or hl.get("x-ratelimit-remaining")
-    return rows, calls, left
+    return d, hl.get("x-ratelimit-remaining-monthly")
 
 
-def adanos_update(key, cache, now, symbols):
-    """Make sure days t-1 and t-2 (UTC) are cached for every mapped symbol. Returns (cache, status)."""
-    t = now.astimezone(UTC).date()
-    need = [(t - dt.timedelta(days=k)).isoformat() for k in (1, 2)]
-    have = {(r["date"], r["kind"]) for r in cache}
-    if not key:
-        return cache, dict(status="no key", calls=0)
-    calls, left, err = 0, None, None
-    for day in need:
-        for kind in ("stocks", "crypto"):
-            if (day, kind) in have or not symbols.get(kind):
-                continue
-            try:
-                rows, c, left = adanos_day(key, kind, day, symbols[kind])
-                cache += rows
-                calls += c
-            except Exception as e:
-                err = f"{type(e).__name__}: {e}"[:200]
-    keep = (t - dt.timedelta(days=ADANOS_DAYS)).isoformat()
-    cache = [r for r in cache if r["date"] >= keep]
-    st = "error" if err else ("fetched" if calls else "cached")
-    return cache, dict(status=st, calls=calls, quota_left=left, error=err)
+def adanos_trending(key, cache, day, stat):
+    """Top 100 per platform for one complete UTC day (stocks: Reddit, X, news; crypto: Reddit)."""
+    have = {(r["date"], r["kind"], r.get("platform", "reddit")) for r in cache if r.get("trend_rank")}
+    jobs = [("stocks", p) for p in STOCK_PLATFORMS] + [("crypto", "reddit")]
+    for kind, plat in jobs:
+        if (day, kind, plat) in have:
+            continue
+        try:
+            d, left = _adanos_get(key, f"/{plat}/{kind}/v1/trending?from={day}&to={day}&limit=100")
+            stat["calls"] += 1
+            stat["quota_left"] = left or stat["quota_left"]
+            items = d if isinstance(d, list) else d.get("stocks") or d.get("tokens") or []
+            for rank, x in enumerate(items, 1):
+                sym = (x.get("ticker") or x.get("symbol") or "").upper()
+                if sym:
+                    cache.append(dict(date=day, kind=kind, platform=plat, symbol=sym, trend_rank=rank,
+                                      name=x.get("company_name") or x.get("name"), buzz_score=f(x.get("buzz_score")),
+                                      mentions=f(x.get("mentions")), sentiment_score=f(x.get("sentiment_score"))))
+        except Exception as e:
+            stat["error"] = f"{type(e).__name__}: {e}"[:200]
 
 
-def adanos_features(cache, info, now):
-    if not info.get("adanos_symbol"):
-        return {}
-    t = now.astimezone(UTC).date()
-    d1, d2 = (t - dt.timedelta(days=1)).isoformat(), (t - dt.timedelta(days=2)).isoformat()
-    kind, sym = info["adanos_kind"], info["adanos_symbol"].upper()
-    x = {r["date"]: r for r in cache if r["kind"] == kind and r["symbol"] == sym and r["date"] in (d1, d2)}
-    if d1 not in x or d2 not in x:
-        out = {}
-        if d1 in x:
-            out.update(buzz_score=x[d1]["buzz_score"], mentions=x[d1]["mentions"], sentiment_score=x[d1]["sentiment_score"])
-        return out
-    a, b = x[d1], x[d2]
-    sd = (a["sentiment_score"] - b["sentiment_score"]) if a["sentiment_score"] is not None and b["sentiment_score"] is not None else None
-    return dict(
-        buzz_score=a["buzz_score"], mentions=a["mentions"], sentiment_score=a["sentiment_score"],
-        buzz_delta_1d=(a["buzz_score"] - b["buzz_score"]) if a["buzz_score"] is not None and b["buzz_score"] is not None else None,
-        trade_count_pct_change_1d=((a["mentions"] / b["mentions"] - 1) * 100) if a["mentions"] and b["mentions"] else None,
-        sentiment_delta_1d=sd,
-    )
+def adanos_fill(key, cache, days, wanted, stat):
+    """Make sure every (day, kind, platform, symbol) we need is cached, 10 symbols per /compare call."""
+    have = {(r["date"], r["kind"], r.get("platform", "reddit"), r["symbol"]) for r in cache}
+    for day in days:
+        for kind, syms in wanted.items():
+            plats = STOCK_PLATFORMS if kind == "stocks" else ("reddit",)
+            for plat in plats:
+                need = sorted({s for s in syms if (day, kind, plat, s) not in have})
+                for i in range(0, len(need), 10):
+                    chunk = need[i:i + 10]
+                    arg = "tickers" if kind == "stocks" else "symbols"
+                    try:
+                        d, left = _adanos_get(key, f"/{plat}/{kind}/v1/compare?from={day}&to={day}&{arg}={urllib.parse.quote(','.join(chunk))}")
+                        stat["calls"] += 1
+                        stat["quota_left"] = left or stat["quota_left"]
+                    except urllib.error.HTTPError as e:
+                        if e.code == 422 and len(chunk) > 1:  # one symbol it cannot parse: ask one at a time
+                            d = {"stocks": [], "tokens": []}
+                            for sym1 in chunk:
+                                try:
+                                    d1_, _ = _adanos_get(key, f"/{plat}/{kind}/v1/compare?from={day}&to={day}&{arg}={urllib.parse.quote(sym1)}")
+                                    stat["calls"] += 1
+                                    d["stocks"] += d1_.get("stocks") or []
+                                    d["tokens"] += d1_.get("tokens") or []
+                                except Exception:
+                                    pass
+                        else:
+                            stat["error"] = f"{type(e).__name__}: {e}"[:200]
+                            continue
+                    except Exception as e:
+                        stat["error"] = f"{type(e).__name__}: {e}"[:200]
+                        continue
+                    got = set()
+                    for x in d.get("stocks") or d.get("tokens") or []:
+                        sym = (x.get("ticker") or x.get("symbol") or "").upper()
+                        supported = bool(x.get("company_name") or x.get("name"))
+                        got.add(sym)
+                        cache.append(dict(date=day, kind=kind, platform=plat, symbol=sym, unsupported=not supported,
+                                          buzz_score=f(x.get("buzz_score")) if supported else None,
+                                          mentions=f(x.get("mentions")) if supported else None,
+                                          sentiment_score=f(x.get("sentiment_score")) if supported else None))
+                    for sym in set(chunk) - got:
+                        cache.append(dict(date=day, kind=kind, platform=plat, symbol=sym, unsupported=True))
+                    time.sleep(0.15)
 
 
-# ------------------------------------------------------------------ deltas from history
+def adanos_platform_features(index, kind, sym, d1, d2):
+    """Per platform: buzz Δ, mentions Δ%, sentiment Δ, and day t-1 levels."""
+    out = {}
+    plats = STOCK_PLATFORMS if kind == "stocks" else ("reddit",)
+    for p in plats:
+        a, b = index.get((d1, kind, p, sym)), index.get((d2, kind, p, sym))
+        if not a or a.get("unsupported"):
+            continue
+        out[f"ad_buzz_{p}"] = a.get("buzz_score")
+        out[f"ad_mentions_{p}"] = a.get("mentions")
+        if b and not b.get("unsupported"):
+            if a.get("buzz_score") is not None and b.get("buzz_score") is not None:
+                out[f"ad_buzz_d_{p}"] = a["buzz_score"] - b["buzz_score"]
+            if a.get("mentions") is not None and b.get("mentions"):
+                out[f"ad_ment_chg_{p}"] = (a["mentions"] / b["mentions"] - 1) * 100
+            if a.get("sentiment_score") is not None and b.get("sentiment_score") is not None:
+                out[f"ad_sent_d_{p}"] = a["sentiment_score"] - b["sentiment_score"]
+    return out
+
+
+# ------------------------------------------------------------------ combine (mirrored in the page's JS)
+def combine(r, on=None):
+    """Per-component raw inputs from the per-source columns. `on` switches sources off (default: all on)."""
+    on = on or {}
+    k, p = on.get("kalshi", True), on.get("polymarket", True)
+    plats = [x for x in STOCK_PLATFORMS if on.get(x, True)]
+    flow = wmean([(r.get("k_flow"), r.get("k_vol")) if k else (None, 0), (r.get("p_flow"), r.get("p_vol")) if p else (None, 0)])
+    stock = wmean([(r.get("k_oi_chg"), r.get("k_oi")) if k else (None, 0), (r.get("p_oi_chg"), r.get("p_oi")) if p else (None, 0)])
+    move = wmean([(r.get("k_move"), r.get("k_vol")) if k else (None, 0), (r.get("p_move"), r.get("p_vol")) if p else (None, 0)])
+    attn = mean([r.get(f"ad_buzz_d_{x}") for x in plats])
+    act = mean([r.get(f"ad_ment_chg_{x}") for x in plats])
+    sent = mean([abs(r[f"ad_sent_d_{x}"]) if r.get(f"ad_sent_d_{x}") is not None else None for x in plats])
+    mom = abs(r["abnormal_move"]) if (on.get("momentum", True) and r.get("abnormal_move") is not None) else None
+    pm_ev = (k and r.get("k_evidence")) or (p and (r.get("p_vol") or 0) > 0)
+    if (r.get("k_vol") or 0) >= (r.get("p_vol") or 0) and k and r.get("k_evidence") is not None:
+        spread, zero = r.get("k_spread"), r.get("k_zero")
+    elif p and r.get("p_vol"):
+        spread, zero = r.get("p_spread"), None
+    else:
+        spread, zero = None, None
+    fam = int(any(v is not None for v in (flow, stock, move))) + int(any(v is not None for v in (attn, act, sent)))
+    return dict(money_flow=flow, money_stock=stock, market_move=move, attention_shift=attn, activity_shift=act,
+                sentiment_shift=sent, momentum=mom, pm_evidence=bool(pm_ev), avg_spread=spread, zero_trade=zero, families=fam)
+
+
+# ------------------------------------------------------------------ history
 def prior_pull(history, now, hours=24, tol=3.5):
-    """The stored pull nearest to `hours` ago (within tol hours)."""
     target = now - dt.timedelta(hours=hours)
     runs = sorted({h["run_ts"] for h in history})
     best = None
@@ -340,128 +431,264 @@ def prior_pull(history, now, hours=24, tol=3.5):
     return best[1], {h["topic"]: h for h in history if h["run_ts"] == best[1]}
 
 
-def pct(a, b):
-    return (a / b - 1) * 100 if (a is not None and b) else None
-
-
 # ------------------------------------------------------------------ run
 def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     t0 = time.time()
     now = now or dt.datetime.now(UTC)
     now_et = now.astimezone(ET)
+    today = now_et.date()
     run_ts = now.replace(microsecond=0).isoformat()
     cfg = scoring.load_config(ROOT / "config" / "weights_w0.yaml")
     cat_cfg = yaml.safe_load((HERE / "catalysts.yaml").read_text())
-    catalysts = dict(dates=[e["date"] if isinstance(e["date"], dt.date) else dt.date.fromisoformat(e["date"])
-                            for e in cat_cfg["events"]], applies_to=cat_cfg["applies_to"])
-
+    macro_dates = sorted([(e["date"] if isinstance(e["date"], dt.date) else dt.date.fromisoformat(e["date"]), e.get("type", "macro"))
+                          for e in cat_cfg["events"]])
+    macro_classes = set(cat_cfg["applies_to"]) | {"macro"}
     history = load(state / "score_history.json", [])
     daily = load(state / "daily_log.json", [])
     runs = load(state / "runs.json", [])
     ad_cache = load(state / "adanos_daily.json", [])
+    for r in ad_cache:
+        r.setdefault("platform", "reddit")
     steps = {}
+    EXTRA.clear()
 
-    # 1 · Pull
-    series, events = kalshi_pull()
-    mrows = market_rows(events, series, now)
-    feats = topic_features(mrows, now, catalysts)
-    steps["kalshi"] = dict(status="ok", events=len(events), markets=len(mrows), topics=len(feats))
+    # 1 · raw sources (registry first needs the stock and coin lists)
+    raw, raw_status = sources.pull_all(today)
+    coins = {c["symbol"]: c for c in raw["crypto_spot"]}
+    us = {r["symbol"].strip().upper(): r for r in raw["us_stocks"] if r.get("symbol")}
+    reg = Registry(raw["us_stocks"], list(coins))
+    origins = collections.defaultdict(set)
+    match_how = {}
 
-    ad_syms = collections.defaultdict(list)
-    for v in feats.values():
-        if v["adanos_symbol"]:
-            ad_syms[v["adanos_kind"]].append(v["adanos_symbol"])
-    ad_cache, steps["adanos"] = adanos_update(adanos_key, ad_cache, now, ad_syms)
+    # 2 · Kalshi
+    series, kevents = kalshi_pull()
+    mrows, smap = market_rows(kevents, series, now, reg)
+    kfeat, ev_rows = kalshi_features(mrows, now)
+    for t in kfeat:
+        origins[t].add("kalshi")
+    for st, (t, how) in smap.items():
+        match_how.setdefault(t, how)
+    steps["kalshi"] = dict(status="ok", events=len(kevents), markets=len(mrows), topics=len(kfeat))
 
-    raw, raw_status = sources.pull_all(now_et.date())  # free sources, shown as raw tables, not scored yet
+    # 3 · Polymarket events -> topics
+    pfeat = collections.defaultdict(lambda: dict(p_vol=0.0, p_vol1wk=0.0, p_oi=0.0, moves=[], top=None, n=0))
+    for e in raw["polymarket"]:
+        tags = [x.strip() for x in (e.get("tags") or "").split(",") if x.strip()]
+        t, how = reg.assign(e.get("title") or "", tags, new_id=f"PM{e['event_id']}")
+        e["topic"], e["match"] = t, how
+        origins[t].add("polymarket")
+        match_how.setdefault(t, how)
+        a = pfeat[t]
+        a["p_vol"] += e.get("volume_24h") or 0
+        a["p_vol1wk"] += e.get("volume_1wk") or 0
+        a["p_oi"] += e.get("open_interest") or 0
+        a["moves"].append((e.get("move_1d"), e.get("volume_24h") or 0))
+        a["n"] += 1
+        if a["top"] is None or (e.get("volume_24h") or 0) > (a["top"].get("volume_24h") or 0):
+            a["top"] = e
+        ev_rows.append(dict(source="polymarket", event_id=e["event_id"], title=e.get("title"), topic=t, match=how,
+                            series=None, volume_24h=rnd(e.get("volume_24h"), 2), open_interest=rnd(e.get("open_interest"), 2),
+                            n_markets=e.get("n_markets"), top_price=e.get("top_price"), move_1d=e.get("move_1d"),
+                            end_date=e.get("end_date"), slug=e.get("slug")))
 
-    px = prices([v["price_symbol"] for v in feats.values()])
-    steps["prices"] = dict(status="ok" if px else "error", symbols=len(px))
+    # 4 · Adanos trending + movers add topics; then fill Adanos metrics for every topic that has a symbol
+    d1 = (now.astimezone(UTC).date() - dt.timedelta(days=1)).isoformat()
+    d2 = (now.astimezone(UTC).date() - dt.timedelta(days=2)).isoformat()
+    ad_stat = dict(status="no key", calls=0, quota_left=None, error=None)
+    ad_rev = {}
+    for t, (n, ac, yh, ad) in TOPICS.items():
+        if ad and ac != "equity" and (ad[0], ad[1]) not in ad_rev:
+            ad_rev[(ad[0], ad[1])] = t
+    if adanos_key:
+        adanos_trending(adanos_key, ad_cache, d1, ad_stat)
+    for r in ad_cache:
+        if r.get("trend_rank") and r["date"] == d1:
+            sym = TICKER_ALIAS.get(r["symbol"], r["symbol"])
+            t = ad_rev.get((r["kind"], sym))
+            if not t:
+                if r["kind"] == "crypto":
+                    t = sym
+                    ensure(t, "crypto", r.get("name"))
+                else:
+                    t = reg.tickers.get(sym, sym)
+                    ensure(t, "equity", reg.names.get(sym) or r.get("name"))
+            origins[t].add("adanos")
+            match_how.setdefault(t, "ticker")
+    for m in raw["us_movers"]:
+        sym = TICKER_ALIAS.get((m.get("symbol") or "").upper(), (m.get("symbol") or "").upper())
+        if sym:
+            sym = reg.tickers.get(sym, sym)
+            ensure(sym, "equity", reg.names.get(sym) or m.get("name"))
+            origins[sym].add("movers")
+            match_how.setdefault(sym, "ticker")
+            ev_rows.append(dict(source="yahoo_movers", event_id=f"{m['list']}:{sym}", title=f"{m.get('name')} · {m['list']} #{m['list_rank']}",
+                                topic=sym, match="ticker", volume_24h=None, open_interest=None, n_markets=None,
+                                top_price=m.get("price"), move_1d=rnd((m.get("change_pct") or 0) / 100), end_date=None))
+    topics = sorted(origins)
+    infos = {t: topic_info(t) for t in topics}
+    wanted = collections.defaultdict(set)
+    for t, i in infos.items():
+        if i["adanos_symbol"]:
+            wanted[i["adanos_kind"]].add(i["adanos_symbol"].upper())
+    if adanos_key:
+        before = ad_stat["calls"]
+        adanos_fill(adanos_key, ad_cache, [d1, d2], wanted, ad_stat)
+        ad_stat["status"] = "error" if ad_stat["error"] and ad_stat["calls"] == before else ("fetched" if ad_stat["calls"] else "cached")
+    keep = (now.astimezone(UTC).date() - dt.timedelta(days=ADANOS_DAYS)).isoformat()
+    ad_cache = [r for r in ad_cache if r["date"] >= keep]
+    ad_index = {(r["date"], r["kind"], r.get("platform", "reddit"), r["symbol"]): r for r in ad_cache if not r.get("trend_rank")}
+    for r in ad_cache:  # trending rows also carry the metrics
+        if r.get("trend_rank"):
+            ad_index.setdefault((r["date"], r["kind"], r["platform"], r["symbol"]), r)
+    steps["adanos"] = ad_stat
 
+    # 5 · prices: Yahoo for listed non-crypto, source-of-record venue for crypto
+    ysyms = {i["price_symbol"] for i in infos.values() if i["price_symbol"] and i["asset_class"] != "crypto"}
+    px = yahoo_prices(ysyms)
+    pstats = {}
+    for t, i in infos.items():
+        if i["asset_class"] == "crypto":
+            c = coins.get(t)
+            if c:
+                closes = sources.crypto_daily(t, c["primary"], c.get("kraken_pair"))
+                pstats[t] = crypto_stats(c, closes, now)
+                if pstats[t]:
+                    pstats[t]["price_source"] = c["primary"]
+                time.sleep(0.05)
+        elif i["price_symbol"] in px:
+            pstats[t] = price_stats(px[i["price_symbol"]], now)
+            if pstats[t]:
+                pstats[t]["price_source"] = "yahoo"
+    steps["prices"] = dict(status="ok" if pstats else "error", symbols=sum(1 for v in pstats.values() if v))
+
+    # 6 · catalysts: macro calendar, Kalshi KPI markets, Nasdaq earnings
+    earn = {}
+    for e in raw["earnings_calendar"]:
+        dd = dt.date.fromisoformat(e["date"])
+        if dd >= today:
+            n = trading_days_until(today, dd)
+            s = (e.get("symbol") or "").upper()
+            if s and (s not in earn or n < earn[s][0]):
+                earn[s] = (n, e["date"])
+
+    # 7 · assemble one row per topic
     prev_ts, prev = prior_pull(history, now)
-    # trailing daily volumes per topic for the money_flow floor (playbook v2)
     vol_hist = collections.defaultdict(list)
     for r in sorted(daily, key=lambda r: r["date"]):
-        if r.get("mkt_volume_24h") is not None:
-            vol_hist[r["topic"]].append(r["mkt_volume_24h"])
-
+        if r.get("k_vol") is not None:
+            vol_hist[r["topic"]].append(r["k_vol"])
     rows = []
-    for t, x in feats.items():
-        r = dict(x)
-        r["ticker"] = t
-        p = prev.get(t)
-        r["prev_volume_24h"] = p["mkt_volume_24h"] if p else None
-        r["mkt_volume_delta_1d"] = pct(x["mkt_volume_24h"], p["mkt_volume_24h"]) if p else None
-        r["mkt_oi_delta_1d"] = pct(x["mkt_open_interest"], p["mkt_open_interest"]) if p else None
-        hist = vol_hist[t][-30:]
-        if p and len(hist) >= 10:
-            floor = sorted(hist)[max(0, int(math.ceil(0.10 * len(hist))) - 1)]
-            if p["mkt_volume_24h"] < floor:
-                r["mkt_volume_delta_1d"], r["money_flow_floored"] = None, True
-        r.update(adanos_features(ad_cache, x, now))
-        adanos_ok = any(r.get(k) is not None for k in ("buzz_delta_1d", "trade_count_pct_change_1d", "sentiment_delta_1d"))
-        r["sources_available"] = 1 + int(adanos_ok)
-        r["days_since_covered"] = None  # filled once the episode log exists
-        ps = price_stats(px[x["price_symbol"]], now) if x["price_symbol"] in px else None
+    for t in topics:
+        i = infos[t]
+        r = dict(i, ticker=t, origin=",".join(sorted(origins[t])), match=match_how.get(t),
+                 is_new=match_how.get(t) == "new")
+        k = kfeat.get(t)
+        if k:
+            r.update(k)
+        pf = pfeat.get(t)
+        if pf:
+            r.update(p_vol=pf["p_vol"], p_vol1wk=pf["p_vol1wk"], p_oi=pf["p_oi"], p_move=wmean(pf["moves"]),
+                     p_spread=(pf["top"] or {}).get("top_spread"), n_pm_events=pf["n"],
+                     p_flow=((pf["p_vol"] / (pf["p_vol1wk"] / 7) - 1) * 100) if pf["p_vol1wk"] > 0 else None)
+        pv = prev.get(t)
+        if pv:
+            pk_vol = pv.get("k_vol", pv.get("mkt_volume_24h"))
+            pk_oi = pv.get("k_oi", pv.get("mkt_open_interest"))
+            if k and pk_vol is not None:
+                r["k_flow"] = pct(k["k_vol"], pk_vol)
+                hist = vol_hist[t][-30:]
+                if len(hist) >= 10:  # playbook v2 volume floor
+                    floor = sorted(hist)[max(0, int(math.ceil(0.10 * len(hist))) - 1)]
+                    if pk_vol < floor:
+                        r["k_flow"], r["money_flow_floored"] = None, True
+            if k and pk_oi is not None:
+                r["k_oi_chg"] = pct(k["k_oi"], pk_oi)
+            if pf and pv.get("p_oi") is not None:
+                r["p_oi_chg"] = pct(pf["p_oi"], pv["p_oi"])
+        if i["adanos_symbol"]:
+            r.update(adanos_platform_features(ad_index, i["adanos_kind"], i["adanos_symbol"].upper(), d1, d2))
+        ps = pstats.get(t)
         if ps:
             r.update(ps)
+        if t in us:
+            r["exchange_volume_usd"] = (us[t].get("volume") or 0) * (us[t].get("price") or 0)
+        elif t in coins:
+            r["exchange_volume_usd"] = coins[t].get("usd_volume")
+            r["on_coinbase"], r["on_kraken"] = coins[t].get("on_coinbase"), coins[t].get("on_kraken")
+        cats = []
+        if i["asset_class"] in macro_classes:
+            nxt = next(((d, typ) for d, typ in macro_dates if d >= today), None)
+            if nxt:
+                cats.append((trading_days_until(today, nxt[0]), f"{nxt[1]} {nxt[0]:%b %-d}"))
+        if k and k.get("kpi_days") is not None:
+            cats.append((k["kpi_days"], "KPI market resolves"))
+        if t in earn and i["asset_class"] == "equity":
+            cats.append((earn[t][0], f"earnings {earn[t][1][5:]}"))
+        if cats:
+            n, kind = min(cats)
+            r["catalyst_in_trading_days"], r["catalyst"] = n, kind
+        c = combine(r)
+        r.update(c)
+        # inputs for scoring.score_day (w0)
+        r["buzz_delta_1d"], r["trade_count_pct_change_1d"] = c["attention_shift"], c["activity_shift"]
+        r["mkt_volume_delta_1d"], r["mkt_oi_delta_1d"] = c["money_flow"], c["money_stock"]
+        r["mkt_prob_delta_1d"], r["mkt_prob_range_1d"] = c["market_move"], None
+        r["sentiment_delta_1d"] = c["sentiment_shift"]
+        r["has_market_evidence"] = c["pm_evidence"]
+        r["zero_trade_market_pct"] = c["zero_trade"]
+        r["sources_available"] = max(1, c["families"])
+        r["days_since_covered"] = None
+        r["mkt_ladder_depth"] = r.get("k_ladder") or 0
         rows.append(r)
 
     ranked, gated = scoring.score_day(rows, cfg)
-    # momentum reference: percentile of |abnormal move| within the surviving pool
-    mom = scoring.pctrank([abs(r["abnormal_move"]) if r.get("abnormal_move") is not None else None for r in ranked])
-    order = sorted([i for i, v in enumerate(mom) if v is not None], key=lambda i: -abs(ranked[i]["abnormal_move"]))
-    for k, i in enumerate(order, 1):
-        ranked[i]["momentum_rank"] = k
+    mom = scoring.pctrank([r.get("momentum") for r in ranked])
+    order = sorted([i for i, v in enumerate(mom) if v is not None], key=lambda i: -ranked[i]["momentum"])
+    for kk, i in enumerate(order, 1):
+        ranked[i]["momentum_rank"] = kk
     for r, m in zip(ranked, mom):
         r["momentum_pct"] = m
-    steps["score"] = dict(status="ok", scored=len(ranked), gated=len(gated),
-                          prior_pull=prev_ts, weights=cfg["version"])
+    steps["score"] = dict(scored=len(ranked), gated=len(gated), prior_pull=prev_ts)
 
+    # 8 · outputs
     comp = scoring.COMPONENTS
+    keep_cols = ["k_vol", "k_flow", "k_oi", "k_oi_chg", "k_move", "k_spread", "k_zero", "k_evidence", "k_ladder",
+                 "p_vol", "p_vol1wk", "p_flow", "p_oi", "p_oi_chg", "p_move", "p_spread", "n_pm_events",
+                 *[f"ad_{m}_{p}" for p in STOCK_PLATFORMS for m in ("buzz", "mentions", "buzz_d", "ment_chg", "sent_d")],
+                 "abnormal_move", "price", "chg_24h", "chg_5d", "price_source", "exchange_volume_usd", "on_coinbase", "on_kraken",
+                 "money_flow", "money_stock", "market_move", "attention_shift", "activity_shift", "sentiment_shift", "momentum",
+                 "pm_evidence", "avg_spread", "zero_trade", "families", "catalyst_in_trading_days", "catalyst",
+                 "n_series", "n_markets", "days_since_covered", "money_flow_floored"]
     out_rows = []
     for r in ranked + gated:
         pctl = r.get("pct") or {}
-        out_rows.append({
-            "run_ts": run_ts, "rank": r.get("rank"), "topic": r["topic"], "name": r["name"],
-            "asset_class": r["asset_class"], "tier": r.get("tier"), "gate": r.get("data_quality_flag"),
-            "demand_score": rnd(r.get("demand_score")), "raw_score": rnd(r.get("raw_score")),
-            "quality": rnd(r.get("quality")), "momentum_pct": rnd(r.get("momentum_pct")),
-            "momentum_rank": r.get("momentum_rank"),
-            **{f"p_{c}": rnd(pctl.get(c)) for c in comp},
-            "buzz_delta_1d": rnd(r.get("buzz_delta_1d"), 6), "mentions_chg_pct": rnd(r.get("trade_count_pct_change_1d"), 6),
-            "sentiment_delta_1d": rnd(r.get("sentiment_delta_1d"), 6), "buzz_score": rnd(r.get("buzz_score")),
-            "mkt_volume_24h": rnd(r.get("mkt_volume_24h"), 0), "mkt_volume_delta_1d": rnd(r.get("mkt_volume_delta_1d"), 6),
-            "mkt_open_interest": rnd(r.get("mkt_open_interest"), 0), "mkt_oi_delta_1d": rnd(r.get("mkt_oi_delta_1d"), 6),
-            "mkt_prob_delta_1d": rnd(r.get("mkt_prob_delta_1d"), 8), "avg_spread": rnd(r.get("avg_spread"), 8),
-            "zero_trade_market_pct": rnd(r.get("zero_trade_market_pct"), 8),
-            "sources_available": r.get("sources_available"), "catalyst_in_trading_days": r.get("catalyst_in_trading_days"),
-            "has_market_evidence": r.get("has_market_evidence"), "mkt_prob_range_1d": rnd(r.get("mkt_prob_range_1d")),
-            "days_since_covered": r.get("days_since_covered"),
-            "n_series": r["n_series"], "n_markets": r["n_markets"], "mkt_ladder_depth": r["mkt_ladder_depth"],
-            "primary_event": r.get("primary_event"),
-            "price": rnd(r.get("price"), 6), "chg_24h": rnd(r.get("chg_24h")), "abnormal_move": rnd(r.get("abnormal_move"), 6),
-            "weights_version": cfg["version"],
-        })
-    out_rows.sort(key=lambda r: (r["rank"] is None, r["rank"] or 0, -(r["mkt_volume_24h"] or 0)))
+        row = {"run_ts": run_ts, "rank": r.get("rank"), "topic": r["topic"], "name": r["name"], "asset_class": r["asset_class"],
+               "origin": r["origin"], "match": r["match"], "is_new": r["is_new"], "tier": r.get("tier"),
+               "gate": r.get("data_quality_flag"), "demand_score": rnd(r.get("demand_score")), "raw_score": rnd(r.get("raw_score")),
+               "quality": rnd(r.get("quality")), "momentum_pct": rnd(r.get("momentum_pct")), "momentum_rank": r.get("momentum_rank"),
+               **{f"p_{c_}": rnd(pctl.get(c_)) for c_ in comp}, "weights_version": cfg["version"]}
+        for c_ in keep_cols:
+            v = r.get(c_)
+            row[c_] = rnd(v, 6) if isinstance(v, float) else v
+        out_rows.append(row)
+    out_rows.sort(key=lambda r: (r["rank"] is None, r["rank"] or 0, -(r.get("k_vol") or 0) - (r.get("p_vol") or 0)))
+    n_events = collections.Counter(e["topic"] for e in ev_rows)
+    for r in out_rows:
+        r["n_events"] = n_events.get(r["topic"], 0)
 
-    # history (per pull) and daily log (15:00 ET pull)
     keep_ts = (now - dt.timedelta(days=HISTORY_DAYS)).isoformat()
     history = [h for h in history if h["run_ts"] >= keep_ts and h["run_ts"] != run_ts]
     history += [dict(run_ts=run_ts, topic=r["topic"], rank=r["rank"], tier=r["tier"], demand_score=r["demand_score"],
-                     momentum_pct=r["momentum_pct"], mkt_volume_24h=r["mkt_volume_24h"],
-                     mkt_open_interest=r["mkt_open_interest"], gate=r["gate"]) for r in out_rows]
-    pull_hour = min(PULL_HOURS_ET, key=lambda h: min(abs(now_et.hour + now_et.minute / 60 - h), 24 - abs(now_et.hour + now_et.minute / 60 - h)))
-    d = now_et.date().isoformat()
+                     momentum_pct=r["momentum_pct"], k_vol=r["k_vol"], k_oi=r["k_oi"], p_vol=r["p_vol"], p_oi=r["p_oi"],
+                     gate=r["gate"]) for r in out_rows]
+    d = today.isoformat()
     if now_et.hour >= 15 and not any(r["date"] == d for r in daily):  # first pull at or after the 15:00 ET pick
-        daily = [r for r in daily if r["date"] != d]
-        daily += [dict(date=d, **{k: r[k] for k in ("rank", "topic", "name", "asset_class", "tier", "gate", "demand_score",
-                                                     "momentum_pct", "momentum_rank", "mkt_volume_24h", "mkt_open_interest",
-                                                     "abnormal_move", "chg_24h")}) for r in out_rows]
-        keep_d = (now_et.date() - dt.timedelta(days=DAILY_DAYS)).isoformat()
+        daily += [dict(date=d, **{k_: r.get(k_) for k_ in ("rank", "topic", "name", "asset_class", "tier", "gate", "demand_score",
+                                                          "momentum_pct", "momentum_rank", "k_vol", "p_vol", "abnormal_move", "chg_24h")})
+                  for r in out_rows]
+        keep_d = (today - dt.timedelta(days=DAILY_DAYS)).isoformat()
         daily = [r for r in daily if r["date"] >= keep_d]
 
-    # symbol appendix
     by_series = collections.defaultdict(lambda: dict(markets=0, vol24=0.0, oi=0.0, events=set()))
     for m in mrows:
         b = by_series[m["series"]]
@@ -472,61 +699,59 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     appendix = []
     for sname, b in by_series.items():
         s = series.get(sname, {})
-        ms = map_series(sname, s.get("title", ""), s.get("tags"))
-        info = topic_info(ms["topic"])
-        appendix.append(dict(series=sname, title=s.get("title"), category=s.get("category"),
-                             frequency=s.get("frequency"), tags=", ".join(s.get("tags") or []),
-                             topic=ms["topic"], topic_name=info["name"], asset_class=info["asset_class"],
-                             mapped=ms["mapped"], rule=ms["rule"], price_symbol=info["price_symbol"],
+        t, how = smap.get(sname, (sname, "?"))
+        info = topic_info(t)
+        appendix.append(dict(series=sname, title=s.get("title"), category=s.get("category"), frequency=s.get("frequency"),
+                             tags=", ".join(s.get("tags") or []), topic=t, topic_name=info["name"], asset_class=info["asset_class"],
+                             mapped=how != "new", rule=how, price_symbol=info["price_symbol"],
                              adanos=f'{info["adanos_kind"]}:{info["adanos_symbol"]}' if info["adanos_symbol"] else None,
-                             open_events=len(b["events"]), open_markets=b["markets"],
-                             volume_24h=round(b["vol24"]), open_interest=round(b["oi"])))
+                             open_events=len(b["events"]), open_markets=b["markets"], volume_24h=round(b["vol24"]), open_interest=round(b["oi"])))
     appendix.sort(key=lambda r: -r["volume_24h"])
 
-    # market data
     mkt = []
-    for t, x in feats.items():
-        if x["price_symbol"] in px:
-            ps = price_stats(px[x["price_symbol"]], now)
-            if ps:
-                mkt.append(dict(topic=t, name=x["name"], asset_class=x["asset_class"], symbol=x["price_symbol"],
-                                price=rnd(ps["price"], 6), price_ts=ps["price_ts"], chg_24h=rnd(ps["chg_24h"]),
-                                chg_5d=rnd(ps["chg_5d"]), vol_daily=rnd(ps["vol_daily"]),
-                                abnormal_move=rnd(ps["abnormal_move"], 2), kalshi_volume_24h=round(x["mkt_volume_24h"])))
+    for t, ps in pstats.items():
+        if ps:
+            i = infos[t]
+            mkt.append(dict(topic=t, name=i["name"], asset_class=i["asset_class"],
+                            symbol=i["price_symbol"] if ps.get("price_source") == "yahoo" else f"{t} ({ps.get('price_source')})",
+                            price=rnd(ps["price"], 6), price_ts=ps["price_ts"], chg_24h=rnd(ps["chg_24h"]), chg_5d=rnd(ps["chg_5d"]),
+                            vol_daily=rnd(ps["vol_daily"]), abnormal_move=rnd(ps["abnormal_move"], 2),
+                            kalshi_volume_24h=round((kfeat.get(t) or {}).get("k_vol") or 0),
+                            polymarket_volume_24h=round((pfeat.get(t) or {}).get("p_vol") or 0) if t in pfeat else 0))
     mkt.sort(key=lambda r: -abs(r["abnormal_move"] or 0))
 
+    for e in raw["polymarket"]:  # the raw table shows where each event went
+        e.setdefault("topic", None)
     top = next((r for r in out_rows if r["rank"] == 1), None)
     mtop = next((r for r in out_rows if r.get("momentum_rank") == 1), None)
+    oc = collections.Counter(o for r in out_rows for o in r["origin"].split(","))
     runs = [r for r in runs if r["run_ts"] != run_ts]
     runs.append(dict(
-        run_ts=run_ts, run_et=now_et.strftime("%Y-%m-%d %H:%M"), pull_hour_et=pull_hour,
-        kalshi=steps["kalshi"]["status"], kalshi_markets=steps["kalshi"]["markets"], topics=steps["kalshi"]["topics"],
-        adanos=steps["adanos"]["status"], adanos_calls=steps["adanos"]["calls"],
-        adanos_quota_left=steps["adanos"].get("quota_left"), adanos_error=steps["adanos"].get("error"),
+        run_ts=run_ts, run_et=now_et.strftime("%Y-%m-%d %H:%M"),
+        pull_hour_et=min(PULL_HOURS_ET, key=lambda h: min(abs(now_et.hour + now_et.minute / 60 - h), 24 - abs(now_et.hour + now_et.minute / 60 - h))),
+        kalshi="ok", kalshi_markets=steps["kalshi"]["markets"], topics=len(out_rows),
+        topics_kalshi=oc.get("kalshi", 0), topics_polymarket=oc.get("polymarket", 0), topics_adanos=oc.get("adanos", 0),
+        topics_movers=oc.get("movers", 0), topics_new=sum(1 for r in out_rows if r["is_new"]),
+        adanos=ad_stat["status"], adanos_calls=ad_stat["calls"], adanos_quota_left=ad_stat.get("quota_left"), adanos_error=ad_stat.get("error"),
         prices=steps["prices"]["status"], priced=steps["prices"]["symbols"],
-        scored=steps["score"]["scored"], gated=steps["score"]["gated"], prior_pull=prev_ts,
-        top_topic=top["topic"] if top else None, top_tier=top["tier"] if top else None,
-        top_score=top["demand_score"] if top else None, momentum_top=mtop["topic"] if mtop else None,
+        scored=len(ranked), gated=len(gated), prior_pull=prev_ts,
+        top_topic=top["topic"] if top else None, top_tier=top["tier"] if top else None, top_score=top["demand_score"] if top else None,
+        momentum_top=mtop["topic"] if mtop else None,
         **{f"{st['dataset']}_status": st["status"] for st in raw_status},
         **{f"{st['dataset']}_rows": st["rows"] for st in raw_status},
         **{f"{st['dataset']}_error": st["error"] for st in raw_status if st["error"]},
         coinbase_usd_pairs=next((st.get("coinbase_usd_pairs") for st in raw_status if st["dataset"] == "crypto_spot"), None),
+        kraken_usd_pairs=next((st.get("kraken_usd_pairs") for st in raw_status if st["dataset"] == "crypto_spot"), None),
         seconds=round(time.time() - t0, 1),
     ))
     runs = runs[-240:]
 
     out.mkdir(parents=True, exist_ok=True)
-    files = dict(topic_log=out_rows, score_history=history, daily_log=daily, runs=runs,
-                 adanos_daily=ad_cache, symbol_appendix=appendix, market_data=mkt, **raw)
-    for k, v in files.items():
-        (out / f"{k}.json").write_text(json.dumps(v, separators=(",", ":"), default=str))
+    files = dict(topic_log=out_rows, events=ev_rows, score_history=history, daily_log=daily, runs=runs, adanos_daily=ad_cache,
+                 symbol_appendix=appendix, market_data=mkt, **raw)
+    for k_, v in files.items():
+        (out / f"{k_}.json").write_text(json.dumps(v, separators=(",", ":"), default=str))
     return runs[-1]
-
-
-def rnd(x, n=4):
-    if x is None or (isinstance(x, float) and (math.isnan(x) or math.isinf(x))):
-        return None
-    return round(float(x), n)
 
 
 if __name__ == "__main__":
@@ -535,4 +760,5 @@ if __name__ == "__main__":
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--adanos-key", default=None)
     a = ap.parse_args()
-    print(json.dumps(run(a.state, a.out, a.adanos_key), indent=1))
+    import os
+    print(json.dumps(run(a.state, a.out, a.adanos_key or os.environ.get("ADANOS_KEY")), indent=1))

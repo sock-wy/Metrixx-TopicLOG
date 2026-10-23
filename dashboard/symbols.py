@@ -7,7 +7,7 @@ one topic. Unknown series fall back to their own series ticker as the topic and
 are flagged `mapped = False` so the appendix shows what still needs a rule.
 
 Each topic carries:
-  asset_class   crypto | index | commodity | fx | rates | equity | private | theme
+  asset_class   crypto | index | commodity | fx | rates | macro | equity | private | theme
   price         Yahoo Finance symbol for market data / momentum (None if none)
   adanos        (kind, symbol): kind "crypto" -> /reddit/crypto, "stocks" -> /reddit/stocks
 """
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 
-CATEGORIES = ("Financials", "Crypto", "Commodities", "Companies")
+CATEGORIES = ("Financials", "Crypto", "Commodities", "Companies", "Economics")
 
 # ---------------------------------------------------------------- topic table
 # topic id -> (display name, asset_class, yahoo symbol, adanos (kind, symbol))
@@ -41,6 +41,8 @@ TOPICS.update({
     "IBOV": ("Ibovespa", "index", "^BVSP", ("stocks", "EWZ")),
     "IPC": ("S&P/BMV IPC", "index", "^MXX", ("stocks", "EWW")),
     "INDEXCHANGES": ("Index membership changes", "index", None, None),
+    "RUT": ("Russell 2000", "index", "^RUT", ("stocks", "IWM")),
+    "DXY": ("US dollar index", "index", "DX-Y.NYB", ("stocks", "UUP")),
     # commodities
     "GOLD": ("Gold", "commodity", "GC=F", ("stocks", "GLD")),
     "SILVER": ("Silver", "commodity", "SI=F", ("stocks", "SLV")),
@@ -128,6 +130,57 @@ THEMES = {
 for t, n in THEMES.items():
     TOPICS[t] = (n, "theme", None, None)
 
+MACRO = {
+    "FED": ("Fed rates", ("stocks", "TLT")), "CPI": ("US inflation (CPI)", None), "JOBS": ("US jobs and unemployment", None),
+    "GDP": ("US growth and recession", None), "GASPRICES": ("US gas and diesel prices", ("stocks", "USO")),
+    "CENTRALBANKS": ("Global central banks", None), "HOUSING": ("US housing and mortgages", ("stocks", "XHB")),
+    "TARIFFS": ("Tariffs and trade", None), "USDEBT": ("US debt and Treasury", None),
+    "TRAVEL": ("US travel and tourism", None), "PRODUCTION": ("US production and shipping data", None),
+}
+for t, (n, ad) in MACRO.items():
+    TOPICS[t] = (n, "macro", None, ad)
+
+ECON_RULES = [  # (regex on series-without-KX, topic) for the Economics category, checked in order
+    (r"^(FED|RATECUT|RATEHIKE|ZERORATE|FEDCHG)", "FED"),
+    (r"(CPI|INFL|ECONSTATCPI|ECONSTATCORECPI)", "CPI"),
+    (r"^(AAAGAS|DIESEL)", "GASPRICES"),
+    (r"^(U3|UE$|PAYROLL|EMPLOYMENTCOMBO|ECONSTATU3|JOBLESS|NFP)", "JOBS"),
+    (r"^(GDP|RECSS|ECONPATH)", "GDP"),
+    (r"^(CBD|CBDECISION)", "CENTRALBANKS"),
+    (r"^(30YMORT|MORTGAGE|NHSALES|HOUSE|CASESHILLER|EXISTHOME)", "HOUSING"),
+    (r"^(TARIFF)", "TARIFFS"),
+    (r"^(TGA|DEBT|USDEBT)", "USDEBT"),
+    (r"EMP$|EMPLOY|JOBS", "JOBS"),
+    (r"PERMIT|HOMESALE|HOUSING", "HOUSING"),
+    (r"VISIT|PASSENG|TSA|FLYCANC|AIRPORT|SKI", "TRAVEL"),
+    (r"POWER|ERCOT|ELECT", "POWER"),
+    (r"CORN|COTTON|BROILER|MAPLE|LOBSTER|QUAHOG|FARMLAND|HARVEST|COAL|CRUDE|OIL$|NATGAS|MARCELLUS|PAPER|TEU|VEHICLEPROD", "PRODUCTION"),
+]
+
+# Phrases that identify a topic inside free text (Polymarket titles, new Kalshi series titles).
+ALIASES = {
+    "FED": ["Fed", "Federal Reserve", "Fed Decision", "FOMC", "rate cut", "rate cuts", "rate hike", "interest rate", "Powell", "Warsh"],
+    "CPI": ["CPI", "inflation", "Inflation", "PCE"], "JOBS": ["unemployment", "jobs report", "nonfarm", "payrolls", "jobless"],
+    "GDP": ["recession", "GDP"], "GASPRICES": ["gas price", "gas prices", "diesel"], "TARIFFS": ["tariff", "tariffs"],
+    "CENTRALBANKS": ["ECB", "Bank of England", "Bank of Japan", "Bank of Canada", "Bank of Russia", "Bank of Mexico", "Bank of Korea", "Reserve Bank", "BoJ", "BoE", "central bank", "rate decision"],
+    "HOUSING": ["mortgage", "home sales", "housing", "home value", "home prices"], "USDEBT": ["debt ceiling", "national debt", "Treasury General Account"],
+    "SPX": ["S&P 500", "S&P500", "SPX"], "DXY": ["Dollar Index", "DXY"], "NDX": ["Nasdaq-100", "Nasdaq 100", "NASDAQ"], "DJI": ["Dow Jones", "the Dow"],
+    "GOLD": ["Gold"], "SILVER": ["Silver"], "WTI": ["WTI", "crude oil", "Crude Oil", "oil price"], "BRENT": ["Brent"],
+    "NATGAS": ["natural gas", "Natural Gas"], "COPPER": ["Copper"],
+    "UST10Y": ["10-year", "10Y yield", "10-Year"], "UST2Y": ["2-year yield", "2-year Treasury"], "UST30Y": ["30-year yield", "30-year Treasury"], "UST5Y": ["5-year Treasury", "5-year yield"], "RUT": ["Russell 2000"],
+    "BTC": ["Bitcoin", "BTC"], "ETH": ["Ethereum", "ETH"], "SOL": ["Solana", "SOL"], "XRP": ["XRP", "Ripple"],
+    "DOGE": ["Dogecoin", "DOGE"], "BNB": ["BNB"], "HYPE": ["Hyperliquid", "HYPE"], "ZEC": ["Zcash", "ZEC"],
+    "SHIB": ["Shiba Inu"], "NEAR": ["NEAR Protocol"], "STRK": ["Starknet"], "STABLECOINS": ["stablecoin", "USDT", "Tether", "USDC"],
+    "ANTHROPIC": ["Anthropic", "Claude"], "OPENAI": ["OpenAI", "ChatGPT", "Sam Altman", "GPT-"], "XAI": ["xAI", "Grok"],
+    "SPACEX": ["SpaceX", "Starship", "Starlink"], "TSLA": ["Tesla"], "GOOGL": ["Google", "Alphabet", "Gemini", "Waymo"],
+    "META": ["Meta", "Facebook", "Instagram", "Zuckerberg"], "MSFT": ["Microsoft", "Xbox"], "AAPL": ["Apple", "iPhone"],
+    "AMZN": ["Amazon"], "NVDA": ["Nvidia", "NVIDIA"], "NFLX": ["Netflix"], "PRIVATEIPOS": ["IPO", "IPOs"],
+    "KOSPI": ["KOSPI"], "NIKKEI": ["Nikkei"], "GPUCOMPUTE": ["GPU rental", "H100", "B200"], "DRAM": ["DRAM", "DDR5"],
+    "CRYPTO": ["launch a token", "FDV", "airdrop", "memecoin", "crypto market"],
+    "MNA": ["acquire", "acquisition", "merger"], "LAYOFFS": ["layoff", "layoffs"], "AIRACE": ["AGI", "best AI model", "top AI model", "AI model", "AI bubble"],
+}
+TOPICS["MACRO"] = ("Macro (other)", "macro", None, None)
+
 # ---------------------------------------------------------------- series rules
 # Exact series (without the KX prefix) -> topic, checked first.
 EXACT = {
@@ -178,7 +231,7 @@ EXACT = {
     "ANITOCABTAGENE": "ACLX", "SAROGLITAZAR": "BIOTECH", "PRICEINCREASESPOTIFY": "SPOT",
     "PRICEINCREASESPOTIFYDUO": "SPOT", "PRICEINCREASESPOTIFYFAMILY": "SPOT",
     # private companies and themes
-    "CLAUDEAPP": "ANTHROPIC", "IPOANTHROPIC": "ANTHROPIC", "CEOANTHROPIC": "ANTHROPIC",
+    "CLAUDEAPP": "ANTHROPIC", "IPOANTHROPIC": "ANTHROPIC", "CHIPBURRITO": "CMG", "BKDWHOPPER": "QSR", "WENBACONATOR": "WEN", "POPCHICKSAND": "QSR", "MUSKWEALTH": "TSLA", "SIENNAMSRP": "TM", "IPOOPENAI": "OPENAI", "IPODISCORD": "PRIVATEIPOS", "LAYOFFSYINFO": "LAYOFFS", "CEOANTHROPIC": "ANTHROPIC",
     "COMPANYACTIONANTH": "ANTHROPIC", "SUPERVOTEDARIO": "ANTHROPIC", "PRICEINCREASECLAUDE": "ANTHROPIC",
     "OPUS48OY": "ANTHROPIC", "OPUS48Y": "ANTHROPIC", "GPTAPP": "OPENAI", "GPT55Y": "OPENAI", "GBT55OY": "OPENAI",
     "NEWROLEOPENAI": "OPENAI", "SUPERVOTEALTMAN": "OPENAI", "OPENAICEOCHANGE": "OPENAI", "OAIANTH": "AIRACE",
@@ -195,6 +248,11 @@ EXACT = {
     "LYFTAPP": "LYFT", "UBERAPP": "UBER", "DASHAPP": "DASH", "DKNGAPP": "DKNG", "CARTAPP": "CART",
     "GRUBHUBAPP": "APPDOWNLOADS",
 }
+# ETFs and index tickers that stand for a topic when they appear as a ticker
+ETF_TOPIC = {"SPY": "SPX", "VOO": "SPX", "QQQ": "NDX", "DIA": "DJI", "IWM": "RUT", "GLD": "GOLD", "SLV": "SILVER", "USO": "WTI",
+             "UNG": "NATGAS", "EWY": "KOSPI", "EWJ": "NIKKEI", "EWZ": "IBOV", "INDA": "NIFTY", "TLT": "UST10Y", "UUP": "DXY",
+             "IBIT": "BTC", "ETHA": "ETH", "SPX": "SPX", "NDX": "NDX", "RUT": "RUT", "VIX": "FEARGREED"}
+TOPICS["TM"] = ("Toyota", "equity", "TM", ("stocks", "TM"))
 TOPICS["BTI"] = ("British American Tobacco", "equity", "BTI", ("stocks", "BTI"))
 
 PREFIX = [  # (regex on series-without-KX, topic) checked in order
@@ -214,9 +272,13 @@ PREFIX = [  # (regex on series-without-KX, topic) checked in order
 _SUFFIXES = ("CC", "FT", "APP", "POS", "A")
 
 
-def map_series(series: str, title: str = "", tags=None) -> dict:
+def map_series(series: str, title: str = "", tags=None, category: str | None = None) -> dict:
     """Return {topic, mapped, rule} for a Kalshi series ticker (with or without the KX prefix)."""
     s = series[2:] if series.startswith("KX") else series
+    if category == "Economics" and s not in EXACT:
+        for pat, topic in ECON_RULES:
+            if re.search(pat, s):
+                return dict(topic=topic, mapped=True, rule="economics")
     if s in EXACT:
         return dict(topic=EXACT[s], mapped=True, rule="exact")
     for pat, topic in PREFIX:
@@ -238,13 +300,18 @@ def map_series(series: str, title: str = "", tags=None) -> dict:
         return dict(topic="CEOS", mapped=True, rule="tag")
     if "M&A" in tags:
         return dict(topic="MNA", mapped=True, rule="tag")
-    return dict(topic=s, mapped=False, rule="unmapped")
+    return dict(topic=s, mapped=False, rule="unmapped", fallback_class="macro" if category == "Economics" else "theme")
 
 
-def topic_info(topic: str, fallback_name: str = "") -> dict:
+EXTRA: dict[str, tuple] = {}  # topics created at run time (registry): id -> (name, class, price symbol, adanos)
+
+
+def topic_info(topic: str, fallback_name: str = "", fallback_class: str = "theme") -> dict:
     if topic in TOPICS:
         name, ac, yh, ad = TOPICS[topic]
+    elif topic in EXTRA:
+        name, ac, yh, ad = EXTRA[topic]
     else:
-        name, ac, yh, ad = fallback_name or topic, "theme", None, None
+        name, ac, yh, ad = fallback_name or topic, fallback_class, None, None
     return dict(topic=topic, name=name, asset_class=ac, price_symbol=yh,
                 adanos_kind=ad[0] if ad else None, adanos_symbol=ad[1] if ad else None)

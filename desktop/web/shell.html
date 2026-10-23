@@ -10,7 +10,8 @@
   <span class="spacer"></span>
   <label for="ab-interval">Pull every
     <select id="ab-interval"><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="180">3 hours</option></select></label>
-  <button id="ab-refresh" class="primary" type="button">Pull now</button>
+  <button id="ab-refresh" class="primary" type="button" title="Fetch fresh data from every source now (takes a few minutes)">Pull now</button>
+  <button id="ab-reload" type="button" title="Reload the view from the data already on this Mac">Refresh view</button>
   <span id="ab-key"></span>
   <button id="ab-keybtn" type="button">Adanos key…</button>
   <span id="ab-keyform" hidden><input id="ab-keyinput" type="password" placeholder="sk_live_…" aria-label="Adanos API key" size="28"> <button id="ab-keysave" type="button">Save</button></span>

@@ -2,15 +2,19 @@
 // Data comes from the local server (/api/data/<id>); filters persist in localStorage.
 (function () {
   const IDS = ['topic_log', 'score_history', 'daily_log', 'runs', 'adanos_daily', 'symbol_appendix', 'market_data',
-    'us_stocks', 'earnings_calendar', 'us_movers', 'polymarket', 'crypto_spot'];
+    'us_stocks', 'earnings_calendar', 'us_movers', 'polymarket', 'crypto_spot', 'events'];
   const DEFAULTS = {
     w_attention_shift: 0.25, w_activity_shift: 0.10, w_money_flow: 0.20, w_money_stock: 0.10, w_market_move: 0.20, w_sentiment_shift: 0.15, w_momentum: 0,
-    src_kalshi: true, src_adanos: true, src_momentum: true, classes_off: [], g2_on: true, g3_zero: 0.8, g3_spread: 0.3,
-    q_free: 0.05, q_slope: 0.5, q_floor: 0.6, q_zero_pen: 0.4, q_single: 0.9, tiers_on: true, t1_days: 2, t1_pct: 0.7, t2_flow: 0.7, t2_attn: 0.5, t3_attn: 0.8,
+    src_kalshi: true, src_polymarket: true, src_reddit: true, src_x: true, src_news: true, src_momentum: true,
+    uni_kalshi: true, uni_polymarket: true, uni_adanos: true, uni_movers: true, classes_off: [],
+    g2_mode: 'prediction', g3_zero: 0.8, g3_spread: 0.3,
+    quality_on: true, q_free: 0.05, q_slope: 0.5, q_floor: 0.6, q_zero_pen: 0.4, q_single: 0.9,
+    tier_mode: 'rank', t1_days: 2, t1_pct: 0.7, t2_flow: 0.7, t2_attn: 0.5, t3_attn: 0.8,
   };
   const store = {}; const calcs = {}; const subs = [];
   let params = { ...DEFAULTS };
   try { Object.assign(params, JSON.parse(localStorage.getItem('tl.params') || '{}')); } catch (e) { /* first run */ }
+  for (const k of ['src_adanos', 'g2_on', 'tiers_on']) delete params[k];  // v0.1 settings replaced in v0.2
   const save = () => { try { localStorage.setItem('tl.params', JSON.stringify(params)); } catch (e) { /* ignore */ } };
 
   function compute() {

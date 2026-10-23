@@ -79,6 +79,19 @@
 #dash-root .src-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 #dash-root .src-feeds { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
 #dash-root .src.ph { border-style: dashed; background: transparent; }
+#dash-root .src-ctl { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+#dash-root .src-ctl .tl-chip { padding: 1px 8px; }
+#dash-root #rk-table td.tl-clip, #dash-root #tp-table td.tl-clip { max-width: 11rem; white-space: nowrap; }
+#dash-root #ev-table td.tl-clip { max-width: 26rem; white-space: nowrap; }
+#dash-root .tl-new { display: inline-block; margin-left: 4px; font-size: 10px; padding: 0 5px; border-radius: 999px; border: 1px solid var(--color-warn); color: var(--color-warn); vertical-align: 1px; }
+#dash-root .tl-orig { display: inline-flex; gap: 2px; }
+#dash-root .tl-orig i { font-style: normal; font-size: 10px; width: 14px; height: 14px; line-height: 14px; text-align: center; border-radius: 3px; background: var(--color-bg); border: 1px solid var(--color-border-line); color: var(--color-fg-muted); }
+#dash-root .ev-list { display: flex; flex-direction: column; gap: 4px; font-size: var(--cds-font-size-caption); }
+#dash-root .ev-list div { display: grid; grid-template-columns: 5.5rem 1fr 4.5rem 4rem; gap: 6px; align-items: baseline; }
+#dash-root .ev-list .src { padding: 0; border: 0; background: none; color: var(--color-fg-muted); }
+#dash-root .kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+#dash-root .kv span:nth-child(odd) { color: var(--color-fg-muted); }
+#dash-root .sel-inline { font: inherit; font-size: var(--cds-font-size-caption); background: var(--color-bg); color: var(--color-fg); border: 1px solid var(--color-border-line); border-radius: 6px; padding: 2px 4px; max-width: 13rem; }
 #dash-root .tg { position: relative; width: 34px; height: 20px; flex: none; }
 #dash-root .tg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 #dash-root .tg span { position: absolute; inset: 0; border-radius: 999px; background: var(--cds-chart-muted); transition: background .15s; pointer-events: none; }
@@ -125,7 +138,7 @@
     <button class="tl-tab" role="tab" id="tab-runs" data-page="runs" aria-selected="false">Daily steps</button>
     <button class="tl-tab" role="tab" id="tab-raw" data-page="raw" aria-selected="false">Raw data</button>
     <button class="tl-tab" role="tab" id="tab-market" data-page="market" aria-selected="false">Market data</button>
-    <button class="tl-tab" role="tab" id="tab-symbols" data-page="symbols" aria-selected="false">Symbol appendix</button>
+    <button class="tl-tab" role="tab" id="tab-symbols" data-page="symbols" aria-selected="false">Topics &amp; events</button>
   </nav>
 
   <!-- ============================== Workbench: sources | algorithm | output -->
@@ -137,42 +150,50 @@
 
         <div class="src" id="src-kalshi">
           <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="kalshi"></span>Kalshi</span>
-            <label class="tg" title="Use Kalshi components in the score"><input type="checkbox" id="p-src_kalshi" aria-label="Use Kalshi in the score"><span></span></label></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="kalshi_markets">—</span> open markets · <span data-source="latest_run" data-field="topics">—</span> topics</span>
-          <span class="src-feeds">money_flow · money_stock · market_move, and gates G2 / G3</span>
+            <label class="tg" title="Use Kalshi in the score"><input type="checkbox" id="p-src_kalshi" aria-label="Use Kalshi in the score"><span></span></label></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="kalshi_markets">—</span> open markets · <span data-source="latest_run" data-field="topics_kalshi">—</span> topics</span>
+          <span class="src-feeds">money flow · money stock · market move · gates G2 / G3</span>
         </div>
-
+        <div class="src" id="src-polymarket">
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="polymarket_status"></span>Polymarket</span>
+            <span class="src-ctl"><button class="tl-chip" data-raw="polymarket" type="button">View</button>
+            <label class="tg" title="Use Polymarket in the score"><input type="checkbox" id="p-src_polymarket" aria-label="Use Polymarket in the score"><span></span></label></span></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="polymarket_rows">—</span> events · <span data-source="latest_run" data-field="topics_polymarket">—</span> topics</span>
+          <span class="src-feeds">money flow (24h vs 1-week average) · money stock · market move</span>
+        </div>
         <div class="src" id="src-adanos">
-          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="adanos"></span>Adanos · Reddit</span>
-            <label class="tg"><input type="checkbox" id="p-src_adanos" aria-label="Use Adanos in the score"><span></span></label></div>
-          <span class="src-sub">Status <span data-source="latest_run" data-field="adanos">—</span> · <span data-source="latest_run" data-field="adanos_calls">—</span> calls this pull</span>
-          <span class="src-feeds">attention_shift · activity_shift · sentiment_shift (complete UTC days t−1 vs t−2)</span>
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="adanos"></span>Adanos</span>
+            <span class="src-ctl"><button class="tl-chip" data-flag="src_reddit" type="button">Reddit</button><button class="tl-chip" data-flag="src_x" type="button">X</button><button class="tl-chip" data-flag="src_news" type="button">News</button></span></div>
+          <span class="src-sub">Status <span data-source="latest_run" data-field="adanos">—</span> · <span data-source="latest_run" data-field="adanos_calls">—</span> calls · <span data-source="latest_run" data-field="topics_adanos">—</span> trending topics</span>
+          <span class="src-feeds">attention · activity · sentiment, averaged over the platforms switched on (crypto: Reddit only)</span>
         </div>
-
         <div class="src" id="src-prices">
-          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="prices"></span>Prices · Yahoo</span>
-            <label class="tg"><input type="checkbox" id="p-src_momentum" aria-label="Use momentum in the score"><span></span></label></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="priced">—</span> symbols priced</span>
-          <span class="src-feeds">momentum: |24h move| ÷ the month's daily volatility</span>
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="prices"></span>Prices</span>
+            <span class="src-ctl"><button class="tl-chip" data-raw="crypto_spot" type="button">View</button>
+            <label class="tg" title="Use momentum in the score"><input type="checkbox" id="p-src_momentum" aria-label="Use momentum in the score"><span></span></label></span></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="priced">—</span> topics priced</span>
+          <span class="src-feeds">momentum. Yahoo for stocks, indices, FX, commodities, rates; Binance, then Coinbase, then Kraken for crypto</span>
         </div>
 
-        <p class="tl-note" style="margin-top:4px">Collected every pull, shown under Raw data, not in the score yet:</p>
-        <div class="src" id="src-raw-us_stocks"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_stocks_status"></span>Nasdaq · US stocks</span><button class="tl-chip" data-raw="us_stocks" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="us_stocks_rows">—</span> listed stocks: price, change, volume, market cap, sector</span></div>
-        <div class="src" id="src-raw-earnings_calendar"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="earnings_calendar_status"></span>Nasdaq · earnings</span><button class="tl-chip" data-raw="earnings_calendar" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="earnings_calendar_rows">—</span> reports in the next 10 trading days, with EPS forecast</span></div>
+        <p class="tl-note" style="margin-top:4px">Supporting sources: add topics, catalysts and names, not scored directly.</p>
         <div class="src" id="src-raw-us_movers"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_movers_status"></span>Yahoo · US movers</span><button class="tl-chip" data-raw="us_movers" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="us_movers_rows">—</span> rows: top 100 gainers, losers, most active</span></div>
-        <div class="src" id="src-raw-polymarket"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="polymarket_status"></span>Polymarket</span><button class="tl-chip" data-raw="polymarket" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="polymarket_rows">—</span> events in finance, economy, stocks, earnings, Fed, commodities, IPO, crypto</span></div>
-        <div class="src" id="src-raw-crypto_spot"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="crypto_spot_status"></span>Binance · Coinbase</span><button class="tl-chip" data-raw="crypto_spot" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="crypto_spot_rows">—</span> USDT pairs with 24h stats · <span data-source="latest_run" data-field="coinbase_usd_pairs">—</span> Coinbase USD pairs</span></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="topics_movers">—</span> topics from top gainers, losers, most active</span></div>
+        <div class="src" id="src-raw-earnings_calendar"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="earnings_calendar_status"></span>Nasdaq · earnings</span><button class="tl-chip" data-raw="earnings_calendar" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="earnings_calendar_rows">—</span> reports in 10 trading days · T1 catalysts</span></div>
+        <div class="src" id="src-raw-us_stocks"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_stocks_status"></span>Nasdaq · US stocks</span><button class="tl-chip" data-raw="us_stocks" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="us_stocks_rows">—</span> tickers and names used to match text to topics</span></div>
+        <div class="src" id="src-raw-crypto_spot"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="crypto_spot_status"></span>Binance · Coinbase · Kraken</span><button class="tl-chip" data-raw="crypto_spot" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="crypto_spot_rows">—</span> coins · <span data-source="latest_run" data-field="coinbase_usd_pairs">—</span> on Coinbase · <span data-source="latest_run" data-field="kraken_usd_pairs">—</span> on Kraken</span></div>
         <div class="src ph"><span class="src-name">eToro</span><span class="src-feeds">Live trades and trader portfolios. Needs the API key.</span></div>
         <div class="src ph"><span class="src-name">Metrixx AI upload</span><span class="src-feeds">Market data upload (agenda 2). Not linked yet.</span></div>
 
         <div class="alg" id="universe">
-          <h4>Universe <small>asset classes that compete</small></h4>
+          <h4>Universe <small>which topics compete</small></h4>
+          <span class="tl-note">Topic sources</span>
+          <div class="tl-controls"><button class="tl-chip" data-flag="uni_kalshi" type="button">Kalshi</button><button class="tl-chip" data-flag="uni_polymarket" type="button">Polymarket</button><button class="tl-chip" data-flag="uni_adanos" type="button">Adanos trending</button><button class="tl-chip" data-flag="uni_movers" type="button">US movers</button></div>
+          <span class="tl-note">Asset classes</span>
           <div class="tl-controls" id="uni-chips" data-source="topic_log"></div>
+          <p class="tl-note">Every item from every source is assigned to a topic automatically. Items that match no known topic become a topic of their own (marked new).</p>
         </div>
 
         <div class="alg" id="card-coverage">
@@ -222,6 +243,7 @@
                 <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
                 <th class="l tl-hide-sm" data-field="name"><button class="tl-th-btn" data-sort="name">Name</button></th>
                 <th class="l" data-field="asset_class"><button class="tl-th-btn" data-sort="asset_class">Class</button></th>
+                <th class="l" data-field="origin"><button class="tl-th-btn" data-sort="origin">From</button></th>
                 <th class="l"><button class="tl-th-btn" data-sort="my_tier">Tier</button></th>
                 <th><button class="tl-th-btn" data-sort="my_score">Score</button></th>
                 <th><button class="tl-th-btn" data-sort="p_attention_shift">attn</button></th>
@@ -244,8 +266,10 @@
           <div class="tl-detail-head"><h3 id="detail-title">Click a topic for its breakdown</h3><span class="big" id="detail-score"></span></div>
           <p class="tl-note" id="detail-meta"></p>
           <div class="tl-grid">
-            <div><p class="tl-note">Percentile (bar), weight share and points added to the score</p><div class="tl-comp" id="detail-comp" data-source="topic_log"></div></div>
-            <div><p class="tl-note">w0 rank across pulls, last 10 days</p><div class="tl-chart sm" id="detail-hist" data-source="score_history"></div></div>
+            <div><p class="tl-note">Percentile (bar) and points added to the score</p><div class="tl-comp" id="detail-comp" data-source="topic_log"></div>
+              <p class="tl-note" style="margin-top:10px">Inputs by source</p><div class="kv" id="detail-src" data-source="topic_log"></div></div>
+            <div><p class="tl-note">w0 rank across pulls, last 10 days</p><div class="tl-chart sm" id="detail-hist" data-source="score_history"></div>
+              <p class="tl-note" style="margin-top:10px">Events under this topic, most traded first</p><div class="ev-list" id="detail-events" data-source="events"></div></div>
           </div>
         </div>
 
@@ -378,18 +402,65 @@
 
   <!-- ============================== Symbol appendix -->
   <section class="tl-page" id="symbols" role="tabpanel" aria-labelledby="tab-symbols" hidden>
-    <div class="tl-tiles" id="sym-tiles" data-source="appendix_classes"></div>
-    <div class="tl-placeholder" id="other-venues">
-      <span><b>Polymarket and Coinbase listings</b> · not added yet</span>
-      <span>Agenda item 3. Kalshi's open Financials, Crypto, Commodities and Companies series are mapped below; Adanos sentiment is joined by symbol. Polymarket markets and Coinbase-listed coins will be added as extra columns once their pulls are in.</span>
+    <div class="tl-tiles" id="topic-tiles" data-source="topic_classes"></div>
+    <div class="tl-card" id="card-topics">
+      <h3>Topics</h3>
+      <p class="tl-note">Every topic in this pull, the sources it came from, how it was matched (rule, ticker, name, or new when nothing matched) and how many events sit under it. Click a topic to see its events below.</p>
+      <div class="tl-controls">
+        <input class="tl-search" id="tp-search" type="search" placeholder="Search topic or name" aria-label="Search topics">
+        <span id="tp-classes"></span>
+        <button class="tl-chip" id="tp-new" aria-pressed="false" type="button">New only</button>
+      </div>
+      <div class="tl-scroll" style="max-height: 26rem">
+        <table class="tl-table click" id="tp-table" data-source="topic_log" data-row-key="topic">
+          <thead><tr>
+            <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
+            <th class="l" data-field="name"><button class="tl-th-btn" data-sort="name">Name</button></th>
+            <th class="l" data-field="asset_class"><button class="tl-th-btn" data-sort="asset_class">Class</button></th>
+            <th class="l" data-field="origin"><button class="tl-th-btn" data-sort="origin">Sources</button></th>
+            <th class="l" data-field="match"><button class="tl-th-btn" data-sort="match">Matched by</button></th>
+            <th data-field="n_events"><button class="tl-th-btn" data-sort="n_events">Events</button></th>
+            <th data-field="rank"><button class="tl-th-btn" data-sort="rank">w0 #</button></th>
+            <th class="l" data-field="gate"><button class="tl-th-btn" data-sort="gate">Gate</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="tl-note" id="tp-count"></p>
+    </div>
+    <div class="tl-card" id="card-events">
+      <h3>Events</h3>
+      <p class="tl-note">Kalshi events, Polymarket events and Yahoo movers, each with the topic it was assigned to.</p>
+      <div class="tl-controls">
+        <input class="tl-search" id="ev-search" type="search" placeholder="Search event or topic" aria-label="Search events">
+        <span id="ev-sources"></span>
+        <button class="tl-chip" id="ev-topic" hidden type="button"></button>
+      </div>
+      <div class="tl-scroll" style="max-height: 26rem">
+        <table class="tl-table" id="ev-table" data-source="events" data-row-key="source,event_id">
+          <thead><tr>
+            <th class="l" data-field="source"><button class="tl-th-btn" data-sort="source">Source</button></th>
+            <th class="l" data-field="title"><button class="tl-th-btn" data-sort="title">Event</button></th>
+            <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
+            <th class="l" data-field="match"><button class="tl-th-btn" data-sort="match">Matched by</button></th>
+            <th data-field="volume_24h"><button class="tl-th-btn" data-sort="volume_24h">Vol 24h</button></th>
+            <th data-field="open_interest"><button class="tl-th-btn" data-sort="open_interest">OI</button></th>
+            <th data-field="top_price"><button class="tl-th-btn" data-sort="top_price">Price</button></th>
+            <th data-field="move_1d"><button class="tl-th-btn" data-sort="move_1d">Move 1d</button></th>
+            <th class="l" data-field="end_date"><button class="tl-th-btn" data-sort="end_date">Ends</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="tl-note" id="ev-count"></p>
     </div>
     <div class="tl-card" id="card-sym-table">
       <h3>Kalshi series → topic</h3>
-      <p class="tl-note">Every open series in the four financial categories, grouped into the topic an episode would cover. "Unmapped" series fall back to their own ticker as the topic.</p>
+      <p class="tl-note">Every open series in Financials, Crypto, Commodities, Companies and Economics and the topic it rolls up to. "New" series matched no rule or name and became their own topic.</p>
       <div class="tl-controls">
         <input class="tl-search" id="sym-search" type="search" placeholder="Search series, title or topic" aria-label="Search symbol appendix">
         <span id="sym-classes"></span>
-        <button class="tl-chip" id="sym-unmapped" aria-pressed="false">Unmapped only</button>
+        <button class="tl-chip" id="sym-unmapped" aria-pressed="false">New only</button>
       </div>
       <div class="tl-scroll">
         <table class="tl-table" id="sym-table" data-source="symbol_appendix" data-row-key="series">
@@ -427,8 +498,8 @@ dash.calc('coverage', {
   inputs: ['topic_log'],
   fn: (topic_log) => {
     const inputs = {
-      attention_shift: 'buzz_delta_1d', activity_shift: 'mentions_chg_pct', money_flow: 'mkt_volume_delta_1d',
-      money_stock: 'mkt_oi_delta_1d', market_move: 'mkt_prob_delta_1d', sentiment_shift: 'sentiment_delta_1d', momentum: 'abnormal_move',
+      attention_shift: 'attention_shift', activity_shift: 'activity_shift', money_flow: 'money_flow',
+      money_stock: 'money_stock', market_move: 'market_move', sentiment_shift: 'sentiment_shift', momentum: 'momentum',
     };
     const n = topic_log.length;
     return Object.entries(inputs).map(([component, col]) => ({
@@ -444,6 +515,19 @@ dash.calc('adanos_days', {
     const m = new Map();
     for (const r of adanos_daily) { const k = r.date + '|' + r.kind; m.set(k, (m.get(k) || 0) + 1); }
     return [...m].map(([k, n]) => ({ date: k.split('|')[0], kind: k.split('|')[1], symbols: n })).sort((a, b) => b.date.localeCompare(a.date));
+  },
+});
+dash.calc('topic_classes', {
+  title: 'Topics by asset class',
+  description: 'Topics in this pull per asset class: how many, how many passed the gates, how many are new.',
+  inputs: ['topic_log'],
+  fn: (topic_log) => {
+    const m = new Map();
+    for (const r of topic_log) {
+      const g = m.get(r.asset_class) || { asset_class: r.asset_class, topics: 0, scored: 0, new_topics: 0 };
+      g.topics += 1; if (r.rank != null) g.scored += 1; if (r.is_new) g.new_topics += 1; m.set(r.asset_class, g);
+    }
+    return [...m.values()].sort((a, b) => b.topics - a.topics);
   },
 });
 dash.calc('appendix_classes', {
@@ -525,15 +609,16 @@ window.TL = (() => {
   // w0 = config/weights_w0.yaml. Settings live in the dashboard's filters (dash.params), defaults in dash/params.
   const W0 = {
     w_attention_shift: 0.25, w_activity_shift: 0.10, w_money_flow: 0.20, w_money_stock: 0.10, w_market_move: 0.20, w_sentiment_shift: 0.15, w_momentum: 0,
-    src_kalshi: true, src_adanos: true, src_momentum: true, classes_off: [],
-    g2_on: true, g3_zero: 0.80, g3_spread: 0.30,
-    q_free: 0.05, q_slope: 0.5, q_floor: 0.6, q_zero_pen: 0.4, q_single: 0.9,
-    tiers_on: true, t1_days: 2, t1_pct: 0.70, t2_flow: 0.70, t2_attn: 0.50, t3_attn: 0.80,
+    src_kalshi: true, src_polymarket: true, src_reddit: true, src_x: true, src_news: true, src_momentum: true,
+    uni_kalshi: true, uni_polymarket: true, uni_adanos: true, uni_movers: true, classes_off: [],
+    g2_mode: 'prediction', g3_zero: 0.80, g3_spread: 0.30,
+    quality_on: true, q_free: 0.05, q_slope: 0.5, q_floor: 0.6, q_zero_pen: 0.4, q_single: 0.9,
+    tier_mode: 'rank', t1_days: 2, t1_pct: 0.70, t2_flow: 0.70, t2_attn: 0.50, t3_attn: 0.80,
   };
   const COMP = [
     ['attention_shift', 'Attention', 'Adanos buzz Δ1d', 'adanos'], ['activity_shift', 'Activity', 'Adanos mentions Δ%', 'adanos'],
-    ['money_flow', 'Money flow', 'Kalshi 24h volume Δ%', 'kalshi'], ['money_stock', 'Money stock', 'Kalshi open interest Δ%', 'kalshi'],
-    ['market_move', 'Market move', 'Kalshi |prob Δ1d|', 'kalshi'], ['sentiment_shift', 'Sentiment', 'Adanos |sentiment Δ1d|', 'adanos'],
+    ['money_flow', 'Money flow', 'Kalshi + Polymarket 24h volume Δ%', 'pm'], ['money_stock', 'Money stock', 'Kalshi + Polymarket open interest Δ%', 'pm'],
+    ['market_move', 'Market move', 'Kalshi + Polymarket |prob Δ1d|', 'pm'], ['sentiment_shift', 'Sentiment', 'Adanos |sentiment Δ1d|', 'adanos'],
     ['momentum', 'Momentum', '|24h move| / daily vol (not in w0)', 'momentum'],
   ];
   const S = {};           // current settings
@@ -557,6 +642,16 @@ window.TL = (() => {
     document.getElementById(holder).append(row);
     sliders.push({ key, inp, out, fmt, share });
   }
+  const selects = [];
+  function selectCtl(holder, key, label, options) {
+    const row = el('div', 'row-tg'); const id = 'p-' + key;
+    const lab = el('label', null, label); lab.htmlFor = id;
+    const sel = el('select', 'sel-inline'); sel.id = id;
+    for (const [v, t] of options) sel.append(new Option(t, v));
+    sel.addEventListener('change', () => { setParam(key, sel.value); recompute(); paintSources(); paintSliders(); });
+    row.append(lab, sel); document.getElementById(holder).append(row);
+    selects.push({ key, sel });
+  }
   function toggle(holder, key, label) {
     const row = el('div', 'row-tg'); const id = 'p-' + key;
     const lab = el('label', null, label); lab.htmlFor = id;
@@ -575,26 +670,39 @@ window.TL = (() => {
       s.out.classList.toggle('changed', S[s.key] !== W0[s.key]);
       if (s.share) { const c = s.key.slice(2); s.share.firstChild.style.width = (wsum && activeComp(c) ? (S[s.key] / wsum) * 100 : 0) + '%'; }
     }
-    for (const k of ['src_kalshi', 'src_adanos', 'src_momentum', 'g2_on', 'tiers_on']) { const i = document.getElementById('p-' + k); if (i) i.checked = !!S[k]; }
+    for (const k of ['src_kalshi', 'src_polymarket', 'src_momentum', 'quality_on']) { const i = document.getElementById('p-' + k); if (i) i.checked = !!S[k]; }
+    for (const s of selects) if (document.activeElement !== s.sel) s.sel.value = S[s.key];
+    document.querySelectorAll('#dash-root [data-flag]').forEach((b) => b.setAttribute('aria-pressed', S[b.dataset.flag] ? 'true' : 'false'));
+    document.querySelectorAll('#alg-quality .sl').forEach((x) => { x.style.opacity = S.quality_on ? 1 : 0.45; });
+    document.querySelectorAll('#alg-tiers .sl').forEach((x) => { x.style.opacity = S.tier_mode === 'off' ? 0.45 : 1; });
   }
-  const activeComp = (c) => { const src = COMP.find((x) => x[0] === c)[3]; return S['src_' + src] !== false; };
+  const activeComp = (c) => {
+    const src = COMP.find((x) => x[0] === c)[3];
+    if (src === 'pm') return !!(S.src_kalshi || S.src_polymarket);
+    if (src === 'adanos') return !!(S.src_reddit || S.src_x || S.src_news);
+    return !!S.src_momentum;
+  };
   const f2 = (v) => Number(v).toFixed(2);
   for (const [c, label, sub] of COMP) slider('alg-weights', 'w_' + c, label, sub, 0, 1, 0.05, f2);
-  toggle('alg-gates', 'g2_on', 'G2 · needs an open market with 24h volume');
+  selectCtl('alg-gates', 'g2_mode', 'G2 · topic needs', [['prediction', 'prediction-market volume'], ['any', 'any market or social activity'], ['off', 'nothing (off)']]);
   slider('alg-gates', 'g3_zero', 'G3 max zero-trade', '3 strikes nearest 50%', 0, 1, 0.05, fpct);
   slider('alg-gates', 'g3_spread', 'G3 max spread', 'avg bid-ask, $', 0, 1, 0.01, f2);
+  toggle('alg-quality', 'quality_on', 'Apply quality to the score');
   slider('alg-quality', 'q_free', 'Free spread', 'no cost up to', 0, 0.3, 0.01, f2);
   slider('alg-quality', 'q_slope', 'Spread slope', 'divisor', 0.1, 2, 0.05, f2);
   slider('alg-quality', 'q_floor', 'Spread floor', 'minimum factor', 0, 1, 0.05, f2);
   slider('alg-quality', 'q_zero_pen', 'Zero-trade penalty', '× zero-trade share', 0, 1, 0.05, f2);
   slider('alg-quality', 'q_single', 'Single source', 'factor with 1 source', 0.5, 1, 0.05, f2);
-  toggle('alg-tiers', 'tiers_on', 'Use tiers (off = rank by score only)');
+  selectCtl('alg-tiers', 'tier_mode', 'Tiers', [['rank', 'rank by tier, then score'], ['labels', 'labels only, rank by score'], ['off', 'off']]);
   slider('alg-tiers', 't1_days', 'T1 catalyst within', 'trading days', 0, 10, 1, (v) => v + 'd');
   slider('alg-tiers', 't1_pct', 'T1 move or flow ≥', 'percentile', 0, 1, 0.05, fpct);
   slider('alg-tiers', 't2_flow', 'T2 money flow ≥', 'percentile', 0, 1, 0.05, fpct);
   slider('alg-tiers', 't2_attn', 'T2 attention ≥', 'percentile', 0, 1, 0.05, fpct);
   slider('alg-tiers', 't3_attn', 'T3 attention ≥', 'percentile', 0, 1, 0.05, fpct);
-  for (const k of ['src_kalshi', 'src_adanos', 'src_momentum']) wireToggle(document.getElementById('p-' + k), k);
+  for (const k of ['src_kalshi', 'src_polymarket', 'src_momentum']) wireToggle(document.getElementById('p-' + k), k);
+  document.querySelectorAll('#dash-root [data-flag]').forEach((b) => b.addEventListener('click', () => {
+    setParam(b.dataset.flag, !S[b.dataset.flag]); paintSliders(); recompute(); paintSources();
+  }));
 
   // =================================================================== scoring (port of scoring/scoring.py)
   function pctrank(values) {
@@ -606,59 +714,70 @@ window.TL = (() => {
     while (i < n) { let j = i; while (j + 1 < n && values[idx[j + 1]] === values[idx[i]]) j++; const p = ((i + j) / 2) / (n - 1); for (let k = i; k <= j; k++) out[idx[k]] = p; i = j + 1; }
     return out;
   }
+  // mirror of dashboard/pipeline.py combine(): per-component inputs from the per-source columns
+  const wmean = (pairs) => { let n = 0, d = 0; for (const [v, w] of pairs) if (v != null && w > 0) { n += v * w; d += w; } return d ? n / d : null; };
+  const mean = (vals) => { const v = vals.filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
   function inputs(r) {
-    const k = S.src_kalshi, a = S.src_adanos, m = S.src_momentum;
-    const pd = r.mkt_prob_delta_1d, rg = r.mkt_prob_range_1d;
-    return {
-      attention_shift: a ? r.buzz_delta_1d : null,
-      activity_shift: a ? r.mentions_chg_pct : null,
-      money_flow: k ? r.mkt_volume_delta_1d : null,
-      money_stock: k ? r.mkt_oi_delta_1d : null,
-      market_move: k && !(pd == null && rg == null) ? Math.max(Math.abs(pd || 0), (rg || 0) / 2) : null,
-      sentiment_shift: a && r.sentiment_delta_1d != null ? Math.abs(r.sentiment_delta_1d) : null,
-      momentum: m && r.abnormal_move != null ? Math.abs(r.abnormal_move) : null,
-    };
+    const k = S.src_kalshi, p = S.src_polymarket;
+    const plats = ['reddit', 'x', 'news'].filter((x) => S['src_' + x]);
+    const flow = wmean([k ? [r.k_flow, r.k_vol] : [null, 0], p ? [r.p_flow, r.p_vol] : [null, 0]]);
+    const stock = wmean([k ? [r.k_oi_chg, r.k_oi] : [null, 0], p ? [r.p_oi_chg, r.p_oi] : [null, 0]]);
+    const move = wmean([k ? [r.k_move, r.k_vol] : [null, 0], p ? [r.p_move, r.p_vol] : [null, 0]]);
+    const attn = mean(plats.map((x) => r['ad_buzz_d_' + x]));
+    const act = mean(plats.map((x) => r['ad_ment_chg_' + x]));
+    const sent = mean(plats.map((x) => (r['ad_sent_d_' + x] != null ? Math.abs(r['ad_sent_d_' + x]) : null)));
+    const mom = S.src_momentum && r.abnormal_move != null ? Math.abs(r.abnormal_move) : null;
+    const pm = !!((k && r.k_evidence) || (p && (r.p_vol || 0) > 0));
+    let spread = null, zero = null;
+    if ((r.k_vol || 0) >= (r.p_vol || 0) && k && r.k_evidence != null) { spread = r.k_spread; zero = r.k_zero; }
+    else if (p && r.p_vol) { spread = r.p_spread; }
+    const fam = ([flow, stock, move].some((v) => v != null) ? 1 : 0) + ([attn, act, sent].some((v) => v != null) ? 1 : 0);
+    const social = plats.some((x) => (r['ad_mentions_' + x] || 0) > 0);
+    return { attention_shift: attn, activity_shift: act, money_flow: flow, money_stock: stock, market_move: move, sentiment_shift: sent,
+      momentum: mom, pm_evidence: pm, avg_spread: spread, zero_trade: zero, families: fam, social };
   }
-  function gate(r) {
-    if (S.g2_on && r.has_market_evidence === false) return 'G2';
-    if (r.zero_trade_market_pct != null && r.zero_trade_market_pct > S.g3_zero) return 'G3';
-    if (r.avg_spread != null && r.avg_spread > S.g3_spread) return 'G3';
+  function gate(r, c) {
+    if (S.g2_mode === 'prediction' && !c.pm_evidence) return 'G2';
+    if (S.g2_mode === 'any' && !(c.pm_evidence || c.social || (r.exchange_volume_usd || 0) > 0)) return 'G2';
+    if (c.zero_trade != null && c.zero_trade > S.g3_zero) return 'G3';
+    if (c.avg_spread != null && c.avg_spread > S.g3_spread) return 'G3';
     if (r.days_since_covered != null && r.days_since_covered <= 3) return 'G4';
     return null;
   }
-  function quality(r, adanosOk) {
+  function quality(c) {
+    if (!S.quality_on) return 1;
     let sf = 1;
-    if (r.avg_spread != null) sf = Math.min(1, Math.max(S.q_floor, 1 - Math.max(0, r.avg_spread - S.q_free) / S.q_slope));
-    const zf = r.zero_trade_market_pct == null ? 1 : 1 - S.q_zero_pen * r.zero_trade_market_pct;
-    const src = (S.src_kalshi ? 1 : 0) + (adanosOk ? 1 : 0);
-    return sf * zf * (src >= 2 ? 1 : S.q_single);
+    if (c.avg_spread != null) sf = Math.min(1, Math.max(S.q_floor, 1 - Math.max(0, c.avg_spread - S.q_free) / S.q_slope));
+    const zf = c.zero_trade == null ? 1 : 1 - S.q_zero_pen * c.zero_trade;
+    return sf * zf * (c.families >= 2 ? 1 : S.q_single);
   }
   function tier(p, r) {
-    if (!S.tiers_on) return 'T4';
+    if (S.tier_mode === 'off') return null;
     const cat = r.catalyst_in_trading_days;
     if (cat != null && cat <= S.t1_days && ((p.market_move || 0) >= S.t1_pct || (p.money_flow || 0) >= S.t1_pct)) return 'T1';
     if ((p.money_flow || 0) >= S.t2_flow && (p.attention_shift || 0) >= S.t2_attn) return 'T2';
     if ((p.attention_shift || 0) >= S.t3_attn) return 'T3';
     return 'T4';
   }
+  const UNI = ['kalshi', 'polymarket', 'adanos', 'movers'];
+  const inUniverse = (r) => (r.origin || '').split(',').some((o) => UNI.includes(o) && S['uni_' + o]);
   let result = { live: [], gated: [], out: [] };
   function recompute() {
     if (!ok('topic_log')) { result = { live: [], gated: [], out: [] }; drawOutput(); return; }
     const off = new Set(S.classes_off || []);
-    const pool = rows('topic_log').filter((r) => !off.has(r.asset_class));
+    const pool = rows('topic_log').filter((r) => !off.has(r.asset_class) && inUniverse(r));
     const live = [], gated = [];
-    for (const r of pool) { const g = gate(r); (g ? gated : live).push({ ...r, my_gate: g }); }
-    const raw = live.map(inputs);
-    for (const [c] of COMP) { const pr = pctrank(raw.map((x) => x[c])); live.forEach((r, i) => { (r.my_p ||= {})[c] = pr[i]; r['p_' + c] = pr[i]; }); }
+    for (const r0 of pool) { const c = inputs(r0); const g = gate(r0, c); (g ? gated : live).push({ ...r0, my_in: c, my_gate: g }); }
+    for (const [c] of COMP) { const pr = pctrank(live.map((r) => r.my_in[c])); live.forEach((r, i) => { (r.my_p ||= {})[c] = pr[i]; r['p_' + c] = pr[i]; }); }
     for (const r of live) {
       let num = 0, den = 0;
       for (const [c] of COMP) { const v = r.my_p[c], w = S['w_' + c]; if (v != null && w > 0) { num += w * v; den += w; } }
-      const adanosOk = S.src_adanos && ['buzz_delta_1d', 'mentions_chg_pct', 'sentiment_delta_1d'].some((k) => r[k] != null);
-      r.my_den = den; r.my_raw = den ? num / den : 0; r.my_quality = quality(r, adanosOk);
-      r.my_sources = (S.src_kalshi ? 1 : 0) + (adanosOk ? 1 : 0);
+      r.my_den = den; r.my_raw = den ? num / den : 0; r.my_quality = quality(r.my_in);
+      r.my_sources = r.my_in.families;
       r.my_score = r.my_raw * r.my_quality; r.my_tier = tier(r.my_p, r);
     }
-    live.sort((a, b) => a.my_tier.localeCompare(b.my_tier) || b.my_score - a.my_score || b.my_sources - a.my_sources || (b.mkt_ladder_depth || 0) - (a.mkt_ladder_depth || 0));
+    const byTier = S.tier_mode === 'rank';
+    live.sort((a, b) => (byTier ? a.my_tier.localeCompare(b.my_tier) : 0) || b.my_score - a.my_score || b.my_sources - a.my_sources || (b.k_ladder || 0) - (a.k_ladder || 0));
     live.forEach((r, i) => { r.my_rank = i + 1; });
     for (const r of gated) { for (const [c] of COMP) r['p_' + c] = null; r.my_score = null; r.my_tier = null; r.my_rank = null; r.my_quality = null; }
     result = { live, gated, out: live.concat(gated) };
@@ -670,10 +789,11 @@ window.TL = (() => {
     const lr = rows('latest_run')[0];
     document.querySelectorAll('#wb-sources .tl-dot[data-k]').forEach((d) => {
       const v = lr ? lr[d.dataset.k] : null;
-      d.className = 'tl-dot ' + (v === 'ok' || v === 'fetched' || v === 'cached' ? 'ok' : v === 'no key' || v === 'empty' ? 'warn' : v ? 'bad' : '');
+      d.className = 'tl-dot ' + (v === 'ok' || v === 'fetched' || v === 'cached' ? 'ok' : v === 'no key' || v === 'empty' || v === 'partial' ? 'warn' : v ? 'bad' : '');
     });
     document.getElementById('src-kalshi').classList.toggle('off', !S.src_kalshi);
-    document.getElementById('src-adanos').classList.toggle('off', !S.src_adanos);
+    document.getElementById('src-polymarket').classList.toggle('off', !S.src_polymarket);
+    document.getElementById('src-adanos').classList.toggle('off', !(S.src_reddit || S.src_x || S.src_news));
     document.getElementById('src-prices').classList.toggle('off', !S.src_momentum);
     // universe chips
     const h = document.getElementById('uni-chips');
@@ -719,9 +839,15 @@ window.TL = (() => {
     document.getElementById('pk-overlap').textContent = live.length ? `${w0.filter((t) => mine.has(t)).length} / 10` : '—';
     drawTable(); drawDetail(); drawScatter();
   }
+  const ORIG = { kalshi: ['K', 'Kalshi'], polymarket: ['P', 'Polymarket'], adanos: ['A', 'Adanos trending'], movers: ['M', 'US movers'] };
+  function origins(o) {
+    const w = el('span', 'tl-orig');
+    for (const k of (o || '').split(',').filter(Boolean)) { const i = el('i', null, (ORIG[k] || [k[0].toUpperCase()])[0]); i.title = (ORIG[k] || [, k])[1]; w.append(i); }
+    return w;
+  }
   function drawTable() {
     const tbody = document.querySelector('#rk-table tbody');
-    if (!ok('topic_log')) { emptyRow(tbody, 16, 'Loading…'); return; }
+    if (!ok('topic_log')) { emptyRow(tbody, 17, 'Loading…'); return; }
     document.getElementById('rk-gated').setAttribute('aria-pressed', state.gated ? 'true' : 'false');
     const q = state.q.toLowerCase();
     const data = (state.gated ? result.out : result.live).filter((r) => !q || (r.topic + ' ' + (r.name || '')).toLowerCase().includes(q));
@@ -736,7 +862,8 @@ window.TL = (() => {
       const w = el('span', null, r.rank == null ? '–' : String(r.rank));
       if (d) { const dd = el('span', d > 0 ? 'delta-up' : 'delta-dn', ` ${d > 0 ? '▲' : '▼'}${Math.abs(d)}`); w.append(dd); }
       td(w);
-      td(r.topic, 'l'); td(r.name || '', 'l tl-hide-sm'); td(r.asset_class, 'l');
+      const tc = el('span', null, r.topic); if (r.is_new) tc.append(el('span', 'tl-new', 'new')); td(tc, 'l');
+      td(r.name || '', 'l tl-hide-sm tl-clip'); td(r.asset_class, 'l'); td(origins(r.origin), 'l');
       td(r.my_tier ? el('span', 'tl-tier ' + r.my_tier, r.my_tier) : el('span', 'tl-muted', '–'), 'l');
       const bar = el('span', 'tl-bar'); bar.append(document.createTextNode(show(r.my_score, f3)));
       const i = el('i'); const b = el('b'); b.style.width = ((r.my_score || 0) * 100) + '%'; b.style.background = dash.colors[0]; i.append(b); bar.append(i); td(bar);
@@ -746,18 +873,36 @@ window.TL = (() => {
       frag.append(tr);
     }
     tbody.replaceChildren(frag);
-    if (!out.length) emptyRow(tbody, 16, 'No topic matches. Check the universe or the gates.');
+    if (!out.length) emptyRow(tbody, 17, 'No topic matches. Check the universe or the gates.');
     document.getElementById('rk-count').textContent = `${out.length} topics shown · ▲▼ = places gained or lost against the stored w0 run`;
   }
   function drawDetail() {
     const r = result.out.find((x) => x.topic === state.sel) || result.live[0];
     const t = document.getElementById('detail-title'), sc = document.getElementById('detail-score'), meta = document.getElementById('detail-meta'), comp = document.getElementById('detail-comp');
     comp.replaceChildren();
+    const srcBox = document.getElementById('detail-src'), evBox = document.getElementById('detail-events');
+    srcBox.replaceChildren(); evBox.replaceChildren();
     if (!r) { t.textContent = 'Click a topic for its breakdown'; sc.textContent = ''; meta.textContent = ''; drawHist(null); return; }
     t.textContent = `${r.topic} · ${r.name || ''}`;
     sc.textContent = r.my_score == null ? `gated ${r.my_gate}` : f3(r.my_score);
     meta.textContent = r.my_score == null ? `Fails ${r.my_gate} with these settings.` :
-      `#${r.my_rank} · ${r.my_tier} · raw ${f3(r.my_raw)} × quality ${r.my_quality.toFixed(2)} · ${r.my_sources} source${r.my_sources === 1 ? '' : 's'} · ${r.n_series} Kalshi series, ${r.n_markets} markets · w0 #${r.rank ?? '–'}`;
+      `#${r.my_rank} · ${r.my_tier || 'no tier'} · raw ${f3(r.my_raw)} × quality ${r.my_quality.toFixed(2)} · ${r.my_sources} signal famil${r.my_sources === 1 ? 'y' : 'ies'} · ${r.n_events} events · w0 #${r.rank ?? '–'}${r.catalyst ? ' · catalyst: ' + r.catalyst + ' (' + r.catalyst_in_trading_days + ' td)' : ''}`;
+    const kv = (k, v) => srcBox.append(el('span', null, k), el('span', null, v));
+    const n0 = (v, fmt) => (v == null ? '–' : fmt(v));
+    if (r.k_vol != null) kv('Kalshi', `vol ${fc.format(r.k_vol)} (${n0(r.k_flow, (x) => fsig(x) + '%')}) · OI ${fc.format(r.k_oi || 0)} (${n0(r.k_oi_chg, (x) => fsig(x) + '%')}) · move ${n0(r.k_move, d3.format('.3f'))}`);
+    if (r.p_vol != null) kv('Polymarket', `vol $${fc.format(r.p_vol)} (${n0(r.p_flow, (x) => fsig(x) + '%')} vs week avg) · OI $${fc.format(r.p_oi || 0)} (${n0(r.p_oi_chg, (x) => fsig(x) + '%')}) · move ${n0(r.p_move, d3.format('.3f'))}`);
+    for (const p of ['reddit', 'x', 'news']) if (r['ad_buzz_' + p] != null) kv('Adanos ' + (p === 'x' ? 'X' : p[0].toUpperCase() + p.slice(1)), `buzz ${n0(r['ad_buzz_' + p], d3.format('.1f'))} (${n0(r['ad_buzz_d_' + p], fsig)}) · mentions ${n0(r['ad_mentions_' + p], (x) => fc.format(x))} (${n0(r['ad_ment_chg_' + p], (x) => fsig(x) + '%')}) · sentiment Δ ${n0(r['ad_sent_d_' + p], d3.format('+.2f'))}`);
+    if (r.price != null) kv('Price', `${px2(r.price)} · 24h ${n0(r.chg_24h, fpct1)} · ${n0(r.abnormal_move, (x) => fsig(x) + 'σ')} · ${r.price_source || ''}${r.on_coinbase ? ' · on Coinbase' : ''}${r.on_kraken ? ' · on Kraken' : ''}`);
+    if (!srcBox.childElementCount) kv('–', 'No source data for this topic in this pull.');
+    if (ok('events')) {
+      const evs = rows('events').filter((e) => e.topic === r.topic).sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0)).slice(0, 8);
+      for (const e of evs) {
+        const d = el('div'); d.append(el('span', 'src', e.source.replace('yahoo_movers', 'movers')), Object.assign(el('span', 'tl-clip', e.title || e.event_id), { title: e.title || '' }),
+          el('span', null, e.volume_24h == null ? '' : fc.format(e.volume_24h)), el('span', null, e.move_1d == null ? '' : d3.format('.3f')(e.move_1d)));
+        evBox.append(d);
+      }
+      if (!evs.length) evBox.append(el('span', 'tl-muted', 'No events under this topic.'));
+    }
     for (const [c, label] of COMP) {
       const v = r['p_' + c]; const w = S['w_' + c];
       const i = el('i'); const b = el('b'); b.style.width = ((v || 0) * 100) + '%'; b.style.background = dash.colors[0]; i.append(b);
@@ -824,7 +969,7 @@ window.TL = (() => {
       '# Exported from the Metrixx Topic Log dashboard. Copy to config/weights_wN.yaml,',
       '# bump `version`, and add an entry to config/CHANGELOG.md.',
       'version: wN', `effective_from: ${new Date().toISOString().slice(0, 10)}`, 'status: draft', '',
-      'gates:', '  G1_freshness:', '    max_age_hours: 24', '  G2_market_evidence:', `    min_open_contracts_with_volume: ${S.g2_on ? 1 : 0}`,
+      'gates:', '  G1_freshness:', '    max_age_hours: 24', '  G2_market_evidence:', `    min_open_contracts_with_volume: ${S.g2_mode === 'off' ? 0 : 1}`,
       '  G3_liquidity_floor:', `    max_zero_trade_market_pct: ${n(S.g3_zero)}`, `    max_avg_spread: ${n(S.g3_spread)}`,
       '  G4_cooldown:', '    window_days: 3', '  G5_not_settled:', '    min_implied_prob: 0.01', '    max_implied_prob: 0.99', '',
       'components:',
@@ -834,11 +979,13 @@ window.TL = (() => {
     L.push('', 'quality:', '  spread:', `    free_below: ${n(S.q_free)}`, `    slope_divisor: ${n(S.q_slope)}`, `    floor: ${n(S.q_floor)}`,
       '  zero_trade:', `    penalty: ${n(S.q_zero_pen)}`, '  sources:', '    min_for_full_credit: 2', `    single_source_factor: ${n(S.q_single)}`, '',
       'cooldown:', '  soft_band_days: 4', '  soft_band_multiplier: 0.85', '',
-      `tiers:${S.tiers_on ? '' : '                 # tiers were switched off in the dashboard'}`,
+      `tiers:${S.tier_mode === 'rank' ? '' : '                 # tier_mode in the dashboard: ' + S.tier_mode}`,
       '  T1:', '    label: Event with money behind it', `    catalyst_within_trading_days: ${n(S.t1_days)}`, '    any_of:', `      market_move_pct_min: ${n(S.t1_pct)}`, `      money_flow_pct_min: ${n(S.t1_pct)}`,
       '  T2:', '    label: Money moving', '    all_of:', `      money_flow_pct_min: ${n(S.t2_flow)}`, `      attention_shift_pct_min: ${n(S.t2_attn)}`,
       '  T3:', '    label: Attention only', '    all_of:', `      attention_shift_pct_min: ${n(S.t3_attn)}`, '  T4:', '    label: Baseline');
-    if (S.classes_off && S.classes_off.length) L.push('', `# universe: excluded asset classes = [${S.classes_off.join(', ')}]`);
+    L.push('', '# dashboard switches (not read by scoring.py yet)', `# sources: kalshi=${S.src_kalshi} polymarket=${S.src_polymarket} reddit=${S.src_reddit} x=${S.src_x} news=${S.src_news} momentum=${S.src_momentum}`,
+      `# universe: kalshi=${S.uni_kalshi} polymarket=${S.uni_polymarket} adanos=${S.uni_adanos} movers=${S.uni_movers}; excluded classes = [${(S.classes_off || []).join(', ')}]`,
+      `# g2_mode=${S.g2_mode} quality_on=${S.quality_on} tier_mode=${S.tier_mode}`);
     return L.join('\n');
   }
   const yb = document.getElementById('btn-yaml');
@@ -974,13 +1121,61 @@ window.TL = (() => {
   }
 
   // ---------- symbol appendix
-  function drawSymbols() {
-    const tiles = document.getElementById('sym-tiles');
-    if (ok('appendix_classes')) {
-      tiles.replaceChildren(...rows('appendix_classes').map((g) => {
-        const t = el('div', 'tl-tile'); t.append(el('span', 'tl-tile-k', g.asset_class), el('span', 'tl-tile-v', String(g.topics)), el('span', 'tl-tile-s', `topics · ${g.series} series · ${fc.format(g.volume_24h)} vol 24h`)); return t;
+  state.tpClasses = new Set(); state.tpNew = false; state.tpQ = ''; state.evQ = ''; state.evTopic = null; state.evSources = new Set();
+  function drawTopics() {
+    const tiles = document.getElementById('topic-tiles');
+    if (ok('topic_classes')) {
+      tiles.replaceChildren(...rows('topic_classes').map((g) => {
+        const t = el('div', 'tl-tile'); t.append(el('span', 'tl-tile-k', g.asset_class), el('span', 'tl-tile-v', String(g.topics)), el('span', 'tl-tile-s', `topics · ${g.scored} passed the gates · ${g.new_topics} new`)); return t;
       }));
     }
+    const tbody = document.querySelector('#tp-table tbody');
+    if (!ok('topic_log')) { emptyRow(tbody, 8, 'Loading…'); return; }
+    const all = rows('topic_log');
+    chips('tp-classes', [...new Set(all.map((r) => r.asset_class))].sort(), state.tpClasses, drawTopics);
+    document.getElementById('tp-new').setAttribute('aria-pressed', state.tpNew ? 'true' : 'false');
+    const q = state.tpQ.toLowerCase();
+    const data = all.filter((r) => (!state.tpNew || r.is_new) && (!state.tpClasses.size || state.tpClasses.has(r.asset_class)) && (!q || (r.topic + ' ' + (r.name || '')).toLowerCase().includes(q)));
+    const { out, s } = sortRows('tp', data, 'n_events', 'desc');
+    ariaSort('tp-table', s);
+    const frag = document.createDocumentFragment();
+    for (const r of out.slice(0, 600)) {
+      const tr = el('tr'); tr.dataset.key = r.topic; if (r.topic === state.evTopic) tr.classList.add('sel');
+      const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
+      const tc = el('span', null, r.topic); if (r.is_new) tc.append(el('span', 'tl-new', 'new')); td(tc, 'l');
+      td(r.name, 'l tl-clip'); td(r.asset_class, 'l'); td(origins(r.origin), 'l'); td(r.match, 'l'); td(String(r.n_events)); td(r.rank == null ? '–' : String(r.rank));
+      td(r.gate ? el('span', 'tl-gate', r.gate) : el('span', 'tl-muted', '–'), 'l');
+      frag.append(tr);
+    }
+    tbody.replaceChildren(frag);
+    if (!out.length) emptyRow(tbody, 8, 'No topic matches.');
+    document.getElementById('tp-count').textContent = `${Math.min(600, out.length)} of ${out.length} topics shown · ${all.filter((r) => r.is_new).length} new this pull`;
+  }
+  function drawEvents() {
+    const tbody = document.querySelector('#ev-table tbody');
+    if (!ok('events')) { emptyRow(tbody, 9, 'Loading…'); return; }
+    const all = rows('events');
+    chips('ev-sources', [...new Set(all.map((r) => r.source))].sort(), state.evSources, drawEvents);
+    const tb = document.getElementById('ev-topic'); tb.hidden = !state.evTopic; tb.textContent = state.evTopic ? `Topic: ${state.evTopic} ×` : '';
+    const q = state.evQ.toLowerCase();
+    const data = all.filter((r) => (!state.evTopic || r.topic === state.evTopic) && (!state.evSources.size || state.evSources.has(r.source)) && (!q || ((r.title || '') + ' ' + r.topic).toLowerCase().includes(q)));
+    const { out, s } = sortRows('ev', data, 'volume_24h', 'desc');
+    ariaSort('ev-table', s);
+    const frag = document.createDocumentFragment();
+    for (const r of out.slice(0, 500)) {
+      const tr = el('tr'); tr.dataset.key = [r.source, r.event_id].map((x) => encodeURIComponent(String(x))).join(',');
+      const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
+      td(r.source, 'l'); const tt = el('td', 'l tl-clip', r.title || r.event_id); tt.title = r.title || ''; tr.append(tt); td(r.topic, 'l'); td(r.match, 'l');
+      td(r.volume_24h == null ? '–' : fc.format(r.volume_24h)); td(r.open_interest == null ? '–' : fc.format(r.open_interest));
+      td(r.top_price == null ? '–' : px2(r.top_price)); td(r.move_1d == null ? '–' : d3.format('.3f')(r.move_1d)); td(r.end_date, 'l');
+      frag.append(tr);
+    }
+    tbody.replaceChildren(frag);
+    if (!out.length) emptyRow(tbody, 9, 'No events match.');
+    document.getElementById('ev-count').textContent = `${Math.min(500, out.length)} of ${out.length} events shown`;
+  }
+  function drawSymbols() {
+    drawTopics(); drawEvents();
     const tbody = document.querySelector('#sym-table tbody');
     if (!ok('symbol_appendix')) { emptyRow(tbody, 11, 'Loading…'); return; }
     const all = rows('symbol_appendix');
@@ -995,7 +1190,7 @@ window.TL = (() => {
     for (const r of out) {
       const tr = el('tr'); tr.dataset.key = r.series;
       const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
-      td(r.series, 'l'); td(r.title, 'l'); td(r.mapped ? r.topic : el('span', 'tl-gate', r.topic + ' (unmapped)'), 'l'); td(r.asset_class, 'l');
+      td(r.series, 'l'); td(r.title, 'l'); td(r.mapped ? r.topic : el('span', null, r.topic), 'l'); td(r.asset_class, 'l');
       td(r.category, 'l tl-hide-sm'); td(r.frequency, 'l tl-hide-sm'); td(r.price_symbol, 'l'); td(r.adanos, 'l');
       td(String(r.open_markets)); td(fc.format(r.volume_24h || 0)); td(fc.format(r.open_interest || 0));
       frag.append(tr);
@@ -1003,7 +1198,7 @@ window.TL = (() => {
     tbody.replaceChildren(frag);
     if (!out.length) emptyRow(tbody, 11, 'No series match.');
     const un = all.filter((r) => !r.mapped).length;
-    document.getElementById('sym-count').textContent = `${out.length} of ${all.length} series shown · ${un} unmapped`;
+    document.getElementById('sym-count').textContent = `${out.length} of ${all.length} series shown · ${un} became their own topic`;
   }
 
   // =================================================================== raw data (free sources, not scored)
@@ -1018,9 +1213,11 @@ window.TL = (() => {
     us_movers: { title: 'US movers · Yahoo', note: 'Top 100 gainers, losers and most active today. Rel. volume = today ÷ 3-month average.', key: 'list,symbol', sort: ['list_rank', 'asc'],
       cols: [['list', 'List', null, 'l'], ['list_rank', '#', (v) => String(v)], ['symbol', 'Symbol', null, 'l'], ['name', 'Name', null, 'l'], ['price', 'Price', px2], ['change_pct', 'Chg %', pc, 's'], ['volume', 'Volume', (v) => show(v, (x) => fc.format(x))], ['rel_volume', 'Rel. vol', (v) => show(v, (x) => x.toFixed(1) + '×')], ['market_cap', 'Mkt cap', money]] },
     polymarket: { title: 'Polymarket events', note: 'Active events in the money tags, by 24h volume. Top market = the event\'s most traded market; price is its last trade.', key: 'event_id', sort: ['volume_24h', 'desc'],
-      cols: [['title', 'Event', null, 'l'], ['matched_tags', 'Tags', null, 'l'], ['volume_24h', 'Vol 24h', money], ['volume_1wk', 'Vol 1w', money], ['liquidity', 'Liquidity', money], ['open_interest', 'OI', money], ['n_markets', 'Mkts', (v) => String(v)], ['top_market', 'Top market', null, 'l'], ['top_price', 'Price', (v) => show(v, d3.format('.2f'))], ['top_change_1d', 'Δ1d', (v) => show(v, d3.format('+.3f')), 's'], ['end_date', 'Ends', null, 'l']] },
-    crypto_spot: { title: 'Crypto spot · Binance, Coinbase', note: 'Binance 24h stats for every USDT pair with volume. Coinbase = listed against USD on Coinbase.', key: 'pair', sort: ['quote_volume', 'desc'],
-      cols: [['symbol', 'Coin', null, 'l'], ['price', 'Price', px2], ['change_pct', 'Chg %', pc, 's'], ['range_pct', '24h range %', (v) => show(v, (x) => x.toFixed(1) + '%')], ['quote_volume', 'Vol 24h', money], ['trades', 'Trades', (v) => show(v, (x) => fc.format(x))], ['on_coinbase', 'Coinbase', (v) => (v == null ? '–' : v ? 'yes' : 'no'), 'l']] },
+      cols: [['title', 'Event', null, 'l'], ['topic', 'Topic', null, 'l'], ['matched_tags', 'Tags', null, 'l'], ['volume_24h', 'Vol 24h', money], ['volume_1wk', 'Vol 1w', money], ['liquidity', 'Liquidity', money], ['open_interest', 'OI', money], ['n_markets', 'Mkts', (v) => String(v)], ['top_market', 'Top market', null, 'l'], ['top_price', 'Price', (v) => show(v, d3.format('.2f'))], ['top_change_1d', 'Δ1d', (v) => show(v, d3.format('+.3f')), 's'], ['end_date', 'Ends', null, 'l']] },
+    crypto_spot: { title: 'Crypto spot · Binance, Coinbase, Kraken', note: 'Every coin with 24h volume on Binance (USDT), Coinbase or Kraken (USD). Price source of record: Binance, then Coinbase, then Kraken.', key: 'symbol', sort: ['usd_volume', 'desc'],
+      cols: [['symbol', 'Coin', null, 'l'], ['primary', 'Price from', null, 'l'], ['price', 'Price', px2], ['change_pct', 'Chg %', pc, 's'], ['usd_volume', 'Vol 24h (all)', money],
+        ['binance_vol', 'Binance', money], ['coinbase_vol', 'Coinbase', money], ['kraken_vol', 'Kraken', money],
+        ['on_coinbase', 'On Coinbase', (v) => (v ? 'yes' : 'no'), 'l'], ['on_kraken', 'On Kraken', (v) => (v ? 'yes' : 'no'), 'l']] },
   };
   state.raw = 'us_stocks'; state.rawQ = '';
   const rawTables = {};
@@ -1088,6 +1285,13 @@ window.TL = (() => {
     drawAll();
   }
   document.querySelectorAll('.tl-tab').forEach((b) => b.addEventListener('click', () => go(b.dataset.page, true)));
+  document.getElementById('tp-search').addEventListener('input', (e) => { state.tpQ = e.target.value; drawTopics(); });
+  document.getElementById('tp-new').addEventListener('click', () => { state.tpNew = !state.tpNew; drawTopics(); });
+  document.querySelector('#tp-table tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-key]'); if (tr) { state.evTopic = tr.dataset.key; drawTopics(); drawEvents(); } });
+  document.getElementById('ev-topic').addEventListener('click', () => { state.evTopic = null; drawTopics(); drawEvents(); });
+  document.getElementById('ev-search').addEventListener('input', (e) => { state.evQ = e.target.value; drawEvents(); });
+  wireSort('tp-table', 'tp', 'n_events', 'desc', drawTopics);
+  wireSort('ev-table', 'ev', 'volume_24h', 'desc', drawEvents);
   document.getElementById('sym-search').addEventListener('input', (e) => { state.symQ = e.target.value; drawSymbols(); });
   document.getElementById('sym-unmapped').addEventListener('click', () => { state.unmapped = !state.unmapped; drawSymbols(); });
   document.getElementById('mk-search').addEventListener('input', (e) => { state.mkQ = e.target.value; drawMarket(); });

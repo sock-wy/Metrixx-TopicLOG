@@ -20,7 +20,8 @@
   }
   const post = (path, body) => fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
   $('ab-refresh').addEventListener('click', async () => { await post('/api/refresh'); setTimeout(poll, 300); });
-  $('ab-interval').addEventListener('change', async (e) => { await post('/api/settings', { interval_min: Number(e.target.value) }); poll(); });
+  $('ab-interval').addEventListener('change', async (e) => { await post('/api/settings', { interval_min: Number(e.target.value), refresh: true }); setTimeout(poll, 300); });
+  $('ab-reload').addEventListener('click', () => { window.TLDATA.load(); const b = $('ab-reload'); b.textContent = 'Refreshed'; setTimeout(() => { b.textContent = 'Refresh view'; }, 1200); });
   $('ab-keybtn').addEventListener('click', () => { const f = $('ab-keyform'); f.hidden = !f.hidden; if (!f.hidden) $('ab-keyinput').focus(); });
   $('ab-keysave').addEventListener('click', async () => {
     const v = $('ab-keyinput').value.trim(); if (!v) return;

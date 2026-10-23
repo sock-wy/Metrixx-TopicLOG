@@ -26,13 +26,18 @@ DATA = SUP / "data"
 SETTINGS = SUP / "settings.json"
 WEB = APP / "web"
 DATASETS = ["topic_log", "score_history", "daily_log", "runs", "adanos_daily", "symbol_appendix", "market_data",
-            "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot"]
+            "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot", "events"]
 DEFAULT_SETTINGS = {"interval_min": 30, "adanos_key": ""}
 
+VERSION = "0.2"
 DATA.mkdir(parents=True, exist_ok=True)
-if not any(DATA.glob("*.json")) and (APP / "seed").exists():  # first start: begin from the last cloud pull
+_ver = SUP / "version"
+_old = _ver.read_text().strip() if _ver.exists() else None
+if (_old != VERSION or not any(DATA.glob("*.json"))) and (APP / "seed").exists():
+    # first start, or first start after an update: begin from the pull shipped with this version
     for p in (APP / "seed").glob("*.json"):
         shutil.copy(p, DATA / p.name)
+_ver.write_text(VERSION)
 
 
 def load_settings():
