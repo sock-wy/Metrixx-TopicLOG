@@ -1,0 +1,396 @@
+<title>Topic Log Backtest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column, charts full column width, the decision first. */
+:root {
+  --bg: #f7f7f4; --panel: #ffffff; --ink: #1c2226; --muted: #5f6a70; --line: #dfe2de;
+  --acc: #1f6f8b; --mom: #b5651d; --old: #8a9399; --s1: #4b7f99; --s2: #c0843a;
+  --serif: "Newsreader", Georgia, serif; --sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141719; --panel: #1b1f22; --ink: #e7e9e6; --muted: #9aa3a7; --line: #2c3236;
+  --acc: #5fb3d1; --mom: #e0a060; --old: #7c868c; --s1: #79a9c2; --s2: #dba566; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #141719; --panel: #1b1f22; --ink: #e7e9e6; --muted: #9aa3a7; --line: #2c3236;
+  --acc: #5fb3d1; --mom: #e0a060; --old: #7c868c; --s1: #79a9c2; --s2: #dba566; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+main { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--serif); font-weight: 600; font-size: 1.3rem; margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.05rem; color: var(--ink); }
+section { display: flex; flex-direction: column; gap: 12px; }
+.verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.verdict ul, .notes ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 6px; }
+.chart { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 14px 6px; overflow-x: auto; }
+.chart h3 { font: 600 13px/1.3 var(--sans); margin: 0 0 4px; }
+.chart .sub { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px; }
+svg { width: 100%; height: auto; display: block; min-width: 420px; }
+svg text { fill: var(--muted); font: 11px var(--sans); }
+svg .lab { fill: var(--ink); font-size: 12px; }
+svg .lab.acc { fill: var(--acc); font-weight: 600; } svg .lab.mom { fill: var(--mom); font-weight: 600; }
+svg .grid { stroke: var(--line); stroke-width: 1; } svg .ref { stroke: var(--muted); stroke-dasharray: 3 3; }
+svg .ci { stroke-width: 2; stroke: var(--old); } svg .pt { fill: var(--old); stroke: var(--panel); stroke-width: 1.5; }
+svg .ci.acc { stroke: var(--acc); } svg .pt.acc { fill: var(--acc); } svg .ci.mom { stroke: var(--mom); } svg .pt.mom { fill: var(--mom); }
+svg .ci.oth { stroke: var(--old); opacity: .55; } svg .pt.oth { fill: var(--old); opacity: .8; }
+svg .bar.s1 { fill: var(--s1); } svg .bar.s2 { fill: var(--s2); } svg .whisk { stroke: var(--ink); stroke-width: 1; opacity: .55; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.tbl { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font: 12.5px/1.35 var(--mono); font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th { font: 500 11px/1.3 var(--sans); color: var(--muted); text-align: right; }
+th:first-child, td.l { text-align: left; font-family: var(--sans); white-space: normal; min-width: 15rem; }
+tr.acc td { color: var(--acc); } tr.mom td { color: var(--mom); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; }
+code { font-family: var(--mono); font-size: .92em; }
+</style>
+<main>
+<header style="display:flex;flex-direction:column;gap:10px">
+  <span class="eyebrow">Study broad_v2 · 2026-08-26 to 2026-10-21 · 41 trading days · 212 topics</span>
+  <h1>Which version of the Topic Log score picks the topics that matter the next day?</h1>
+  <p class="lede">Each trading day at 15:00 ET the dashboard's pull was rebuilt from the backfill, every scoring variant ranked the topics that pass the gates, and the ranking was compared with what happened after the pick: the next session's price move, and the next day's Adanos mentions against the topic's normal level.</p>
+</header>
+
+<section class="verdict">
+  <h2>Result</h2>
+  <ul>
+    <li><b>w0 and v2 as shipped do no better than chance.</b> On the holdout their rank IC is about zero for price moves and for attention.</li>
+    <li><b>The 1-day changes are the weak part, the data is not.</b> How far a topic's mentions sit above its own 20-day normal predicts the next day's attention strongly (IC +0.35), and 3-day mention changes beat 1-day changes. Sentiment change has no signal, or a negative one.</li>
+    <li><b>Prediction-market inputs add little.</b> Volume and open-interest changes are slightly positive and not significant; probability moves are about zero.</li>
+    <li><b>w1 is the new default.</b> On the holdout it beats v2 by +0.09 (95% CI +0.03 to +0.14) IC on price moves and +0.26 (95% CI +0.20 to +0.33) on attention.</li>
+    <li><b>Momentum is still as good on price moves.</b> w1 ties it there (-0.02 (95% CI -0.06 to +0.02)) and beats it on attention (+0.20 (95% CI +0.12 to +0.27)). Momentum is now in the score with weight 0.25.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Where the top 5 picks land</h2>
+  <p>Mean percentile of the day's top 5 among all gated topics, holdout days only (15 days). 0.5 is a random pick. Lines are 95% bootstrap intervals over days.</p>
+  <div class="pair">
+    <div class="chart"><h3>Next-session price move</h3><p class="sub">|move| ÷ 20-day σ, next session at the same time</p><svg viewBox="0 0 560 342" role="img" aria-label="Next-session price move: top5 by variant">
+<line x1="170.0" x2="170.0" y1="20" y2="316" class="grid"/>
+<text x="170.0" y="332" class="tick" text-anchor="middle">0.3</text>
+<line x1="237.3" x2="237.3" y1="20" y2="316" class="grid"/>
+<text x="237.3" y="332" class="tick" text-anchor="middle">0.4</text>
+<line x1="304.5" x2="304.5" y1="20" y2="316" class="grid"/>
+<text x="304.5" y="332" class="tick" text-anchor="middle">0.5</text>
+<line x1="371.8" x2="371.8" y1="20" y2="316" class="grid"/>
+<text x="371.8" y="332" class="tick" text-anchor="middle">0.6</text>
+<line x1="439.1" x2="439.1" y1="20" y2="316" class="grid"/>
+<text x="439.1" y="332" class="tick" text-anchor="middle">0.7</text>
+<line x1="506.4" x2="506.4" y1="20" y2="316" class="grid"/>
+<text x="506.4" y="332" class="tick" text-anchor="middle">0.8</text>
+<line x1="304.5" x2="304.5" y1="16" y2="316" class="ref"/>
+<text x="308.5" y="14" class="tick">random</text>
+<text x="160" y="43.0" text-anchor="end" class="lab old">w0 before v2</text>
+<line x1="292.5" x2="361.6" y1="39.0" y2="39.0" class="ci old"/>
+<circle cx="327.0" cy="39.0" r="5" class="pt old"><title>w0 before v2: 0.533 (95% CI 0.482 to 0.585)</title></circle>
+<text x="160" y="69.0" text-anchor="end" class="lab old">v2 as shipped</text>
+<line x1="263.0" x2="338.5" y1="65.0" y2="65.0" class="ci old"/>
+<circle cx="299.4" cy="65.0" r="5" class="pt old"><title>v2 as shipped: 0.492 (95% CI 0.438 to 0.550)</title></circle>
+<text x="160" y="95.0" text-anchor="end" class="lab oth">v2, no tiers or quality</text>
+<line x1="297.2" x2="382.3" y1="91.0" y2="91.0" class="ci oth"/>
+<circle cx="341.5" cy="91.0" r="5" class="pt oth"><title>v2, no tiers or quality: 0.555 (95% CI 0.489 to 0.616)</title></circle>
+<text x="160" y="121.0" text-anchor="end" class="lab oth">v2 + momentum 0.2</text>
+<line x1="284.2" x2="357.1" y1="117.0" y2="117.0" class="ci oth"/>
+<circle cx="321.6" cy="117.0" r="5" class="pt oth"><title>v2 + momentum 0.2: 0.525 (95% CI 0.470 to 0.578)</title></circle>
+<text x="160" y="147.0" text-anchor="end" class="lab oth">market inputs only</text>
+<line x1="296.6" x2="364.2" y1="143.0" y2="143.0" class="ci oth"/>
+<circle cx="329.0" cy="143.0" r="5" class="pt oth"><title>market inputs only: 0.536 (95% CI 0.488 to 0.589)</title></circle>
+<text x="160" y="173.0" text-anchor="end" class="lab oth">Adanos inputs only</text>
+<line x1="292.3" x2="340.3" y1="169.0" y2="169.0" class="ci oth"/>
+<circle cx="318.1" cy="169.0" r="5" class="pt oth"><title>Adanos inputs only: 0.520 (95% CI 0.482 to 0.553)</title></circle>
+<text x="160" y="199.0" text-anchor="end" class="lab oth">w1 with quality</text>
+<line x1="297.1" x2="375.0" y1="195.0" y2="195.0" class="ci oth"/>
+<circle cx="337.6" cy="195.0" r="5" class="pt oth"><title>w1 with quality: 0.549 (95% CI 0.489 to 0.605)</title></circle>
+<text x="160" y="225.0" text-anchor="end" class="lab oth">w1, missing left out</text>
+<line x1="296.6" x2="401.0" y1="221.0" y2="221.0" class="ci oth"/>
+<circle cx="350.9" cy="221.0" r="5" class="pt oth"><title>w1, missing left out: 0.569 (95% CI 0.488 to 0.643)</title></circle>
+<text x="160" y="251.0" text-anchor="end" class="lab acc">w1 (new default)</text>
+<line x1="344.3" x2="428.7" y1="247.0" y2="247.0" class="ci acc"/>
+<circle cx="389.1" cy="247.0" r="5" class="pt acc"><title>w1 (new default): 0.626 (95% CI 0.559 to 0.685)</title></circle>
+<text x="160" y="277.0" text-anchor="end" class="lab oth">attention level only</text>
+<line x1="275.6" x2="357.3" y1="273.0" y2="273.0" class="ci oth"/>
+<circle cx="316.1" cy="273.0" r="5" class="pt oth"><title>attention level only: 0.517 (95% CI 0.457 to 0.578)</title></circle>
+<text x="160" y="303.0" text-anchor="end" class="lab mom">momentum only</text>
+<line x1="319.1" x2="403.4" y1="299.0" y2="299.0" class="ci mom"/>
+<circle cx="359.2" cy="299.0" r="5" class="pt mom"><title>momentum only: 0.581 (95% CI 0.522 to 0.647)</title></circle>
+</svg></div>
+    <div class="chart"><h3>Next-day attention</h3><p class="sub">mentions on day t+1 vs the 20 days before (Reddit + X + News)</p><svg viewBox="0 0 560 342" role="img" aria-label="Next-day attention: top5 by variant">
+<line x1="170.0" x2="170.0" y1="20" y2="316" class="grid"/>
+<text x="170.0" y="332" class="tick" text-anchor="middle">0.3</text>
+<line x1="237.3" x2="237.3" y1="20" y2="316" class="grid"/>
+<text x="237.3" y="332" class="tick" text-anchor="middle">0.4</text>
+<line x1="304.5" x2="304.5" y1="20" y2="316" class="grid"/>
+<text x="304.5" y="332" class="tick" text-anchor="middle">0.5</text>
+<line x1="371.8" x2="371.8" y1="20" y2="316" class="grid"/>
+<text x="371.8" y="332" class="tick" text-anchor="middle">0.6</text>
+<line x1="439.1" x2="439.1" y1="20" y2="316" class="grid"/>
+<text x="439.1" y="332" class="tick" text-anchor="middle">0.7</text>
+<line x1="506.4" x2="506.4" y1="20" y2="316" class="grid"/>
+<text x="506.4" y="332" class="tick" text-anchor="middle">0.8</text>
+<line x1="304.5" x2="304.5" y1="16" y2="316" class="ref"/>
+<text x="308.5" y="14" class="tick">random</text>
+<text x="160" y="43.0" text-anchor="end" class="lab old">w0 before v2</text>
+<line x1="272.7" x2="358.6" y1="39.0" y2="39.0" class="ci old"/>
+<circle cx="319.8" cy="39.0" r="5" class="pt old"><title>w0 before v2: 0.523 (95% CI 0.453 to 0.580)</title></circle>
+<text x="160" y="69.0" text-anchor="end" class="lab old">v2 as shipped</text>
+<line x1="243.1" x2="337.5" y1="65.0" y2="65.0" class="ci old"/>
+<circle cx="290.6" cy="65.0" r="5" class="pt old"><title>v2 as shipped: 0.479 (95% CI 0.409 to 0.549)</title></circle>
+<text x="160" y="95.0" text-anchor="end" class="lab oth">v2, no tiers or quality</text>
+<line x1="257.0" x2="390.1" y1="91.0" y2="91.0" class="ci oth"/>
+<circle cx="322.7" cy="91.0" r="5" class="pt oth"><title>v2, no tiers or quality: 0.527 (95% CI 0.429 to 0.627)</title></circle>
+<text x="160" y="121.0" text-anchor="end" class="lab oth">v2 + momentum 0.2</text>
+<line x1="231.3" x2="329.3" y1="117.0" y2="117.0" class="ci oth"/>
+<circle cx="278.5" cy="117.0" r="5" class="pt oth"><title>v2 + momentum 0.2: 0.461 (95% CI 0.391 to 0.537)</title></circle>
+<text x="160" y="147.0" text-anchor="end" class="lab oth">market inputs only</text>
+<line x1="196.8" x2="307.1" y1="143.0" y2="143.0" class="ci oth"/>
+<circle cx="253.0" cy="143.0" r="5" class="pt oth"><title>market inputs only: 0.423 (95% CI 0.340 to 0.504)</title></circle>
+<text x="160" y="173.0" text-anchor="end" class="lab oth">Adanos inputs only</text>
+<line x1="239.8" x2="360.5" y1="169.0" y2="169.0" class="ci oth"/>
+<circle cx="298.1" cy="169.0" r="5" class="pt oth"><title>Adanos inputs only: 0.490 (95% CI 0.404 to 0.583)</title></circle>
+<text x="160" y="199.0" text-anchor="end" class="lab oth">w1 with quality</text>
+<line x1="311.3" x2="386.6" y1="195.0" y2="195.0" class="ci oth"/>
+<circle cx="350.2" cy="195.0" r="5" class="pt oth"><title>w1 with quality: 0.568 (95% CI 0.510 to 0.622)</title></circle>
+<text x="160" y="225.0" text-anchor="end" class="lab oth">w1, missing left out</text>
+<line x1="365.8" x2="454.6" y1="221.0" y2="221.0" class="ci oth"/>
+<circle cx="411.0" cy="221.0" r="5" class="pt oth"><title>w1, missing left out: 0.658 (95% CI 0.591 to 0.723)</title></circle>
+<text x="160" y="251.0" text-anchor="end" class="lab acc">w1 (new default)</text>
+<line x1="356.1" x2="448.2" y1="247.0" y2="247.0" class="ci acc"/>
+<circle cx="400.0" cy="247.0" r="5" class="pt acc"><title>w1 (new default): 0.642 (95% CI 0.577 to 0.713)</title></circle>
+<text x="160" y="277.0" text-anchor="end" class="lab oth">attention level only</text>
+<line x1="403.0" x2="494.0" y1="273.0" y2="273.0" class="ci oth"/>
+<circle cx="450.0" cy="273.0" r="5" class="pt oth"><title>attention level only: 0.716 (95% CI 0.646 to 0.782)</title></circle>
+<text x="160" y="303.0" text-anchor="end" class="lab mom">momentum only</text>
+<line x1="353.6" x2="429.4" y1="299.0" y2="299.0" class="ci mom"/>
+<circle cx="389.5" cy="299.0" r="5" class="pt mom"><title>momentum only: 0.626 (95% CI 0.573 to 0.686)</title></circle>
+</svg></div>
+  </div>
+</section>
+
+<section>
+  <h2>Rank IC on the holdout</h2>
+  <p>Daily Spearman correlation between the ranking and the outcome, over every topic in the pool. Rank IC uses the whole ranking, so it is steadier than the top 5.</p>
+  <div class="pair">
+    <div class="chart"><h3>Next-session price move</h3><svg viewBox="0 0 560 342" role="img" aria-label="Next-session price move: ic by variant">
+<line x1="170.0" x2="170.0" y1="20" y2="316" class="grid"/>
+<text x="170.0" y="332" class="tick" text-anchor="middle">-0.2</text>
+<line x1="222.9" x2="222.9" y1="20" y2="316" class="grid"/>
+<text x="222.9" y="332" class="tick" text-anchor="middle">-0.1</text>
+<line x1="275.7" x2="275.7" y1="20" y2="316" class="grid"/>
+<text x="275.7" y="332" class="tick" text-anchor="middle">0</text>
+<line x1="328.6" x2="328.6" y1="20" y2="316" class="grid"/>
+<text x="328.6" y="332" class="tick" text-anchor="middle">0.1</text>
+<line x1="381.4" x2="381.4" y1="20" y2="316" class="grid"/>
+<text x="381.4" y="332" class="tick" text-anchor="middle">0.2</text>
+<line x1="434.3" x2="434.3" y1="20" y2="316" class="grid"/>
+<text x="434.3" y="332" class="tick" text-anchor="middle">0.3</text>
+<line x1="487.1" x2="487.1" y1="20" y2="316" class="grid"/>
+<text x="487.1" y="332" class="tick" text-anchor="middle">0.4</text>
+<line x1="540.0" x2="540.0" y1="20" y2="316" class="grid"/>
+<text x="540.0" y="332" class="tick" text-anchor="middle">0.5</text>
+<line x1="275.7" x2="275.7" y1="16" y2="316" class="ref"/>
+<text x="279.7" y="14" class="tick">random</text>
+<text x="160" y="43.0" text-anchor="end" class="lab old">w0 before v2</text>
+<line x1="226.5" x2="275.1" y1="39.0" y2="39.0" class="ci old"/>
+<circle cx="250.8" cy="39.0" r="5" class="pt old"><title>w0 before v2: -0.047 (95% CI -0.093 to -0.001)</title></circle>
+<text x="160" y="69.0" text-anchor="end" class="lab old">v2 as shipped</text>
+<line x1="226.9" x2="288.8" y1="65.0" y2="65.0" class="ci old"/>
+<circle cx="258.2" cy="65.0" r="5" class="pt old"><title>v2 as shipped: -0.033 (95% CI -0.092 to 0.025)</title></circle>
+<text x="160" y="95.0" text-anchor="end" class="lab oth">v2, no tiers or quality</text>
+<line x1="237.9" x2="296.0" y1="91.0" y2="91.0" class="ci oth"/>
+<circle cx="266.8" cy="91.0" r="5" class="pt oth"><title>v2, no tiers or quality: -0.017 (95% CI -0.072 to 0.038)</title></circle>
+<text x="160" y="121.0" text-anchor="end" class="lab oth">v2 + momentum 0.2</text>
+<line x1="254.6" x2="307.7" y1="117.0" y2="117.0" class="ci oth"/>
+<circle cx="281.3" cy="117.0" r="5" class="pt oth"><title>v2 + momentum 0.2: 0.011 (95% CI -0.040 to 0.060)</title></circle>
+<text x="160" y="147.0" text-anchor="end" class="lab oth">market inputs only</text>
+<line x1="244.0" x2="314.3" y1="143.0" y2="143.0" class="ci oth"/>
+<circle cx="280.3" cy="143.0" r="5" class="pt oth"><title>market inputs only: 0.009 (95% CI -0.060 to 0.073)</title></circle>
+<text x="160" y="173.0" text-anchor="end" class="lab oth">Adanos inputs only</text>
+<line x1="241.4" x2="288.4" y1="169.0" y2="169.0" class="ci oth"/>
+<circle cx="265.9" cy="169.0" r="5" class="pt oth"><title>Adanos inputs only: -0.018 (95% CI -0.065 to 0.024)</title></circle>
+<text x="160" y="199.0" text-anchor="end" class="lab oth">w1 with quality</text>
+<line x1="279.5" x2="322.2" y1="195.0" y2="195.0" class="ci oth"/>
+<circle cx="301.3" cy="195.0" r="5" class="pt oth"><title>w1 with quality: 0.048 (95% CI 0.007 to 0.088)</title></circle>
+<text x="160" y="225.0" text-anchor="end" class="lab oth">w1, missing left out</text>
+<line x1="271.5" x2="332.1" y1="221.0" y2="221.0" class="ci oth"/>
+<circle cx="302.1" cy="221.0" r="5" class="pt oth"><title>w1, missing left out: 0.050 (95% CI -0.008 to 0.107)</title></circle>
+<text x="160" y="251.0" text-anchor="end" class="lab acc">w1 (new default)</text>
+<line x1="273.1" x2="335.0" y1="247.0" y2="247.0" class="ci acc"/>
+<circle cx="303.8" cy="247.0" r="5" class="pt acc"><title>w1 (new default): 0.053 (95% CI -0.005 to 0.112)</title></circle>
+<text x="160" y="277.0" text-anchor="end" class="lab oth">attention level only</text>
+<line x1="278.7" x2="318.0" y1="273.0" y2="273.0" class="ci oth"/>
+<circle cx="297.9" cy="273.0" r="5" class="pt oth"><title>attention level only: 0.042 (95% CI 0.006 to 0.080)</title></circle>
+<text x="160" y="303.0" text-anchor="end" class="lab mom">momentum only</text>
+<line x1="291.8" x2="340.9" y1="299.0" y2="299.0" class="ci mom"/>
+<circle cx="315.3" cy="299.0" r="5" class="pt mom"><title>momentum only: 0.075 (95% CI 0.030 to 0.123)</title></circle>
+</svg></div>
+    <div class="chart"><h3>Next-day attention</h3><svg viewBox="0 0 560 342" role="img" aria-label="Next-day attention: ic by variant">
+<line x1="170.0" x2="170.0" y1="20" y2="316" class="grid"/>
+<text x="170.0" y="332" class="tick" text-anchor="middle">-0.2</text>
+<line x1="222.9" x2="222.9" y1="20" y2="316" class="grid"/>
+<text x="222.9" y="332" class="tick" text-anchor="middle">-0.1</text>
+<line x1="275.7" x2="275.7" y1="20" y2="316" class="grid"/>
+<text x="275.7" y="332" class="tick" text-anchor="middle">0</text>
+<line x1="328.6" x2="328.6" y1="20" y2="316" class="grid"/>
+<text x="328.6" y="332" class="tick" text-anchor="middle">0.1</text>
+<line x1="381.4" x2="381.4" y1="20" y2="316" class="grid"/>
+<text x="381.4" y="332" class="tick" text-anchor="middle">0.2</text>
+<line x1="434.3" x2="434.3" y1="20" y2="316" class="grid"/>
+<text x="434.3" y="332" class="tick" text-anchor="middle">0.3</text>
+<line x1="487.1" x2="487.1" y1="20" y2="316" class="grid"/>
+<text x="487.1" y="332" class="tick" text-anchor="middle">0.4</text>
+<line x1="540.0" x2="540.0" y1="20" y2="316" class="grid"/>
+<text x="540.0" y="332" class="tick" text-anchor="middle">0.5</text>
+<line x1="275.7" x2="275.7" y1="16" y2="316" class="ref"/>
+<text x="279.7" y="14" class="tick">random</text>
+<text x="160" y="43.0" text-anchor="end" class="lab old">w0 before v2</text>
+<line x1="210.2" x2="292.7" y1="39.0" y2="39.0" class="ci old"/>
+<circle cx="251.5" cy="39.0" r="5" class="pt old"><title>w0 before v2: -0.046 (95% CI -0.124 to 0.032)</title></circle>
+<text x="160" y="69.0" text-anchor="end" class="lab old">v2 as shipped</text>
+<line x1="251.1" x2="330.8" y1="65.0" y2="65.0" class="ci old"/>
+<circle cx="292.0" cy="65.0" r="5" class="pt old"><title>v2 as shipped: 0.031 (95% CI -0.046 to 0.104)</title></circle>
+<text x="160" y="95.0" text-anchor="end" class="lab oth">v2, no tiers or quality</text>
+<line x1="250.0" x2="328.4" y1="91.0" y2="91.0" class="ci oth"/>
+<circle cx="289.3" cy="91.0" r="5" class="pt oth"><title>v2, no tiers or quality: 0.026 (95% CI -0.049 to 0.100)</title></circle>
+<text x="160" y="121.0" text-anchor="end" class="lab oth">v2 + momentum 0.2</text>
+<line x1="244.3" x2="313.0" y1="117.0" y2="117.0" class="ci oth"/>
+<circle cx="279.8" cy="117.0" r="5" class="pt oth"><title>v2 + momentum 0.2: 0.008 (95% CI -0.059 to 0.071)</title></circle>
+<text x="160" y="147.0" text-anchor="end" class="lab oth">market inputs only</text>
+<line x1="193.0" x2="274.3" y1="143.0" y2="143.0" class="ci oth"/>
+<circle cx="231.1" cy="143.0" r="5" class="pt oth"><title>market inputs only: -0.084 (95% CI -0.156 to -0.003)</title></circle>
+<text x="160" y="173.0" text-anchor="end" class="lab oth">Adanos inputs only</text>
+<line x1="298.5" x2="367.9" y1="169.0" y2="169.0" class="ci oth"/>
+<circle cx="332.7" cy="169.0" r="5" class="pt oth"><title>Adanos inputs only: 0.108 (95% CI 0.043 to 0.174)</title></circle>
+<text x="160" y="199.0" text-anchor="end" class="lab oth">w1 with quality</text>
+<line x1="354.4" x2="405.9" y1="195.0" y2="195.0" class="ci oth"/>
+<circle cx="381.5" cy="195.0" r="5" class="pt oth"><title>w1 with quality: 0.200 (95% CI 0.149 to 0.246)</title></circle>
+<text x="160" y="225.0" text-anchor="end" class="lab oth">w1, missing left out</text>
+<line x1="400.8" x2="454.1" y1="221.0" y2="221.0" class="ci oth"/>
+<circle cx="428.3" cy="221.0" r="5" class="pt oth"><title>w1, missing left out: 0.289 (95% CI 0.237 to 0.337)</title></circle>
+<text x="160" y="251.0" text-anchor="end" class="lab acc">w1 (new default)</text>
+<line x1="400.1" x2="452.9" y1="247.0" y2="247.0" class="ci acc"/>
+<circle cx="427.2" cy="247.0" r="5" class="pt acc"><title>w1 (new default): 0.287 (95% CI 0.235 to 0.335)</title></circle>
+<text x="160" y="277.0" text-anchor="end" class="lab oth">attention level only</text>
+<line x1="445.9" x2="523.9" y1="273.0" y2="273.0" class="ci oth"/>
+<circle cx="484.9" cy="273.0" r="5" class="pt oth"><title>attention level only: 0.396 (95% CI 0.322 to 0.470)</title></circle>
+<text x="160" y="303.0" text-anchor="end" class="lab mom">momentum only</text>
+<line x1="288.2" x2="355.8" y1="299.0" y2="299.0" class="ci mom"/>
+<circle cx="321.6" cy="299.0" r="5" class="pt mom"><title>momentum only: 0.087 (95% CI 0.024 to 0.152)</title></circle>
+</svg></div>
+  </div>
+</section>
+
+<section>
+  <h2>Which inputs carry information</h2>
+  <p>Rank IC of each input on its own, all 41 days, every topic that has the input (no gates).</p>
+  <div class="chart">
+    <div class="legend"><span><i style="background:var(--s1)"></i>next-session price move</span><span><i style="background:var(--s2)"></i>next-day attention</span></div>
+    <svg viewBox="0 0 560 360" role="img" aria-label="Rank IC of each input with each label">
+<line x1="170.0" x2="170.0" y1="24" y2="334" class="grid"/>
+<text x="170.0" y="350" class="tick" text-anchor="middle">-0.2</text>
+<line x1="231.7" x2="231.7" y1="24" y2="334" class="grid"/>
+<text x="231.7" y="350" class="tick" text-anchor="middle">-0.1</text>
+<line x1="293.3" x2="293.3" y1="24" y2="334" class="ref"/>
+<text x="293.3" y="350" class="tick" text-anchor="middle">0</text>
+<line x1="355.0" x2="355.0" y1="24" y2="334" class="grid"/>
+<text x="355.0" y="350" class="tick" text-anchor="middle">0.1</text>
+<line x1="416.7" x2="416.7" y1="24" y2="334" class="grid"/>
+<text x="416.7" y="350" class="tick" text-anchor="middle">0.2</text>
+<line x1="478.3" x2="478.3" y1="24" y2="334" class="grid"/>
+<text x="478.3" y="350" class="tick" text-anchor="middle">0.3</text>
+<line x1="540.0" x2="540.0" y1="24" y2="334" class="grid"/>
+<text x="540.0" y="350" class="tick" text-anchor="middle">0.4</text>
+<text x="160" y="49.0" text-anchor="end" class="lab">Attention level (w1)</text>
+<rect x="293.3" y="34.0" width="35.5" height="8" rx="1.5" class="bar s1"><title>Attention level (w1) · Next-session price move: IC +0.058 (95% CI +0.032 to +0.083)</title></rect>
+<line x1="313.0" x2="344.3" y1="38.0" y2="38.0" class="whisk"/>
+<rect x="293.3" y="45.0" width="212.8" height="8" rx="1.5" class="bar s2"><title>Attention level (w1) · Next-day attention: IC +0.345 (95% CI +0.311 to +0.383)</title></rect>
+<line x1="484.8" x2="529.6" y1="49.0" y2="49.0" class="whisk"/>
+<text x="160" y="79.0" text-anchor="end" class="lab">Momentum</text>
+<rect x="293.3" y="64.0" width="41.4" height="8" rx="1.5" class="bar s1"><title>Momentum · Next-session price move: IC +0.067 (95% CI +0.043 to +0.090)</title></rect>
+<line x1="319.6" x2="349.1" y1="68.0" y2="68.0" class="whisk"/>
+<rect x="293.3" y="75.0" width="83.0" height="8" rx="1.5" class="bar s2"><title>Momentum · Next-day attention: IC +0.135 (95% CI +0.107 to +0.162)</title></rect>
+<line x1="359.4" x2="393.3" y1="79.0" y2="79.0" class="whisk"/>
+<text x="160" y="109.0" text-anchor="end" class="lab">Mentions 3-day, X</text>
+<rect x="293.3" y="94.0" width="2.3" height="8" rx="1.5" class="bar s1"><title>Mentions 3-day, X · Next-session price move: IC +0.004 (95% CI -0.020 to +0.029)</title></rect>
+<line x1="280.8" x2="311.0" y1="98.0" y2="98.0" class="whisk"/>
+<rect x="293.3" y="105.0" width="96.6" height="8" rx="1.5" class="bar s2"><title>Mentions 3-day, X · Next-day attention: IC +0.157 (95% CI +0.114 to +0.200)</title></rect>
+<line x1="363.8" x2="416.5" y1="109.0" y2="109.0" class="whisk"/>
+<text x="160" y="139.0" text-anchor="end" class="lab">Activity 1-day (w0)</text>
+<rect x="293.3" y="124.0" width="16.0" height="8" rx="1.5" class="bar s1"><title>Activity 1-day (w0) · Next-session price move: IC +0.026 (95% CI +0.001 to +0.052)</title></rect>
+<line x1="293.8" x2="325.1" y1="128.0" y2="128.0" class="whisk"/>
+<rect x="293.3" y="135.0" width="54.8" height="8" rx="1.5" class="bar s2"><title>Activity 1-day (w0) · Next-day attention: IC +0.089 (95% CI +0.059 to +0.117)</title></rect>
+<line x1="329.6" x2="365.6" y1="139.0" y2="139.0" class="whisk"/>
+<text x="160" y="169.0" text-anchor="end" class="lab">Buzz change 1-day (w0)</text>
+<rect x="293.3" y="154.0" width="14.3" height="8" rx="1.5" class="bar s1"><title>Buzz change 1-day (w0) · Next-session price move: IC +0.023 (95% CI -0.006 to +0.051)</title></rect>
+<line x1="289.6" x2="325.0" y1="158.0" y2="158.0" class="whisk"/>
+<rect x="293.3" y="165.0" width="47.3" height="8" rx="1.5" class="bar s2"><title>Buzz change 1-day (w0) · Next-day attention: IC +0.077 (95% CI +0.049 to +0.106)</title></rect>
+<line x1="323.3" x2="358.4" y1="169.0" y2="169.0" class="whisk"/>
+<text x="160" y="199.0" text-anchor="end" class="lab">Open interest change</text>
+<rect x="293.3" y="184.0" width="22.2" height="8" rx="1.5" class="bar s1"><title>Open interest change · Next-session price move: IC +0.036 (95% CI -0.009 to +0.079)</title></rect>
+<line x1="288.0" x2="341.8" y1="188.0" y2="188.0" class="whisk"/>
+<rect x="293.3" y="195.0" width="4.3" height="8" rx="1.5" class="bar s2"><title>Open interest change · Next-day attention: IC +0.007 (95% CI -0.028 to +0.044)</title></rect>
+<line x1="276.0" x2="320.3" y1="199.0" y2="199.0" class="whisk"/>
+<text x="160" y="229.0" text-anchor="end" class="lab">Volume change</text>
+<rect x="293.3" y="214.0" width="20.7" height="8" rx="1.5" class="bar s1"><title>Volume change · Next-session price move: IC +0.034 (95% CI -0.008 to +0.075)</title></rect>
+<line x1="288.7" x2="339.9" y1="218.0" y2="218.0" class="whisk"/>
+<rect x="293.3" y="225.0" width="8.8" height="8" rx="1.5" class="bar s2"><title>Volume change · Next-day attention: IC +0.014 (95% CI -0.024 to +0.054)</title></rect>
+<line x1="278.2" x2="326.6" y1="229.0" y2="229.0" class="whisk"/>
+<text x="160" y="259.0" text-anchor="end" class="lab">Kalshi prob move</text>
+<rect x="291.8" y="244.0" width="1.5" height="8" rx="1.5" class="bar s1"><title>Kalshi prob move · Next-session price move: IC -0.002 (95% CI -0.052 to +0.049)</title></rect>
+<line x1="261.5" x2="323.8" y1="248.0" y2="248.0" class="whisk"/>
+<rect x="257.9" y="255.0" width="35.4" height="8" rx="1.5" class="bar s2"><title>Kalshi prob move · Next-day attention: IC -0.057 (95% CI -0.119 to +0.005)</title></rect>
+<line x1="220.1" x2="296.6" y1="259.0" y2="259.0" class="whisk"/>
+<text x="160" y="289.0" text-anchor="end" class="lab">Polymarket prob move</text>
+<rect x="265.1" y="274.0" width="28.2" height="8" rx="1.5" class="bar s1"><title>Polymarket prob move · Next-session price move: IC -0.046 (95% CI -0.115 to +0.027)</title></rect>
+<line x1="222.4" x2="309.9" y1="278.0" y2="278.0" class="whisk"/>
+<rect x="293.3" y="285.0" width="18.8" height="8" rx="1.5" class="bar s2"><title>Polymarket prob move · Next-day attention: IC +0.031 (95% CI -0.037 to +0.095)</title></rect>
+<line x1="270.5" x2="352.1" y1="289.0" y2="289.0" class="whisk"/>
+<text x="160" y="319.0" text-anchor="end" class="lab">Sentiment change</text>
+<rect x="276.6" y="304.0" width="16.8" height="8" rx="1.5" class="bar s1"><title>Sentiment change · Next-session price move: IC -0.027 (95% CI -0.057 to +0.001)</title></rect>
+<line x1="258.4" x2="294.2" y1="308.0" y2="308.0" class="whisk"/>
+<rect x="261.3" y="315.0" width="32.1" height="8" rx="1.5" class="bar s2"><title>Sentiment change · Next-day attention: IC -0.052 (95% CI -0.074 to -0.030)</title></rect>
+<line x1="247.9" x2="275.0" y1="319.0" y2="319.0" class="whisk"/>
+</svg>
+  </div>
+</section>
+
+<section>
+  <h2>What changed from w0 to w1</h2>
+  <dl class="kv">
+    <dt>Attention</dt><dd>1-day buzz change → mentions on t−1 against the topic's own mean over t−20…t−2 (log ratio, Reddit + X + News). Weight 0.25 → 0.30.</dd>
+    <dt>Activity</dt><dd>1-day mention change → last 3 days against the 3 before. Weight 0.10.</dd>
+    <dt>Momentum</dt><dd>Reference column → in the score, weight 0 → 0.25.</dd>
+    <dt>Sentiment</dt><dd>0.15 → 0 (no signal, negative on attention).</dd>
+    <dt>Money flow / stock / move</dt><dd>0.20 / 0.10 / 0.20 → 0.15 / 0.10 / 0.10.</dd>
+    <dt>Missing inputs</dt><dd>Left out with weights rescaled → counted as the pool median (0.5). Same backtest result, and a topic with one strong input and nothing else can no longer top the list.</dd>
+    <dt>Quality multiplier</dt><dd>On → off by default (switch kept). With it on, w1 loses about a third of its edge.</dd>
+    <dt>Tiers</dt><dd>Rank by tier → labels only (switch kept). Ranking by tier did not help in any variant.</dd>
+    <dt>Gates</dt><dd>Unchanged: G2 needs prediction-market volume, G3 spread and zero-trade limits.</dd>
+  </dl>
+</section>
+
+<section>
+  <h2>All variants</h2>
+  <p>Discovery 2026-08-26 to Sep 30 (26 days), holdout Oct 1 to 10-21 (15 days). Hover a number for its 95% interval.</p>
+  <div class="tbl"><table><thead><tr><th>Variant</th><th>Move IC disc.</th><th>Move IC hold.</th><th>Move top-5 hold.</th><th>Attn IC disc.</th><th>Attn IC hold.</th><th>Attn top-5 hold.</th><th>Pool</th></tr></thead><tbody><tr class="old"><td class="l"><b>V0</b> w0 as before (Kalshi + Reddit)</td><td title="95% CI -0.066 to 0.041">-0.010</td><td title="95% CI -0.093 to -0.001">-0.047</td><td title="95% CI 0.482 to 0.585">0.533</td><td title="95% CI 0.015 to 0.116">+0.065</td><td title="95% CI -0.124 to 0.032">-0.046</td><td title="95% CI 0.453 to 0.580">0.523</td><td>76</td></tr><tr class="old"><td class="l"><b>V1</b> v2 now (Kalshi + Polymarket, Reddit + X + News)</td><td title="95% CI -0.044 to 0.065">+0.010</td><td title="95% CI -0.092 to 0.025">-0.033</td><td title="95% CI 0.438 to 0.550">0.492</td><td title="95% CI 0.035 to 0.152">+0.096</td><td title="95% CI -0.046 to 0.104">+0.031</td><td title="95% CI 0.409 to 0.549">0.479</td><td>81</td></tr><tr class=""><td class="l"><b>V1n</b> v2, tiers as labels only</td><td title="95% CI -0.041 to 0.061">+0.009</td><td title="95% CI -0.070 to 0.037">-0.017</td><td title="95% CI 0.460 to 0.567">0.515</td><td title="95% CI 0.004 to 0.116">+0.062</td><td title="95% CI -0.082 to 0.068">-0.009</td><td title="95% CI 0.377 to 0.551">0.463</td><td>81</td></tr><tr class=""><td class="l"><b>V1q</b> v2, no tiers, no quality</td><td title="95% CI -0.028 to 0.084">+0.026</td><td title="95% CI -0.072 to 0.038">-0.017</td><td title="95% CI 0.489 to 0.616">0.555</td><td title="95% CI 0.041 to 0.157">+0.101</td><td title="95% CI -0.049 to 0.100">+0.026</td><td title="95% CI 0.429 to 0.627">0.527</td><td>81</td></tr><tr class=""><td class="l"><b>V2</b> v2 + 3-day smoothing for Adanos</td><td title="95% CI -0.063 to 0.032">-0.013</td><td title="95% CI -0.013 to 0.067">+0.027</td><td title="95% CI 0.455 to 0.602">0.531</td><td title="95% CI -0.030 to 0.100">+0.036</td><td title="95% CI -0.077 to 0.064">-0.010</td><td title="95% CI 0.360 to 0.518">0.436</td><td>81</td></tr><tr class=""><td class="l"><b>V3</b> v2 + momentum weight 0.20</td><td title="95% CI 0.003 to 0.100">+0.052</td><td title="95% CI -0.040 to 0.060">+0.011</td><td title="95% CI 0.470 to 0.578">0.525</td><td title="95% CI 0.034 to 0.134">+0.085</td><td title="95% CI -0.059 to 0.071">+0.008</td><td title="95% CI 0.391 to 0.537">0.461</td><td>81</td></tr><tr class=""><td class="l"><b>V4</b> v2 + smoothing + momentum 0.20</td><td title="95% CI -0.028 to 0.069">+0.020</td><td title="95% CI 0.017 to 0.095">+0.058</td><td title="95% CI 0.467 to 0.607">0.541</td><td title="95% CI 0.011 to 0.124">+0.070</td><td title="95% CI -0.055 to 0.070">+0.007</td><td title="95% CI 0.340 to 0.512">0.421</td><td>81</td></tr><tr class=""><td class="l"><b>MKT</b> market components only</td><td title="95% CI -0.041 to 0.046">+0.004</td><td title="95% CI -0.060 to 0.073">+0.009</td><td title="95% CI 0.488 to 0.589">0.536</td><td title="95% CI -0.039 to 0.063">+0.013</td><td title="95% CI -0.156 to -0.003">-0.084</td><td title="95% CI 0.340 to 0.504">0.423</td><td>81</td></tr><tr class=""><td class="l"><b>SOC</b> Adanos components only</td><td title="95% CI -0.099 to 0.019">-0.039</td><td title="95% CI -0.065 to 0.024">-0.018</td><td title="95% CI 0.482 to 0.553">0.520</td><td title="95% CI 0.040 to 0.145">+0.091</td><td title="95% CI 0.043 to 0.174">+0.108</td><td title="95% CI 0.404 to 0.583">0.490</td><td>81</td></tr><tr class=""><td class="l"><b>W1</b> w1: attention level + momentum + market, no sentiment</td><td title="95% CI 0.023 to 0.108">+0.066</td><td title="95% CI 0.007 to 0.088">+0.048</td><td title="95% CI 0.489 to 0.605">0.549</td><td title="95% CI 0.164 to 0.240">+0.202</td><td title="95% CI 0.149 to 0.246">+0.200</td><td title="95% CI 0.510 to 0.622">0.568</td><td>81</td></tr><tr class=""><td class="l"><b>W1q</b> w1 without quality</td><td title="95% CI 0.034 to 0.125">+0.080</td><td title="95% CI -0.008 to 0.107">+0.050</td><td title="95% CI 0.488 to 0.643">0.569</td><td title="95% CI 0.214 to 0.296">+0.256</td><td title="95% CI 0.237 to 0.337">+0.289</td><td title="95% CI 0.591 to 0.723">0.658</td><td>81</td></tr><tr class="acc"><td class="l"><b>W1n</b> w1, missing inputs count as median</td><td title="95% CI 0.038 to 0.124">+0.081</td><td title="95% CI -0.005 to 0.112">+0.053</td><td title="95% CI 0.559 to 0.685">0.626</td><td title="95% CI 0.216 to 0.301">+0.258</td><td title="95% CI 0.235 to 0.335">+0.287</td><td title="95% CI 0.577 to 0.713">0.642</td><td>81</td></tr><tr class=""><td class="l"><b>W1c</b> w1 compact: attention level 0.4, momentum 0.4, flow 0.1, OI 0.1</td><td title="95% CI 0.030 to 0.109">+0.069</td><td title="95% CI 0.024 to 0.104">+0.064</td><td title="95% CI 0.530 to 0.626">0.579</td><td title="95% CI 0.178 to 0.258">+0.218</td><td title="95% CI 0.196 to 0.287">+0.240</td><td title="95% CI 0.513 to 0.671">0.596</td><td>81</td></tr><tr class=""><td class="l"><b>AL</b> attention level only</td><td title="95% CI -0.078 to 0.038">-0.020</td><td title="95% CI 0.006 to 0.080">+0.042</td><td title="95% CI 0.457 to 0.578">0.517</td><td title="95% CI 0.242 to 0.345">+0.294</td><td title="95% CI 0.322 to 0.470">+0.396</td><td title="95% CI 0.646 to 0.782">0.716</td><td>81</td></tr><tr class="mom"><td class="l"><b>M</b> momentum only (benchmark)</td><td title="95% CI 0.033 to 0.111">+0.072</td><td title="95% CI 0.030 to 0.123">+0.075</td><td title="95% CI 0.522 to 0.647">0.581</td><td title="95% CI 0.071 to 0.185">+0.129</td><td title="95% CI 0.024 to 0.152">+0.087</td><td title="95% CI 0.573 to 0.686">0.626</td><td>81</td></tr></tbody></table></div>
+</section>
+
+<section class="notes">
+  <h2>Limits</h2>
+  <ul>
+    <li>41 trading days and about 80 gated topics a day. Effects smaller than about 0.05 IC are hard to tell from zero.</li>
+    <li>w1's inputs were chosen after looking at the input ICs over the full window, so its discovery numbers are not a clean test. The holdout agrees with discovery for every w1 variant.</li>
+    <li>Kalshi's backfill keeps long-dated events for their last 30 days only, so Kalshi inputs are thinner before late September. Polymarket has daily prices but no volume history, so Polymarket only enters through probability moves here.</li>
+    <li>Earnings dates are not in the backfill, so tier T1 for companies could not be tested. Cooldown (G4) is off in both the live dashboard and the backtest.</li>
+    <li>Next-day attention is persistent: a topic that is busy today is usually busy tomorrow. That is what makes the attention level useful for choosing a topic, and it is also why it says little about price moves.</li>
+  </ul>
+  <p style="color:var(--muted);font-size:13px">Code: <code>backtest/broad_features.py</code>, <code>backtest/broad_eval.py</code>, <code>backtest/broad_page.py</code> on branch <code>feat/dashboard</code>.</p>
+</section>
+</main>

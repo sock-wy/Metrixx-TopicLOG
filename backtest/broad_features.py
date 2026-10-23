@@ -66,11 +66,13 @@ def build():
     cls = h.groupby("topic")["asset_class"].first().to_dict()
 
     # sigma20 from daily closes strictly before t
+    # (topics_1d is monthly for long histories, so daily closes come from the hourly bars: last bar of each ET day)
     sig = {}
-    for tp, g in d1.groupby("topic"):
-        s = g.sort_values("ts").drop_duplicates("date", keep="last").set_index("date")["close"]
-        r = np.log(s).diff().dropna()
-        sig[tp] = r
+    hd = h.assign(date=h["ts"].dt.tz_convert("America/New_York").dt.date)
+    for tp, g in hd.groupby("topic"):
+        s = g.sort_values("ts").groupby("date")["close"].last()
+        s = s[s > 0]
+        sig[tp] = np.log(s).diff().dropna()
 
     # per-topic hourly arrays
     H = {}

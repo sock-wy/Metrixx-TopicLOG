@@ -208,7 +208,8 @@
         <div class="wb-colhead"><h3>Algorithm</h3><span class="wb-step">2 · score</span></div>
         <div class="formula">score = quality × cooldown × Σ wᵢ·pctrank(xᵢ) / Σ wᵢ</div>
         <div class="btns">
-          <button class="btn" id="btn-reset" type="button">Reset to w0</button>
+          <button class="btn" id="btn-reset" type="button" title="The default: weights chosen by the backtest">Reset to w1</button>
+          <button class="btn" id="btn-w0" type="button" title="The playbook's original weights and inputs">Load w0</button>
           <button class="btn" id="btn-yaml" type="button" aria-expanded="false">Export as YAML</button>
         </div>
         <div id="yaml-box" hidden>
@@ -218,7 +219,7 @@
         <div class="alg" id="alg-weights"><h4>Weights <small>bar = share of the total</small></h4></div>
         <div class="alg" id="alg-gates"><h4>Hard gates <small>fail one and the topic is out</small></h4></div>
         <div class="alg" id="alg-quality"><h4>Quality multiplier <small>spread × zero-trade × sources</small></h4></div>
-        <div class="alg" id="alg-tiers"><h4>Priority tiers <small>tier first, then score</small></h4></div>
+        <div class="alg" id="alg-tiers"><h4>Priority tiers <small>rank by, label only, or off</small></h4></div>
       </div>
 
       <!-- 3 · output -->
@@ -286,7 +287,7 @@
   <section class="tl-page" id="daily" role="tabpanel" aria-labelledby="tab-daily" hidden>
     <div class="tl-card" id="card-daily-chart">
       <h3>Daily pick, 15:00 ET pull</h3>
-      <p class="tl-note">The rank-1 topic's demand_score each day, labelled with the topic. This is Sheet 2 (2_topic_log) as of the pick time; Step 4 (the editor's pick) and the episode log come later.</p>
+      <p class="tl-note">The rank-1 topic's score each day, labelled with the topic. From the v2 release (Oct 23) the pick is the w1 ranking; earlier days show w0. This is Sheet 2 (2_topic_log) as of the pick time; Step 4 (the editor's pick) and the episode log come later.</p>
       <div class="tl-chart" id="daily-chart" data-source="daily_log"></div>
     </div>
     <div class="tl-card" id="card-daily-table">
@@ -295,11 +296,11 @@
         <table class="tl-table" id="daily-table" data-source="daily_log" data-row-key="date,topic">
           <thead><tr>
             <th class="l" data-field="date"><button class="tl-th-btn" data-sort="date">Date</button></th>
-            <th data-field="rank"><button class="tl-th-btn" data-sort="rank">#</button></th>
+            <th data-field="d_rank"><button class="tl-th-btn" data-sort="d_rank">#</button></th>
             <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
             <th class="l tl-hide-sm" data-field="name"><button class="tl-th-btn" data-sort="name">Name</button></th>
-            <th class="l" data-field="tier"><button class="tl-th-btn" data-sort="tier">Tier</button></th>
-            <th data-field="demand_score"><button class="tl-th-btn" data-sort="demand_score">demand_score</button></th>
+            <th class="l" data-field="d_tier"><button class="tl-th-btn" data-sort="d_tier">Tier</button></th>
+            <th data-field="d_score"><button class="tl-th-btn" data-sort="d_score">Score</button></th>
             <th data-field="momentum_rank"><button class="tl-th-btn" data-sort="momentum_rank">Momentum rank</button></th>
             <th data-field="chg_24h"><button class="tl-th-btn" data-sort="chg_24h">Price 24h</button></th>
           </tr></thead>
@@ -614,15 +615,22 @@ window.TL = (() => {
     g2_mode: 'prediction', g3_zero: 0.80, g3_spread: 0.30,
     quality_on: true, q_free: 0.05, q_slope: 0.5, q_floor: 0.6, q_zero_pen: 0.4, q_single: 0.9,
     tier_mode: 'rank', t1_days: 2, t1_pct: 0.70, t2_flow: 0.70, t2_attn: 0.50, t3_attn: 0.80,
+    attn_mode: 'change', act_mode: '1d', missing_mode: 'drop',
+  };
+  // w1 = backtest study broad_v2 (backtest/broad_eval.py): attention as the abnormal level, 3-day activity,
+  // momentum in the score, no sentiment, no quality multiplier, tiers as labels. The default.
+  const W1 = { ...W0,
+    w_attention_shift: 0.30, w_activity_shift: 0.10, w_money_flow: 0.15, w_money_stock: 0.10, w_market_move: 0.10, w_sentiment_shift: 0, w_momentum: 0.25,
+    attn_mode: 'level', act_mode: '3d', missing_mode: 'median', quality_on: false, tier_mode: 'labels',
   };
   const COMP = [
-    ['attention_shift', 'Attention', 'Adanos buzz Δ1d', 'adanos'], ['activity_shift', 'Activity', 'Adanos mentions Δ%', 'adanos'],
+    ['attention_shift', 'Attention', 'Adanos mentions vs 20-day normal (w1) · buzz Δ1d (w0)', 'adanos'], ['activity_shift', 'Activity', 'Adanos mentions, 3 days vs 3 before (w1) · Δ1d (w0)', 'adanos'],
     ['money_flow', 'Money flow', 'Kalshi + Polymarket 24h volume Δ%', 'pm'], ['money_stock', 'Money stock', 'Kalshi + Polymarket open interest Δ%', 'pm'],
     ['market_move', 'Market move', 'Kalshi + Polymarket |prob Δ1d|', 'pm'], ['sentiment_shift', 'Sentiment', 'Adanos |sentiment Δ1d|', 'adanos'],
-    ['momentum', 'Momentum', '|24h move| / daily vol (not in w0)', 'momentum'],
+    ['momentum', 'Momentum', '|24h move| / daily vol', 'momentum'],
   ];
   const S = {};           // current settings
-  const P = () => { const p = dash.params() || {}; const o = {}; for (const k in W0) o[k] = p[k] ?? W0[k]; return o; };
+  const P = () => { const p = dash.params() || {}; const o = {}; for (const k in W1) o[k] = p[k] ?? W1[k]; return o; };
   function syncFromParams() { Object.assign(S, P()); }
   syncFromParams();
   const setParam = (k, v) => { S[k] = v; dash.setParams({ [k]: v }); };
@@ -684,6 +692,9 @@ window.TL = (() => {
   };
   const f2 = (v) => Number(v).toFixed(2);
   for (const [c, label, sub] of COMP) slider('alg-weights', 'w_' + c, label, sub, 0, 1, 0.05, f2);
+  selectCtl('alg-weights', 'attn_mode', 'Attention measure', [['level', 'mentions vs 20-day normal (w1)'], ['change', '1-day buzz change (w0)']]);
+  selectCtl('alg-weights', 'act_mode', 'Activity measure', [['3d', '3 days vs 3 before (w1)'], ['1d', '1-day change (w0)']]);
+  selectCtl('alg-weights', 'missing_mode', 'Missing input', [['median', 'counts as the median (w1)'], ['drop', 'left out, weights rescaled (w0)']]);
   selectCtl('alg-gates', 'g2_mode', 'G2 · topic needs', [['prediction', 'prediction-market volume'], ['any', 'any market or social activity'], ['off', 'nothing (off)']]);
   slider('alg-gates', 'g3_zero', 'G3 max zero-trade', '3 strikes nearest 50%', 0, 1, 0.05, fpct);
   slider('alg-gates', 'g3_spread', 'G3 max spread', 'avg bid-ask, $', 0, 1, 0.01, f2);
@@ -723,8 +734,12 @@ window.TL = (() => {
     const flow = wmean([k ? [r.k_flow, r.k_vol] : [null, 0], p ? [r.p_flow, r.p_vol] : [null, 0]]);
     const stock = wmean([k ? [r.k_oi_chg, r.k_oi] : [null, 0], p ? [r.p_oi_chg, r.p_oi] : [null, 0]]);
     const move = wmean([k ? [r.k_move, r.k_vol] : [null, 0], p ? [r.p_move, r.p_vol] : [null, 0]]);
-    const attn = mean(plats.map((x) => r['ad_buzz_d_' + x]));
-    const act = mean(plats.map((x) => r['ad_ment_chg_' + x]));
+    let attn;
+    if (S.attn_mode === 'level') {
+      const have = plats.filter((x) => r['ad_base_' + x] != null && r['ad_mentions_' + x] != null);
+      attn = have.length ? Math.log1p(have.reduce((a, x) => a + r['ad_mentions_' + x], 0)) - Math.log1p(have.reduce((a, x) => a + r['ad_base_' + x], 0)) : null;
+    } else attn = mean(plats.map((x) => r['ad_buzz_d_' + x]));
+    const act = mean(plats.map((x) => r[(S.act_mode === '3d' ? 'ad_ment3_chg_' : 'ad_ment_chg_') + x]));
     const sent = mean(plats.map((x) => (r['ad_sent_d_' + x] != null ? Math.abs(r['ad_sent_d_' + x]) : null)));
     const mom = S.src_momentum && r.abnormal_move != null ? Math.abs(r.abnormal_move) : null;
     const pm = !!((k && r.k_evidence) || (p && (r.p_vol || 0) > 0));
@@ -771,7 +786,8 @@ window.TL = (() => {
     for (const [c] of COMP) { const pr = pctrank(live.map((r) => r.my_in[c])); live.forEach((r, i) => { (r.my_p ||= {})[c] = pr[i]; r['p_' + c] = pr[i]; }); }
     for (const r of live) {
       let num = 0, den = 0;
-      for (const [c] of COMP) { const v = r.my_p[c], w = S['w_' + c]; if (v != null && w > 0) { num += w * v; den += w; } }
+      const med = S.missing_mode === 'median';
+      for (const [c] of COMP) { const v = r.my_p[c] ?? (med ? 0.5 : null), w = S['w_' + c]; if (v != null && w > 0) { num += w * v; den += w; } }
       r.my_den = den; r.my_raw = den ? num / den : 0; r.my_quality = quality(r.my_in);
       r.my_sources = r.my_in.families;
       r.my_score = r.my_raw * r.my_quality; r.my_tier = tier(r.my_p, r);
@@ -985,7 +1001,7 @@ window.TL = (() => {
       '  T3:', '    label: Attention only', '    all_of:', `      attention_shift_pct_min: ${n(S.t3_attn)}`, '  T4:', '    label: Baseline');
     L.push('', '# dashboard switches (not read by scoring.py yet)', `# sources: kalshi=${S.src_kalshi} polymarket=${S.src_polymarket} reddit=${S.src_reddit} x=${S.src_x} news=${S.src_news} momentum=${S.src_momentum}`,
       `# universe: kalshi=${S.uni_kalshi} polymarket=${S.uni_polymarket} adanos=${S.uni_adanos} movers=${S.uni_movers}; excluded classes = [${(S.classes_off || []).join(', ')}]`,
-      `# g2_mode=${S.g2_mode} quality_on=${S.quality_on} tier_mode=${S.tier_mode}`);
+      `# g2_mode=${S.g2_mode} quality_on=${S.quality_on} tier_mode=${S.tier_mode} attn_mode=${S.attn_mode} act_mode=${S.act_mode} missing_mode=${S.missing_mode}`);
     return L.join('\n');
   }
   const yb = document.getElementById('btn-yaml');
@@ -995,7 +1011,8 @@ window.TL = (() => {
     const sel = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById('yaml')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = 'Selected. Press Ctrl/Cmd+C to copy.'; };
     try { navigator.clipboard.writeText(txt).then(() => { msg.textContent = 'Copied'; }, sel); } catch (e) { sel(); }
   });
-  document.getElementById('btn-reset').addEventListener('click', () => { dash.resetParams(); Object.assign(S, W0); paintSliders(); paintSources(); recompute(); });
+  document.getElementById('btn-reset').addEventListener('click', () => { dash.resetParams(); Object.assign(S, W1); dash.setParams({ ...W1 }); paintSliders(); paintSources(); recompute(); });
+  document.getElementById('btn-w0').addEventListener('click', () => { Object.assign(S, W0); dash.setParams({ ...W0 }); paintSliders(); paintSources(); recompute(); });
   document.getElementById('rk-search').addEventListener('input', (e) => { state.q = e.target.value; drawTable(); });
   document.getElementById('rk-gated').addEventListener('click', () => { state.gated = !state.gated; drawTable(); });
   document.querySelector('#rk-table tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-key]'); if (tr) select(tr.dataset.key); });
@@ -1006,7 +1023,8 @@ window.TL = (() => {
     const tbody = document.querySelector('#daily-table tbody');
     const box = document.getElementById('daily-chart');
     if (!ok('daily_log')) { emptyRow(tbody, 8, dash.data('daily_log').status === 'loading' ? 'Loading…' : 'The first entry lands with the 15:00 ET pull.'); box.replaceChildren(); return; }
-    const all = rows('daily_log').filter((r) => r.rank != null && r.rank <= 5);
+    const RK = (r) => r.w1_rank ?? (r.w1_rank === undefined ? r.rank : null);  // w1 from v2 on; w0 for older days
+    const all = rows('daily_log').map((r) => ({ ...r, d_rank: RK(r), d_score: r.w1_score ?? r.demand_score, d_tier: r.w1_tier ?? r.tier })).filter((r) => r.d_rank != null && r.d_rank <= 5);
     const { out, s } = sortRows('daily', all, 'date', 'desc');
     ariaSort('daily-table', s);
     if (!out.length) emptyRow(tbody, 8, 'The first entry lands with the 15:00 ET pull.');
@@ -1015,8 +1033,8 @@ window.TL = (() => {
       for (const r of out) {
         const tr = el('tr'); tr.dataset.key = [r.date, r.topic].map(encodeURIComponent).join(',');
         const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c; tr.append(t); };
-        td(r.date, 'l'); td(String(r.rank)); td(r.topic, 'l'); td(r.name || '', 'l tl-hide-sm');
-        td(r.tier ? el('span', 'tl-tier ' + r.tier, r.tier) : '–', 'l'); td(show(r.demand_score, f3));
+        td(r.date, 'l'); td(String(r.d_rank)); td(r.topic, 'l'); td(r.name || '', 'l tl-hide-sm');
+        td(r.d_tier ? el('span', 'tl-tier ' + r.d_tier, r.d_tier) : '–', 'l'); td(show(r.d_score, f3));
         td(r.momentum_rank == null ? '–' : String(r.momentum_rank)); td(signed(r.chg_24h, fpct1));
         frag.append(tr);
       }
@@ -1024,7 +1042,7 @@ window.TL = (() => {
     }
     if (state.page !== 'daily' || !box.clientWidth) return;
     box.replaceChildren();
-    const picks = rows('daily_log').filter((r) => r.rank === 1).map((r) => ({ d: new Date(r.date + 'T00:00:00Z'), s: r.demand_score, topic: r.topic })).sort((a, b) => a.d - b.d);
+    const picks = rows('daily_log').filter((r) => RK(r) === 1).map((r) => ({ d: new Date(r.date + 'T00:00:00Z'), s: r.w1_score ?? r.demand_score, topic: r.topic })).sort((a, b) => a.d - b.d);
     if (!picks.length) { box.append(el('p', 'tl-note', 'No daily pick recorded yet. The 15:00 ET pull writes the first one.')); return; }
     const W = box.clientWidth, H = 260, m = { t: 20, r: 16, b: 28, l: 40 };
     const x = d3.scaleBand(picks.map((p) => +p.d), [m.l, W - m.r]).padding(0.3);

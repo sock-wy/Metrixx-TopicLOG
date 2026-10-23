@@ -372,7 +372,58 @@ def adanos_fill(key, cache, days, wanted, stat):
                     time.sleep(0.15)
 
 
-def adanos_platform_features(index, kind, sym, d1, d2):
+RANGES = {  # window name -> (first day, last day) as offsets from d1 = t-1 (complete UTC days)
+    "base": (-19, -1),   # t-20 .. t-2: the topic's normal level (attention, w1)
+    "r3a": (-2, 0),      # t-3 .. t-1  (activity, w1: 3-day mentions vs the 3 days before)
+    "r3b": (-5, -3),     # t-6 .. t-4
+}
+
+
+def adanos_ranges(key, cache, d1, wanted, stat):
+    """Mentions totals over the RANGES windows, one /compare call per 10 symbols per window (cached per d1)."""
+    have = {(r["date"], r.get("win"), r["kind"], r.get("platform"), r["symbol"]) for r in cache if r.get("win")}
+    day = dt.date.fromisoformat(d1)
+    for win, (a, b) in RANGES.items():
+        lo, hi = (day + dt.timedelta(days=a)).isoformat(), (day + dt.timedelta(days=b)).isoformat()
+        for kind, syms in wanted.items():
+            for plat in (STOCK_PLATFORMS if kind == "stocks" else ("reddit",)):
+                need = sorted({s_ for s_ in syms if (d1, win, kind, plat, s_) not in have})
+                arg = "tickers" if kind == "stocks" else "symbols"
+                for i in range(0, len(need), 10):
+                    chunk = need[i:i + 10]
+                    got = {}
+                    for part in ([chunk] if len(chunk) else []):
+                        try:
+                            d, left = _adanos_get(key, f"/{plat}/{kind}/v1/compare?from={lo}&to={hi}&{arg}={urllib.parse.quote(','.join(part))}")
+                            stat["calls"] += 1
+                            stat["quota_left"] = left or stat["quota_left"]
+                        except urllib.error.HTTPError as e:
+                            if e.code != 422:
+                                stat["error"] = f"{type(e).__name__}: {e}"[:200]
+                                continue
+                            d = {"stocks": [], "tokens": []}
+                            for one in part:
+                                try:
+                                    d1_, _ = _adanos_get(key, f"/{plat}/{kind}/v1/compare?from={lo}&to={hi}&{arg}={urllib.parse.quote(one)}")
+                                    stat["calls"] += 1
+                                    d["stocks"] += d1_.get("stocks") or []
+                                    d["tokens"] += d1_.get("tokens") or []
+                                except Exception:
+                                    pass
+                        except Exception as e:
+                            stat["error"] = f"{type(e).__name__}: {e}"[:200]
+                            continue
+                        days_n = d.get("period_days") or (b - a + 1)
+                        for x in d.get("stocks") or d.get("tokens") or []:
+                            if x.get("company_name") or x.get("name"):
+                                got[(x.get("ticker") or x.get("symbol") or "").upper()] = (f(x.get("mentions")), days_n)
+                    for sym in chunk:
+                        m, n = got.get(sym, (None, None))
+                        cache.append(dict(date=d1, win=win, kind=kind, platform=plat, symbol=sym, mentions=m, days=n))
+                    time.sleep(0.15)
+
+
+def adanos_platform_features(index, kind, sym, d1, d2, rindex=None):
     """Per platform: buzz Δ, mentions Δ%, sentiment Δ, and day t-1 levels."""
     out = {}
     plats = STOCK_PLATFORMS if kind == "stocks" else ("reddit",)
@@ -389,6 +440,12 @@ def adanos_platform_features(index, kind, sym, d1, d2):
                 out[f"ad_ment_chg_{p}"] = (a["mentions"] / b["mentions"] - 1) * 100
             if a.get("sentiment_score") is not None and b.get("sentiment_score") is not None:
                 out[f"ad_sent_d_{p}"] = a["sentiment_score"] - b["sentiment_score"]
+        if rindex is not None:
+            base, ra, rb = (rindex.get((d1, w, kind, p, sym)) for w in ("base", "r3a", "r3b"))
+            if base and base.get("mentions") is not None and base.get("days"):
+                out[f"ad_base_{p}"] = base["mentions"] / base["days"]
+            if ra and rb and ra.get("mentions") is not None and rb.get("mentions"):
+                out[f"ad_ment3_chg_{p}"] = (ra["mentions"] / rb["mentions"] - 1) * 100
     return out
 
 
@@ -401,8 +458,16 @@ def combine(r, on=None):
     flow = wmean([(r.get("k_flow"), r.get("k_vol")) if k else (None, 0), (r.get("p_flow"), r.get("p_vol")) if p else (None, 0)])
     stock = wmean([(r.get("k_oi_chg"), r.get("k_oi")) if k else (None, 0), (r.get("p_oi_chg"), r.get("p_oi")) if p else (None, 0)])
     move = wmean([(r.get("k_move"), r.get("k_vol")) if k else (None, 0), (r.get("p_move"), r.get("p_vol")) if p else (None, 0)])
-    attn = mean([r.get(f"ad_buzz_d_{x}") for x in plats])
-    act = mean([r.get(f"ad_ment_chg_{x}") for x in plats])
+    if on.get("attn_mode", "level") == "level":
+        # w1: mentions on t-1 against the topic's own mean over t-20..t-2, all platforms switched on (log ratio)
+        have = [x for x in plats if r.get(f"ad_base_{x}") is not None and r.get(f"ad_mentions_{x}") is not None]
+        attn = (math.log1p(sum(r[f"ad_mentions_{x}"] for x in have)) - math.log1p(sum(r[f"ad_base_{x}"] for x in have))) if have else None
+    else:  # w0: 1-day buzz change
+        attn = mean([r.get(f"ad_buzz_d_{x}") for x in plats])
+    if on.get("act_mode", "3d") == "3d":
+        act = mean([r.get(f"ad_ment3_chg_{x}") for x in plats])
+    else:
+        act = mean([r.get(f"ad_ment_chg_{x}") for x in plats])
     sent = mean([abs(r[f"ad_sent_d_{x}"]) if r.get(f"ad_sent_d_{x}") is not None else None for x in plats])
     mom = abs(r["abnormal_move"]) if (on.get("momentum", True) and r.get("abnormal_move") is not None) else None
     pm_ev = (k and r.get("k_evidence")) or (p and (r.get("p_vol") or 0) > 0)
@@ -415,6 +480,42 @@ def combine(r, on=None):
     fam = int(any(v is not None for v in (flow, stock, move))) + int(any(v is not None for v in (attn, act, sent)))
     return dict(money_flow=flow, money_stock=stock, market_move=move, attention_shift=attn, activity_shift=act,
                 sentiment_shift=sent, momentum=mom, pm_evidence=bool(pm_ev), avg_spread=spread, zero_trade=zero, families=fam)
+
+
+# ------------------------------------------------------------------ w1 (mirrors the page's recompute with the w1 preset)
+W1 = dict(weights=dict(attention_shift=.30, activity_shift=.10, money_flow=.15, money_stock=.10, market_move=.10, sentiment_shift=0, momentum=.25),
+          g3_zero=.80, g3_spread=.30, t1_days=2, t1_pct=.70, t2_flow=.70, t2_attn=.50, t3_attn=.80)
+
+
+def w1_rank(rows):
+    """w1 = backtest study broad_v2: abnormal attention level, 3-day activity, momentum in the score, no sentiment,
+    missing inputs at the median, no quality multiplier, tiers as labels only. Same gates as the dashboard (G2 prediction-market volume, G3)."""
+    live = []
+    for r in rows:
+        g = None
+        if not r.get("pm_evidence"):
+            g = "G2"
+        elif r.get("zero_trade") is not None and r["zero_trade"] > W1["g3_zero"]:
+            g = "G3"
+        elif r.get("avg_spread") is not None and r["avg_spread"] > W1["g3_spread"]:
+            g = "G3"
+        r["w1_gate"], r["w1_score"], r["w1_rank"], r["w1_tier"] = g, None, None, None
+        if not g:
+            live.append(r)
+    w = W1["weights"]
+    pct = {c_: scoring.pctrank([r.get(c_) for r in live]) for c_ in w}
+    for i, r in enumerate(live):
+        # a missing input counts as the pool median (0.5), so a topic with one strong input and nothing else cannot top the list
+        num = sum(w[c_] * (pct[c_][i] if pct[c_][i] is not None else 0.5) for c_ in w if w[c_] > 0)
+        den = sum(w[c_] for c_ in w if w[c_] > 0)
+        r["w1_score"] = num / den if den else 0.0
+        pm, pf, pa = (pct[c_][i] or 0 for c_ in ("market_move", "money_flow", "attention_shift"))
+        cat = r.get("catalyst_in_trading_days")
+        r["w1_tier"] = ("T1" if cat is not None and cat <= W1["t1_days"] and (pm >= W1["t1_pct"] or pf >= W1["t1_pct"]) else
+                        "T2" if pf >= W1["t2_flow"] and pa >= W1["t2_attn"] else "T3" if pa >= W1["t3_attn"] else "T4")
+    live.sort(key=lambda r: (-r["w1_score"], -(r.get("families") or 0), -(r.get("k_ladder") or 0)))
+    for k_, r in enumerate(live, 1):
+        r["w1_rank"] = k_
 
 
 # ------------------------------------------------------------------ history
@@ -533,10 +634,12 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     if adanos_key:
         before = ad_stat["calls"]
         adanos_fill(adanos_key, ad_cache, [d1, d2], wanted, ad_stat)
+        adanos_ranges(adanos_key, ad_cache, d1, wanted, ad_stat)
         ad_stat["status"] = "error" if ad_stat["error"] and ad_stat["calls"] == before else ("fetched" if ad_stat["calls"] else "cached")
     keep = (now.astimezone(UTC).date() - dt.timedelta(days=ADANOS_DAYS)).isoformat()
     ad_cache = [r for r in ad_cache if r["date"] >= keep]
-    ad_index = {(r["date"], r["kind"], r.get("platform", "reddit"), r["symbol"]): r for r in ad_cache if not r.get("trend_rank")}
+    ad_index = {(r["date"], r["kind"], r.get("platform", "reddit"), r["symbol"]): r for r in ad_cache if not r.get("trend_rank") and not r.get("win")}
+    ad_rindex = {(r["date"], r["win"], r["kind"], r["platform"], r["symbol"]): r for r in ad_cache if r.get("win")}
     for r in ad_cache:  # trending rows also carry the metrics
         if r.get("trend_rank"):
             ad_index.setdefault((r["date"], r["kind"], r["platform"], r["symbol"]), r)
@@ -606,7 +709,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
             if pf and pv.get("p_oi") is not None:
                 r["p_oi_chg"] = pct(pf["p_oi"], pv["p_oi"])
         if i["adanos_symbol"]:
-            r.update(adanos_platform_features(ad_index, i["adanos_kind"], i["adanos_symbol"].upper(), d1, d2))
+            r.update(adanos_platform_features(ad_index, i["adanos_kind"], i["adanos_symbol"].upper(), d1, d2, ad_rindex))
         ps = pstats.get(t)
         if ps:
             r.update(ps)
@@ -627,8 +730,10 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         if cats:
             n, kind = min(cats)
             r["catalyst_in_trading_days"], r["catalyst"] = n, kind
-        c = combine(r)
+        c = combine(r)  # w1 inputs (shown in the topic log)
         r.update(c)
+        c = combine(r, {"attn_mode": "change", "act_mode": "1d"})
+        r["w0_attention_shift"], r["w0_activity_shift"] = c["attention_shift"], c["activity_shift"]
         # inputs for scoring.score_day (w0)
         r["buzz_delta_1d"], r["trade_count_pct_change_1d"] = c["attention_shift"], c["activity_shift"]
         r["mkt_volume_delta_1d"], r["mkt_oi_delta_1d"] = c["money_flow"], c["money_stock"]
@@ -648,13 +753,16 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         ranked[i]["momentum_rank"] = kk
     for r, m in zip(ranked, mom):
         r["momentum_pct"] = m
-    steps["score"] = dict(scored=len(ranked), gated=len(gated), prior_pull=prev_ts)
+    w1_rank(ranked + gated)
+    steps["score"] = dict(scored=len(ranked), gated=len(gated), prior_pull=prev_ts,
+                          scored_w1=sum(1 for r in ranked + gated if r.get("w1_rank")))
 
     # 8 · outputs
     comp = scoring.COMPONENTS
     keep_cols = ["k_vol", "k_flow", "k_oi", "k_oi_chg", "k_move", "k_spread", "k_zero", "k_evidence", "k_ladder",
                  "p_vol", "p_vol1wk", "p_flow", "p_oi", "p_oi_chg", "p_move", "p_spread", "n_pm_events",
-                 *[f"ad_{m}_{p}" for p in STOCK_PLATFORMS for m in ("buzz", "mentions", "buzz_d", "ment_chg", "sent_d")],
+                 *[f"ad_{m}_{p}" for p in STOCK_PLATFORMS for m in ("buzz", "mentions", "buzz_d", "ment_chg", "sent_d", "base", "ment3_chg")],
+                 "w0_attention_shift", "w0_activity_shift", "w1_score", "w1_rank", "w1_tier", "w1_gate",
                  "abnormal_move", "price", "chg_24h", "chg_5d", "price_source", "exchange_volume_usd", "on_coinbase", "on_kraken",
                  "money_flow", "money_stock", "market_move", "attention_shift", "activity_shift", "sentiment_shift", "momentum",
                  "pm_evidence", "avg_spread", "zero_trade", "families", "catalyst_in_trading_days", "catalyst",
@@ -679,11 +787,12 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     keep_ts = (now - dt.timedelta(days=HISTORY_DAYS)).isoformat()
     history = [h for h in history if h["run_ts"] >= keep_ts and h["run_ts"] != run_ts]
     history += [dict(run_ts=run_ts, topic=r["topic"], rank=r["rank"], tier=r["tier"], demand_score=r["demand_score"],
+                     w1_rank=r.get("w1_rank"), w1_score=r.get("w1_score"),
                      momentum_pct=r["momentum_pct"], k_vol=r["k_vol"], k_oi=r["k_oi"], p_vol=r["p_vol"], p_oi=r["p_oi"],
                      gate=r["gate"]) for r in out_rows]
     d = today.isoformat()
     if now_et.hour >= 15 and not any(r["date"] == d for r in daily):  # first pull at or after the 15:00 ET pick
-        daily += [dict(date=d, **{k_: r.get(k_) for k_ in ("rank", "topic", "name", "asset_class", "tier", "gate", "demand_score",
+        daily += [dict(date=d, **{k_: r.get(k_) for k_ in ("rank", "w1_rank", "w1_score", "w1_tier", "topic", "name", "asset_class", "tier", "gate", "demand_score",
                                                           "momentum_pct", "momentum_rank", "k_vol", "p_vol", "abnormal_move", "chg_24h")})
                   for r in out_rows]
         keep_d = (today - dt.timedelta(days=DAILY_DAYS)).isoformat()
@@ -737,6 +846,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         scored=len(ranked), gated=len(gated), prior_pull=prev_ts,
         top_topic=top["topic"] if top else None, top_tier=top["tier"] if top else None, top_score=top["demand_score"] if top else None,
         momentum_top=mtop["topic"] if mtop else None,
+        w1_top=next((r["topic"] for r in out_rows if r.get("w1_rank") == 1), None),
         **{f"{st['dataset']}_status": st["status"] for st in raw_status},
         **{f"{st['dataset']}_rows": st["rows"] for st in raw_status},
         **{f"{st['dataset']}_error": st["error"] for st in raw_status if st["error"]},
