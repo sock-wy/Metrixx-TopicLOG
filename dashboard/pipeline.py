@@ -452,8 +452,8 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
                      momentum_pct=r["momentum_pct"], mkt_volume_24h=r["mkt_volume_24h"],
                      mkt_open_interest=r["mkt_open_interest"], gate=r["gate"]) for r in out_rows]
     pull_hour = min(PULL_HOURS_ET, key=lambda h: min(abs(now_et.hour + now_et.minute / 60 - h), 24 - abs(now_et.hour + now_et.minute / 60 - h)))
-    if pull_hour == 15:
-        d = now_et.date().isoformat()
+    d = now_et.date().isoformat()
+    if now_et.hour >= 15 and not any(r["date"] == d for r in daily):  # first pull at or after the 15:00 ET pick
         daily = [r for r in daily if r["date"] != d]
         daily += [dict(date=d, **{k: r[k] for k in ("rank", "topic", "name", "asset_class", "tier", "gate", "demand_score",
                                                      "momentum_pct", "momentum_rank", "mkt_volume_24h", "mkt_open_interest",

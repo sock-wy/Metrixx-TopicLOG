@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Topic Log</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%231d1f24%22/%3E%3Cpath d=%22M3 11l3-3 2 2 5-5%22 stroke=%22white%22 stroke-width=%221.6%22 fill=%22none%22/%3E%3C/svg%3E">
+</head><body>
+<div class="app-bar">
+  <span class="name">Topic Log</span>
+  <span class="status"><span class="dot" id="ab-dot"></span><span id="ab-text">Starting…</span></span>
+  <span class="spacer"></span>
+  <label for="ab-interval">Pull every
+    <select id="ab-interval"><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="180">3 hours</option></select></label>
+  <button id="ab-refresh" class="primary" type="button">Pull now</button>
+  <span id="ab-key"></span>
+  <button id="ab-keybtn" type="button">Adanos key…</button>
+  <span id="ab-keyform" hidden><input id="ab-keyinput" type="password" placeholder="sk_live_…" aria-label="Adanos API key" size="28"> <button id="ab-keysave" type="button">Save</button></span>
+  <button id="ab-quit" type="button">Quit</button>
+</div>
+<script src="d3.min.js"></script>
+<script src="shim.js"></script>
+<div id="dash-root">
+{{PAGE}}
+</div>
+<script src="appbar.js"></script>
+</body></html>

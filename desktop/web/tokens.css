@@ -1,0 +1,47 @@
+/* Design tokens the dashboard page expects (the claude.ai Dashboard type's names), light and dark. */
+:root {
+  color-scheme: light;
+  --font-anthropic-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-anthropic-serif: "New York", "Iowan Old Style", "Charter", Georgia, serif;
+  --color-fg: #1d1f24; --color-fg-muted: #6a6f7a; --color-bg: #f6f6f3; --color-panel: #ffffff;
+  --color-border-line: #e3e3de; --color-ok: #2f7d4f; --color-warn: #a86a12; --color-bad: #b8433a;
+  --cds-font-size-caption: 12px; --cds-font-size-body: 14px; --cds-font-size-heading: 16px; --cds-font-size-title: 28px;
+  --cds-font-weight-medium: 560;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 12px; --cds-gap-lg: 20px; --cds-gap-xl: 32px;
+  --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 16px; --cds-pad-xl: 24px;
+  --cds-radius: 8px;
+  --cds-chart-muted: #d9dad4; --cds-chart-grid: #ececE7; --cds-chart-axis: #b9bbb3; --cds-chart-reference: #8d9088;
+  --cds-surface-popover: #ffffff; --cds-border: #dcdcd6; --cds-shadow-popover: 0 6px 24px rgba(20, 22, 26, .12);
+  --cds-text-secondary: #6a6f7a; --cds-dur-slow: 240ms; --cds-ease-out: cubic-bezier(.2, .8, .2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-fg: #ecebe6; --color-fg-muted: #9a9c97; --color-bg: #17181b; --color-panel: #202125;
+    --color-border-line: #303136; --color-ok: #6cc08b; --color-warn: #e0a54a; --color-bad: #ee7b70;
+    --cds-chart-muted: #3a3b40; --cds-chart-grid: #2a2b30; --cds-chart-axis: #4a4c52; --cds-chart-reference: #7c7e84;
+    --cds-surface-popover: #26272b; --cds-border: #3a3b40; --cds-shadow-popover: 0 6px 24px rgba(0, 0, 0, .5);
+    --cds-text-secondary: #9a9c97;
+  }
+}
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); font-size: 14px; }
+#dash-root { padding: 16px 24px 40px; }
+#dash-root b, #dash-root strong { font-weight: 700; }
+
+/* app bar */
+.app-bar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  padding: 10px 24px; background: var(--color-panel); border-bottom: 1px solid var(--color-border-line); font-size: 12px; }
+.app-bar .name { font-weight: 650; font-size: 13px; letter-spacing: .01em; }
+.app-bar .status { color: var(--color-fg-muted); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; }
+.app-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-ok); }
+.app-bar .dot.busy { background: var(--color-warn); animation: pulse 1s infinite alternate; }
+.app-bar .dot.err { background: var(--color-bad); }
+@keyframes pulse { to { opacity: .35; } }
+.app-bar .spacer { flex: 1; }
+.app-bar label { color: var(--color-fg-muted); display: flex; align-items: center; gap: 6px; }
+.app-bar select, .app-bar input { font: inherit; background: var(--color-bg); color: var(--color-fg); border: 1px solid var(--color-border-line); border-radius: 6px; padding: 3px 6px; }
+.app-bar button { font: inherit; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.app-bar button.primary { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+.app-bar button:disabled { opacity: .5; cursor: default; }
+.app-bar .key-ok { color: var(--color-ok); } .app-bar .key-missing { color: var(--color-warn); }

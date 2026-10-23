@@ -1,0 +1,40 @@
+#!/bin/bash
+# Topic Log launcher: finds Python 3.9+, sets up a private environment on first run, starts the app.
+APP="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
+SUP="$HOME/Library/Application Support/TopicLog"
+mkdir -p "$SUP"
+exec >>"$SUP/launcher.log" 2>&1
+echo "=== $(date) launch"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+notify() { /usr/bin/osascript -e "display notification \"$1\" with title \"Topic Log\"" >/dev/null 2>&1; }
+
+PY=""
+for p in "$HOME/anaconda3/bin/python3" "/opt/anaconda3/bin/python3" "$HOME/opt/anaconda3/bin/python3" \
+         "$HOME/miniconda3/bin/python3" "/opt/miniconda3/bin/python3" "/opt/homebrew/bin/python3" \
+         "/usr/local/bin/python3" "$HOME/.venv/bin/python3" "/usr/bin/python3"; do
+  if [ -x "$p" ] && "$p" -c 'import sys; assert sys.version_info >= (3, 9)' >/dev/null 2>&1; then PY="$p"; break; fi
+done
+if [ -z "$PY" ]; then
+  /usr/bin/osascript -e 'display alert "Topic Log needs Python 3.9 or newer" message "Install Python (for example from python.org or Anaconda) and open Topic Log again."'
+  exit 1
+fi
+echo "python: $PY"
+
+VENV="$SUP/venv"
+if [ ! -x "$VENV/bin/python" ] || [ ! -f "$SUP/.deps-0.1" ]; then
+  notify "Setting up on first launch (about a minute)…"
+  rm -rf "$VENV"
+  "$PY" -m venv "$VENV" || exit 1
+  "$VENV/bin/python" -m pip install -q --upgrade pip
+  "$VENV/bin/python" -m pip install -q pyyaml || exit 1
+  "$VENV/bin/python" -m pip install -q pywebview || echo "pywebview not installed; will use a browser window"
+  touch "$SUP/.deps-0.1"
+fi
+
+# already running? just bring the window back
+if [ -f "$SUP/port" ] && /usr/bin/curl -s -m 1 "http://127.0.0.1:$(cat "$SUP/port")/api/status" >/dev/null; then
+  /usr/bin/open "http://127.0.0.1:$(cat "$SUP/port")/"
+  exit 0
+fi
+exec "$VENV/bin/python" "$APP/server.py"
