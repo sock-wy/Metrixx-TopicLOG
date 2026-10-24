@@ -1,6 +1,6 @@
 # Topic Log dashboard · Topic Log 看板
 
-**Status 状态:** v2 · scoring w2 (default 默认) · claude.ai dashboard refreshed 8×/day 每天刷新 8 次 · desktop app 桌面 app `Topic Log.app` v0.4 · every pull archived 每次拉取永久存档
+**Status 状态:** v2 · scoring w2 (default 默认) · claude.ai dashboard refreshed 8×/day 每天刷新 8 次 · desktop app 桌面 app `Topic Log.app` v0.5 · every pull archived 每次拉取永久存档 · agenda 3–5 added 已加入议程 3–5 (venue appendix 场所附录, Adanos sectors 板块 + news 新闻, briefing 解读)
 
 Agenda item 1 (10/16): one place to see, every few hours, which market topics people are talking about and trading on, rank them for the day's MYCAST episode, and tune the ranking by hand. The pick of record is the first pull at or after 15:00 ET.
 
@@ -22,7 +22,9 @@ every pull 每次拉取 (cloud 云端: every 3 h 每 3 小时 · desktop 桌面:
   4. combine   合成指标  source columns → 9 components 9 个指标
   5. gates     过门槛    G2 · G3 remove topics that can't carry an episode 筛掉撑不起一期节目的话题
   6. score     打分      within-pull percentile per component → weighted mean 每个指标取当次百分位 → 加权平均
-  7. rank      排名      sort, save 13 datasets, record the 15:00 ET pick, archive 排序、保存、记录每日选题、存档
+  7. rank      排名      sort, record the 15:00 ET pick 排序、记录每日选题
+  8. briefing  解读      venue appendix, Kalshi perps, Adanos sectors and news; cloud: Claude writes the briefing 场所附录、永续合约、Adanos 板块和新闻；云端由 Claude 写解读
+  9. save      保存      18 datasets + archive 18 个数据集 + 存档
 ```
 
 The page redoes steps 4–7 in the browser every time you move a control, so tuning is instant. Nothing you change is written back to the data; the stored ranks (`w0 #`, daily picks) stay as the pipeline computed them.
@@ -110,7 +112,7 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 ### Top of the page · 页面顶部
 
 - **Take line 摘要行**: latest pull time, your pick with the current settings, the stored w0 pick, the momentum pick. 最近一次拉取时间、你当前设置下的第一名、w0 的第一名、动量的第一名。
-- **Tabs 标签页**: Workbench · Daily picks · Daily steps · Raw data · Market data · Topics & events.
+- **Tabs 标签页**: Workbench · Briefing · Raw data · Daily picks · Daily steps · Market data · Topics & events.
 
 ### Workbench · 1 · IN — data sources (left) · 左栏：数据源
 
@@ -143,6 +145,13 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 - **Topic breakdown 话题详情**: score arithmetic 得分计算, catalyst 催化剂, each component's percentile and points 各指标百分位和贡献分, raw inputs from every source 每个源的原始数字, rank over the last 10 days 近 10 天名次, most traded events 成交最多的事件.
 - **Your score vs momentum 得分 vs 动量**: every scored topic; right = higher score, up = larger abnormal move. 右 = 得分高，上 = 异常波动大。
 
+### Briefing · 解读 (agenda 4, 5 · 议程第 4、5 项)
+
+- **Today's read 今日解读**: three short notes, sectors · news on the top topics · why the top picks rank where they do. On the cloud, Claude writes them on every pull from that pull's data (marked "read by Claude"); in the desktop app they are an automatic summary built from the same numbers. Facts only, no investment advice. 三段短评：板块、头部话题的新闻、前几名为什么排在那里。云端每次拉取由 Claude 根据当次数据撰写；桌面 app 里是按同样数字自动生成的摘要。只讲事实，不给投资建议。
+- **Sectors on Adanos 板块变化**: Adanos' trending sectors for the last complete day, one table per platform (chips News / X / Reddit). Columns: `#` rank (and the day before), Sector, Buzz (Adanos 0–100), Δ day, Δ 7-day, a 7-day buzz line, Mentions and Δ%, Sentiment (−1 to 1), Bull % / Bear %, Top tickers driving it. Click a header to sort. 最近一个完整日的热门板块，每个平台一张表（点 News / X / Reddit 切换）。列：名次（及前一天名次）、板块、热度（0–100）、日变化、7 日变化、7 日热度线、提及数及变化%、情绪、看多/看空比例、带动该板块的股票。点表头排序。
+- **News on today's top topics 头部话题新闻**: Adanos news of the last 2 days for the 15 best-ranked stock topics (by the default ranking), up to 4 per topic: a coloured dot for sentiment, the headline, source and time. Only articles that name the ticker or company; fund-filing boilerplate ("XYZ fund bought shares of…") is left out. Adanos gives text snippets, not links, so there is no click-through. 按默认排名前 15 的股票话题，过去 2 天的 Adanos 新闻，每个话题最多 4 条：情绪色点、标题、来源和时间。只保留提到该代码或公司名的文章，去掉基金持仓公告类的套话。Adanos 只给文字摘要、不给链接，所以不能点开原文。
+- The topic breakdown in the Workbench also shows the topic's Kalshi perp and its news lines. 工作台的话题详情里也会显示该话题的永续合约和新闻。
+
 ### Other tabs · 其他标签页
 
 - **Daily picks 每日选题**: rank-1 pick of each day's 15:00 ET pull (chart) and top 5 per day (table). 每天的第一名（图）和前 5（表）。
@@ -150,6 +159,8 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 - **Raw data 原始数据**: every source as a searchable, sortable table. 每个源一张可搜索可排序的表。
 - **Market data 行情**: price, 24h and 5-day change, abnormal move per priced topic (the Metrixx upload will join here). 价格、涨跌、异常波动。
 - **Topics & events 话题与事件**: tiles per asset class; every topic with its sources, how it was matched (rule, ticker, name, new) and event count; click a topic to filter events; every Kalshi series and its topic. 每个话题的来源和匹配方式，点话题看事件。
+- **Venue appendix 场所附录** (in Topics & events, agenda 3 · 议程第 3 项): every topic and everywhere it trades or is talked about: Kalshi events, Kalshi perp (ticker, OI in $, latest 8-hour funding rate), Polymarket events, Adanos platforms with data, the price symbol, and the crypto exchanges (Binance · Coinbase · Kraken, crypto topics only). **Venues** = how many of these list it. Search, asset-class chips and **Has a perp** filter it. 每个话题在哪里交易、在哪里被讨论：Kalshi 事件数、Kalshi 永续合约（代码、持仓美元、最近 8 小时资金费率）、Polymarket 事件数、Adanos 有数据的平台、价格代码，以及加密交易所（Binance、Coinbase、Kraken，仅加密话题）。**Venues** = 上述场所中有几个列了它。可搜索、按资产类别筛选、只看有永续合约的。
+- **Kalshi perps 永续合约**: Kalshi's perpetual futures (no expiry; long/short, kept near the spot price by a funding rate paid every 8 hours). Listed under supporting sources and in Raw data; shown in the appendix and the topic breakdown, **not scored** yet. Kalshi 的永续合约（不到期，可做多做空，每 8 小时用资金费率把价格拉向现货）。在辅助源和原始数据里可看，显示在附录和话题详情中，暂**不参与打分**。
 
 ### Desktop app · 桌面 app (`Topic Log.app`)
 
@@ -169,9 +180,9 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 python -m dashboard.pipeline --state STATE_DIR --out OUT_DIR --adanos-key "$ADANOS_API_KEY"   # or ADANOS_KEY env
 ```
 
-`STATE_DIR` holds the previous `score_history.json`, `daily_log.json`, `runs.json`, `adanos_daily.json` (any may be missing). The cloud scheduled task downloads them from the dashboard, runs this, uploads the 13 outputs, repoints the datasets, then runs `dashboard/archive_push.sh out`.
+`STATE_DIR` holds the previous `score_history.json`, `daily_log.json`, `runs.json`, `adanos_daily.json` (any may be missing). The cloud scheduled task downloads them from the dashboard, runs this, has Claude rewrite `briefing.json` from `sectors.json`, `news.json` and the top 10 topics, uploads the 18 outputs, repoints the datasets, then runs `dashboard/archive_push.sh out`.
 
-`STATE_DIR` 放上一次的 4 个状态文件（可缺）。云端定时任务从看板下载它们、运行、上传 13 个输出、更新数据集，再推送存档。
+`STATE_DIR` 放上一次的 4 个状态文件（可缺）。云端定时任务从看板下载它们、运行、让 Claude 根据板块、新闻和前 10 名重写 `briefing.json`、上传 18 个输出、更新数据集，再推送存档。
 
 | File 文件 | What 内容 |
 |---|---|
@@ -179,12 +190,13 @@ python -m dashboard.pipeline --state STATE_DIR --out OUT_DIR --adanos-key "$ADAN
 | `registry.py` | automatic topics · 自动归类 |
 | `symbols.py` | Kalshi rules, aliases, topic metadata · Kalshi 规则、别名、话题信息 |
 | `sources.py` | free sources · 免费数据源 |
+| `briefing.py` | venue appendix, Kalshi perps, Adanos sectors and news, automatic briefing · 场所附录、永续合约、板块、新闻、自动解读 |
 | `archive.py`, `archive_push.sh`, `adanos_universe.json` | permanent archive · 永久存档 |
 | `catalysts.yaml` | CPI / FOMC dates · 宏观日历 |
 | `page/index.html` | the dashboard page (cloud and app) · 看板页面 |
 | `backfill/` | history pulls for backtests · 回测用的历史数据脚本 |
 
-Outputs 输出 (one JSON per dataset 每个数据集一个 JSON): `topic_log` (one row per topic 每个话题一行), `events`, `score_history` (10 days), `daily_log` (45 days), `runs`, `adanos_daily`, `symbol_appendix`, `market_data`, plus raw `us_stocks`, `earnings_calendar`, `us_movers`, `polymarket`, `crypto_spot`.
+Outputs 输出 (one JSON per dataset 每个数据集一个 JSON): `topic_log` (one row per topic 每个话题一行), `events`, `score_history` (10 days), `daily_log` (45 days), `runs`, `adanos_daily`, `symbol_appendix`, `market_data`, `kalshi_perps`, `venue_appendix`, `sectors`, `news`, `briefing`, plus raw `us_stocks`, `earnings_calendar`, `us_movers`, `polymarket`, `crypto_spot`.
 
 ### Archive · 存档
 
@@ -199,7 +211,9 @@ Every pull writes what it saw to `archive/` (gzipped JSON): Kalshi markets, Kals
 - Money flow and OI change need a pull from about 24h earlier; OI vs normal needs 3 days of history. After a fresh start they are empty and count as the median. 资金流入和持仓变化需要约 24h 前的数据，持仓比平常需要 3 天历史；刚启动时为空，按中位数算。
 - Social data in the backtest covers 43 days only (Adanos key limit); re-validate w2 on archived days in mid-November. 回测里的社交数据只有 43 天；11 月中用存档数据复验 w2。
 - The target is a proxy (next-day attention and price move); real episode views and listens are the better target once they exist. 目标是代理指标；有节目播放数据后应换成真实反馈。
-- Polymarket volume history is not available from the API; Kalshi perps are archived but not scored yet. Polymarket 没有成交量历史；永续合约已存档但未打分。
+- Polymarket volume history is not available from the API; Kalshi perps are shown and archived but not scored yet (only ~40 contracts, mostly crypto and indices). Polymarket 没有成交量历史；永续合约已显示和存档但未打分（只有约 40 个，大多是加密和指数）。
+- News comes from Adanos snippets: no links, and some headlines are cut. Sector reads use 2 extra Adanos calls per platform per pull and news 15. 新闻来自 Adanos 摘要：没有链接，部分标题被截断。板块每次每平台多 2 次调用，新闻 15 次。
+- Kraken has no perps API wired in; it appears through the crypto exchange flags only. Kraken 只通过加密交易所标记出现，没有接入它的永续合约。
 - G4 cooldown is inactive until an episode log exists. G4 冷却期要等有节目记录。
 
 ---
