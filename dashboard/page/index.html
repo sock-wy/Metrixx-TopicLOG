@@ -83,6 +83,17 @@
 #dash-root .src-ctl .tl-chip { padding: 1px 8px; }
 #dash-root #rk-table td.tl-clip, #dash-root #tp-table td.tl-clip { max-width: 11rem; white-space: nowrap; }
 #dash-root #ev-table td.tl-clip { max-width: 26rem; white-space: nowrap; }
+#dash-root .brief-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--cds-gap-md); }
+#dash-root .brief-note { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); display: flex; flex-direction: column; gap: 6px; }
+#dash-root .brief-note h4 { margin: 0; font-size: var(--cds-font-size-body); font-weight: 600; }
+#dash-root .brief-note p { margin: 0; font-size: var(--cds-font-size-body); line-height: 1.5; white-space: pre-line; }
+#dash-root .news-list { display: flex; flex-direction: column; gap: var(--cds-gap-md); }
+#dash-root .news-topic h4 { margin: 0 0 4px; font-size: var(--cds-font-size-body); }
+#dash-root .news-topic h4 small { font-weight: 400; color: var(--color-fg-muted); margin-left: 6px; }
+#dash-root .news-item { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 4px 0; border-top: 1px solid var(--color-border-line); font-size: var(--cds-font-size-body); }
+#dash-root .news-item span:nth-child(2) { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); white-space: nowrap; }
+#dash-root .senti { display: inline-block; min-width: 3.2em; text-align: center; font-size: 11px; border-radius: 999px; padding: 0 6px; border: 1px solid var(--color-border-line); }
+#dash-root .senti.pos { color: var(--color-ok); border-color: var(--color-ok); } #dash-root .senti.neg { color: var(--color-bad); border-color: var(--color-bad); }
 #dash-root .tl-new { display: inline-block; margin-left: 4px; font-size: 10px; padding: 0 5px; border-radius: 999px; border: 1px solid var(--color-warn); color: var(--color-warn); vertical-align: 1px; }
 #dash-root .tl-orig { display: inline-flex; gap: 2px; }
 #dash-root .tl-orig i { font-style: normal; font-size: 10px; width: 14px; height: 14px; line-height: 14px; text-align: center; border-radius: 3px; background: var(--color-bg); border: 1px solid var(--color-border-line); color: var(--color-fg-muted); }
@@ -134,6 +145,7 @@
 
   <nav class="tl-tabs" role="tablist" aria-label="Dashboard pages">
     <button class="tl-tab" role="tab" id="tab-ranking" data-page="ranking" aria-selected="true">Workbench</button>
+    <button class="tl-tab" role="tab" id="tab-brief" data-page="brief" aria-selected="false">Briefing</button>
     <button class="tl-tab" role="tab" id="tab-daily" data-page="daily" aria-selected="false">Daily picks</button>
     <button class="tl-tab" role="tab" id="tab-runs" data-page="runs" aria-selected="false">Daily steps</button>
     <button class="tl-tab" role="tab" id="tab-raw" data-page="raw" aria-selected="false">Raw data</button>
@@ -184,6 +196,8 @@
           <span class="src-sub"><span data-source="latest_run" data-field="us_stocks_rows">—</span> tickers and names used to match text to topics</span></div>
         <div class="src" id="src-raw-crypto_spot"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="crypto_spot_status"></span>Binance · Coinbase · Kraken</span><button class="tl-chip" data-raw="crypto_spot" type="button">View</button></div>
           <span class="src-sub"><span data-source="latest_run" data-field="crypto_spot_rows">—</span> coins · <span data-source="latest_run" data-field="coinbase_usd_pairs">—</span> on Coinbase · <span data-source="latest_run" data-field="kraken_usd_pairs">—</span> on Kraken</span></div>
+        <div class="src" id="src-raw-kalshi_perps"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="perps"></span>Kalshi perps</span><button class="tl-chip" data-raw="kalshi_perps" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="perps_rows">—</span> perpetual futures · price, OI, funding · shown in the venue appendix, not scored</span></div>
         <div class="src ph"><span class="src-name">eToro</span><span class="src-feeds">Live trades and trader portfolios. Needs the API key.</span></div>
         <div class="src ph"><span class="src-name">Metrixx AI upload</span><span class="src-feeds">Market data upload (agenda 2). Not linked yet.</span></div>
 
@@ -283,6 +297,44 @@
           <div class="tl-chart" id="scatter" data-source="topic_log"></div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ============================== Briefing (agenda 4, 5) -->
+  <section class="tl-page" id="brief" role="tabpanel" aria-labelledby="tab-brief" hidden>
+    <div class="tl-card" id="card-brief-notes">
+      <h3>Today's read</h3>
+      <p class="tl-note" id="brief-src">Sector changes, news on the top topics and today's picks, read by Claude on each cloud pull (the desktop app shows an automatic summary).</p>
+      <div class="brief-notes" id="brief-notes" data-source="briefing"></div>
+    </div>
+    <div class="tl-card" id="card-sectors">
+      <h3>Sectors on Adanos: what changed since the day before</h3>
+      <p class="tl-note">Trending sectors on each platform for the last complete day. Buzz is Adanos' 0-100 score; Δ day = change vs the day before; 7-day = change over the week; the line is the last 7 days of buzz.</p>
+      <div class="tl-controls"><span id="sec-plats"></span></div>
+      <div class="tl-scroll">
+        <table class="tl-table" id="sec-table" data-source="sectors" data-row-key="platform,sector">
+          <thead><tr>
+            <th data-field="rank"><button class="tl-th-btn" data-sort="rank">#</button></th>
+            <th class="l" data-field="sector"><button class="tl-th-btn" data-sort="sector">Sector</button></th>
+            <th data-field="buzz"><button class="tl-th-btn" data-sort="buzz">Buzz</button></th>
+            <th data-field="buzz_chg"><button class="tl-th-btn" data-sort="buzz_chg">Δ day</button></th>
+            <th data-field="buzz_7d_chg"><button class="tl-th-btn" data-sort="buzz_7d_chg">Δ 7-day</button></th>
+            <th class="l">7 days</th>
+            <th data-field="mentions"><button class="tl-th-btn" data-sort="mentions">Mentions</button></th>
+            <th data-field="mentions_chg_pct"><button class="tl-th-btn" data-sort="mentions_chg_pct">Δ%</button></th>
+            <th data-field="sentiment"><button class="tl-th-btn" data-sort="sentiment">Sentiment</button></th>
+            <th data-field="bullish_pct"><button class="tl-th-btn" data-sort="bullish_pct">Bull %</button></th>
+            <th data-field="bearish_pct"><button class="tl-th-btn" data-sort="bearish_pct">Bear %</button></th>
+            <th class="l" data-field="top_tickers">Top tickers</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="tl-card" id="card-news">
+      <h3>News on today's top topics</h3>
+      <p class="tl-note">Adanos news for the 15 best-ranked stock topics, last 2 days: articles that name the company, fund-filing notices left out. Sentiment from Adanos (−1 to 1).</p>
+      <div class="news-list" id="news-list" data-source="news"></div>
     </div>
   </section>
 
@@ -458,6 +510,37 @@
       </div>
       <p class="tl-note" id="ev-count"></p>
     </div>
+    <div class="tl-card" id="card-venues">
+      <h3>Venue appendix</h3>
+      <p class="tl-note">Every topic and where it trades or is talked about: Kalshi events, Kalshi perps, Polymarket events, Adanos platforms with data, and the crypto exchanges. Venues = how many of these list it.</p>
+      <div class="tl-controls">
+        <input class="tl-search" id="va-search" type="search" placeholder="Search topic or name" aria-label="Search the venue appendix">
+        <span id="va-classes"></span>
+        <button class="tl-chip" id="va-perps" aria-pressed="false" type="button">Has a perp</button>
+      </div>
+      <div class="tl-scroll" style="max-height: 26rem">
+        <table class="tl-table" id="va-table" data-source="venue_appendix" data-row-key="topic">
+          <thead><tr>
+            <th class="l" data-field="topic"><button class="tl-th-btn" data-sort="topic">Topic</button></th>
+            <th class="l" data-field="name"><button class="tl-th-btn" data-sort="name">Name</button></th>
+            <th class="l" data-field="asset_class"><button class="tl-th-btn" data-sort="asset_class">Class</button></th>
+            <th data-field="venues"><button class="tl-th-btn" data-sort="venues">Venues</button></th>
+            <th data-field="kalshi_events"><button class="tl-th-btn" data-sort="kalshi_events">Kalshi ev.</button></th>
+            <th data-field="kalshi_vol_24h"><button class="tl-th-btn" data-sort="kalshi_vol_24h">Kalshi vol</button></th>
+            <th class="l" data-field="perp"><button class="tl-th-btn" data-sort="perp">Perp</button></th>
+            <th data-field="perp_oi_usd"><button class="tl-th-btn" data-sort="perp_oi_usd">Perp OI $</button></th>
+            <th data-field="perp_funding"><button class="tl-th-btn" data-sort="perp_funding">Funding</button></th>
+            <th data-field="polymarket_events"><button class="tl-th-btn" data-sort="polymarket_events">Poly ev.</button></th>
+            <th data-field="polymarket_vol_24h"><button class="tl-th-btn" data-sort="polymarket_vol_24h">Poly vol $</button></th>
+            <th class="l" data-field="adanos_platforms"><button class="tl-th-btn" data-sort="adanos_platforms">Adanos</button></th>
+            <th class="l">Exchanges</th>
+            <th class="l" data-field="price_symbol"><button class="tl-th-btn" data-sort="price_symbol">Price</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="tl-note" id="va-count"></p>
+    </div>
     <div class="tl-card" id="card-sym-table">
       <h3>Kalshi series → topic</h3>
       <p class="tl-note">Every open series in Financials, Crypto, Commodities, Companies and Economics and the topic it rolls up to. "New" series matched no rule or name and became their own topic.</p>
@@ -556,6 +639,7 @@ window.TL = (() => {
   const show = (x, fmt) => (x == null || Number.isNaN(x) ? '–' : fmt(x));
   const ok = (id) => dash.data(id).status === 'ok';
   const rows = (id) => (ok(id) ? dash.data(id).data : []);
+  const rows_ = rows;
   const state = { page: 'ranking', sel: null, gated: false, q: '', sort: {}, symClasses: new Set(), unmapped: false, symQ: '', mkQ: '' };
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const classColor = (c) => {
@@ -928,6 +1012,8 @@ window.TL = (() => {
     if (r.k_vol != null) kv('Kalshi', `vol ${fc.format(r.k_vol)} (${n0(r.k_flow, (x) => fsig(x) + '%')}) · OI ${fc.format(r.k_oi || 0)} (${n0(r.k_oi_chg, (x) => fsig(x) + '%')}) · move ${n0(r.k_move, d3.format('.3f'))}`);
     if (r.p_vol != null) kv('Polymarket', `vol $${fc.format(r.p_vol)} (${n0(r.p_flow, (x) => fsig(x) + '%')} vs week avg) · OI $${fc.format(r.p_oi || 0)} (${n0(r.p_oi_chg, (x) => fsig(x) + '%')}) · move ${n0(r.p_move, d3.format('.3f'))}`);
     for (const p of ['reddit', 'x', 'news']) if (r['ad_buzz_' + p] != null) kv('Adanos ' + (p === 'x' ? 'X' : p[0].toUpperCase() + p.slice(1)), `buzz ${n0(r['ad_buzz_' + p], d3.format('.1f'))} (${n0(r['ad_buzz_d_' + p], fsig)}) · mentions ${n0(r['ad_mentions_' + p], (x) => fc.format(x))} (${n0(r['ad_ment_chg_' + p], (x) => fsig(x) + '%')}) · sentiment Δ ${n0(r['ad_sent_d_' + p], d3.format('+.2f'))}`);
+    if (ok('kalshi_perps')) { const pp = rows_('kalshi_perps').find((x) => x.topic === r.topic); if (pp) kv('Kalshi perp', `${pp.ticker} · OI ${money(pp.open_interest_usd)} · vol 24h ${money(pp.volume_24h_usd)} · funding ${pp.funding_rate == null ? '–' : d3.format('+.4%')(pp.funding_rate)}`); }
+    if (ok('news')) { const nw = rows_('news').filter((x) => x.topic === r.topic).slice(0, 2); for (const x of nw) kv('News', `${x.headline} (${x.source})`); }
     if (r.price != null) kv('Price', `${px2(r.price)} · 24h ${n0(r.chg_24h, fpct1)} · ${n0(r.abnormal_move, (x) => fsig(x) + 'σ')} · ${r.price_source || ''}${r.on_coinbase ? ' · on Coinbase' : ''}${r.on_kraken ? ' · on Kraken' : ''}`);
     if (!srcBox.childElementCount) kv('–', 'No source data for this topic in this pull.');
     if (ok('events')) {
@@ -1257,6 +1343,8 @@ window.TL = (() => {
       cols: [['symbol', 'Coin', null, 'l'], ['primary', 'Price from', null, 'l'], ['price', 'Price', px2], ['change_pct', 'Chg %', pc, 's'], ['usd_volume', 'Vol 24h (all)', money],
         ['binance_vol', 'Binance', money], ['coinbase_vol', 'Coinbase', money], ['kraken_vol', 'Kraken', money],
         ['on_coinbase', 'On Coinbase', (v) => (v ? 'yes' : 'no'), 'l'], ['on_kraken', 'On Kraken', (v) => (v ? 'yes' : 'no'), 'l']] },
+    kalshi_perps: { title: 'Kalshi perps · perpetual futures', note: 'Every Kalshi perpetual future: last price, open interest and 24h volume in dollars, the latest 8-hour funding rate. Archived on every pull; not scored yet.', key: 'ticker', sort: ['volume_24h_usd', 'desc'],
+      cols: [['ticker', 'Ticker', null, 'l'], ['topic', 'Topic', null, 'l'], ['asset_class', 'Class', null, 'l'], ['price', 'Price', px2], ['open_interest_usd', 'OI $', money], ['volume_24h_usd', 'Vol 24h $', money], ['funding_rate', 'Funding (8h)', (v) => show(v, d3.format('+.4%')), 's'], ['funding_time', 'Funding at', (v) => (v || '').replace('T', ' ').slice(0, 16), 'l']] },
   };
   state.raw = 'us_stocks'; state.rawQ = '';
   const rawTables = {};
@@ -1314,7 +1402,96 @@ window.TL = (() => {
   document.querySelectorAll('[data-raw]').forEach((b) => b.addEventListener('click', () => { state.raw = b.dataset.raw; go('raw', true); }));
 
   // =================================================================== tabs
-  const PAGES = ['ranking', 'raw', 'daily', 'runs', 'market', 'symbols'];
+  // ------------------------------------------------------------------ briefing tab (agenda 4, 5)
+  state.secPlat = 'news';
+  const senti = (v) => { const sp = el('span', 'senti ' + (v == null ? '' : v > 0.05 ? 'pos' : v < -0.05 ? 'neg' : ''), v == null ? '–' : d3.format('+.2f')(v)); return sp; };
+  function spark(vals) {
+    const w = 72, h = 18, svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.setAttribute('width', w); svg.setAttribute('height', h);
+    if (!vals || vals.length < 2) return svg;
+    const lo = Math.min(...vals), hi = Math.max(...vals), y = (v) => h - 2 - (hi === lo ? 0.5 : (v - lo) / (hi - lo)) * (h - 4);
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    p.setAttribute('points', vals.map((v, i) => `${(i / (vals.length - 1)) * (w - 2) + 1},${y(v)}`).join(' '));
+    p.setAttribute('fill', 'none'); p.setAttribute('stroke', dash.colors[0]); p.setAttribute('stroke-width', '1.5');
+    svg.append(p); return svg;
+  }
+  function drawBrief() {
+    if (state.page !== 'brief') return;
+    const notes = document.getElementById('brief-notes');
+    if (ok('briefing')) {
+      const rows = rows_('briefing');
+      const src = rows.some((r) => r.source === 'claude') ? 'Written by Claude on the latest cloud pull.' : 'Automatic summary (the cloud dashboard has Claude\'s reading).';
+      document.getElementById('brief-src').textContent = `${rows[0] ? rows[0].date + ' · ' : ''}${src}`;
+      notes.replaceChildren(...rows.map((r) => { const d = el('div', 'brief-note'); d.append(el('h4', null, r.title || r.section), el('p', null, r.text)); return d; }));
+      if (!rows.length) notes.replaceChildren(el('p', 'tl-note', 'No briefing in this pull.'));
+    } else notes.replaceChildren(el('p', 'tl-note', 'Loading…'));
+    // sectors
+    const tbody = document.querySelector('#sec-table tbody');
+    if (!ok('sectors')) { emptyRow(tbody, 12, 'No sector data in this pull (needs the Adanos key).'); }
+    else {
+      const all = rows_('sectors');
+      const plats = [...new Set(all.map((r) => r.platform))];
+      chips('sec-plats', plats, new Set([state.secPlat]), () => {});
+      document.querySelectorAll('#sec-plats .tl-chip').forEach((b) => { b.onclick = () => { state.secPlat = b.dataset.v; drawBrief(); }; });
+      const data = all.filter((r) => r.platform === state.secPlat);
+      const { out, s } = sortRows('sec', data, 'rank', 'asc'); ariaSort('sec-table', s);
+      const frag = document.createDocumentFragment();
+      for (const r of out) {
+        const tr = el('tr'); const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
+        td(String(r.rank) + (r.rank_prev && r.rank_prev !== r.rank ? (r.rank < r.rank_prev ? ' ▲' : ' ▼') : '')); td(r.sector, 'l');
+        td(show(r.buzz, d3.format('.1f'))); td(signed(r.buzz_chg, d3.format('+.1f'))); td(signed(r.buzz_7d_chg, d3.format('+.1f'))); td(spark(r.trend_history), 'l');
+        td(show(r.mentions, (x) => fc.format(x))); td(signed(r.mentions_chg_pct, (x) => d3.format('+.0f')(x) + '%')); td(senti(r.sentiment));
+        td(show(r.bullish_pct, (x) => x + '%')); td(show(r.bearish_pct, (x) => x + '%')); td(r.top_tickers, 'l');
+        frag.append(tr);
+      }
+      tbody.replaceChildren(frag);
+    }
+    // news
+    const box = document.getElementById('news-list');
+    if (!ok('news') || !rows_('news').length) { box.replaceChildren(el('p', 'tl-note', 'No news in this pull (needs the Adanos key).')); return; }
+    const by = new Map();
+    for (const r of rows_('news')) { if (!by.has(r.topic)) by.set(r.topic, []); by.get(r.topic).push(r); }
+    const rank = new Map(rows_('topic_log').map((r) => [r.topic, r.pick_rank]));
+    box.replaceChildren(...[...by.entries()].map(([t, items]) => {
+      const d = el('div', 'news-topic'); const h = el('h4', null, t);
+      const f = items[0]; h.append(el('small', null, `#${rank.get(t) ?? '–'} · ${f.topic_mentions ?? '–'} articles in 2 days · ${f.positive ?? 0} positive, ${f.negative ?? 0} negative · ${f.top_sources || ''}`));
+      d.append(h);
+      for (const it of items) { const row = el('div', 'news-item'); const left = el('span'); left.append(senti(it.sentiment), document.createTextNode(' ' + it.headline)); row.append(left, el('span', null, `${it.source || ''} · ${(it.time || '').replace('T', ' ').slice(5, 16)}`)); d.append(row); }
+      return d;
+    }));
+  }
+  // ------------------------------------------------------------------ venue appendix (agenda 3)
+  state.vaQ = ''; state.vaClasses = new Set(); state.vaPerps = false;
+  function drawVenues() {
+    if (state.page !== 'symbols') return;
+    const tbody = document.querySelector('#va-table tbody');
+    if (!ok('venue_appendix')) { emptyRow(tbody, 14, 'Loading…'); return; }
+    const all = rows_('venue_appendix');
+    chips('va-classes', [...new Set(all.map((r) => r.asset_class).filter(Boolean))].sort(), state.vaClasses, drawVenues);
+    document.getElementById('va-perps').setAttribute('aria-pressed', state.vaPerps ? 'true' : 'false');
+    const q = state.vaQ.toLowerCase();
+    const data = all.filter((r) => (!state.vaPerps || r.perp) && (!state.vaClasses.size || state.vaClasses.has(r.asset_class)) && (!q || (r.topic + ' ' + (r.name || '')).toLowerCase().includes(q)));
+    const { out, s } = sortRows('va', data, 'venues', 'desc'); ariaSort('va-table', s);
+    const frag = document.createDocumentFragment();
+    for (const r of out.slice(0, 600)) {
+      const tr = el('tr'); tr.dataset.key = r.topic; const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
+      td(r.topic, 'l'); td(r.name, 'l tl-clip'); td(r.asset_class, 'l'); td(String(r.venues ?? 0));
+      td(r.kalshi_events ? String(r.kalshi_events) : '–'); td(r.kalshi_vol_24h == null ? '–' : fc.format(r.kalshi_vol_24h));
+      td(r.perp, 'l'); td(r.perp_oi_usd == null ? '–' : money(r.perp_oi_usd)); td(r.perp_funding == null ? '–' : d3.format('+.4%')(r.perp_funding));
+      td(r.polymarket_events ? String(r.polymarket_events) : '–'); td(r.polymarket_vol_24h == null ? '–' : money(r.polymarket_vol_24h));
+      td(r.adanos_platforms, 'l'); td([r.binance && 'Binance', r.coinbase && 'Coinbase', r.kraken && 'Kraken'].filter(Boolean).join(', ') || '–', 'l'); td(r.price_symbol, 'l');
+      frag.append(tr);
+    }
+    tbody.replaceChildren(frag);
+    if (!out.length) emptyRow(tbody, 14, 'No topic matches.');
+    document.getElementById('va-count').textContent = `${Math.min(600, out.length)} of ${out.length} topics shown · ${all.filter((r) => r.perp).length} with a Kalshi perp`;
+  }
+  document.getElementById('va-search').addEventListener('input', (e) => { state.vaQ = e.target.value; drawVenues(); });
+  document.getElementById('va-perps').addEventListener('click', () => { state.vaPerps = !state.vaPerps; drawVenues(); });
+  wireSort('va-table', 'va', 'venues', 'desc', drawVenues);
+  wireSort('sec-table', 'sec', 'rank', 'asc', drawBrief);
+
+  const PAGES = ['ranking', 'brief', 'raw', 'daily', 'runs', 'market', 'symbols'];
   function go(page, link) {
     if (!PAGES.includes(page)) return;
     state.page = page;
@@ -1343,7 +1520,7 @@ window.TL = (() => {
   function drawAll() {
     if (!synced) { syncFromParams(); synced = true; }
     paintSliders(); fillMarks(); paintSources(); recompute();
-    drawRaw(); drawDaily(); drawRuns(); drawMarket(); drawSymbols();
+    drawRaw(); drawDaily(); drawRuns(); drawMarket(); drawSymbols(); drawBrief(); drawVenues();
   }
   const first = location.hash.slice(1);
   if (PAGES.includes(first)) go(first, false);

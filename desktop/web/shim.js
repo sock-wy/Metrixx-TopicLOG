@@ -2,7 +2,8 @@
 // Data comes from the local server (/api/data/<id>); filters persist in localStorage.
 (function () {
   const IDS = ['topic_log', 'score_history', 'daily_log', 'runs', 'adanos_daily', 'symbol_appendix', 'market_data',
-    'us_stocks', 'earnings_calendar', 'us_movers', 'polymarket', 'crypto_spot', 'events'];
+    'us_stocks', 'earnings_calendar', 'us_movers', 'polymarket', 'crypto_spot', 'events',
+    'kalshi_perps', 'venue_appendix', 'sectors', 'news', 'briefing'];
   const DEFAULTS = {
     w_attention_shift: 0.35, w_attention_x: 0.35, w_activity_shift: 0, w_money_flow: 0, w_money_stock: 0.05, w_market_move: 0, w_sentiment_shift: 0, w_momentum: 0.125, w_volume_abn: 0.125,
     attn_mode: 'level', act_mode: '3d', missing_mode: 'median', stock_mode: 'abn', _v: 4,

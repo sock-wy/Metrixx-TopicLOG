@@ -40,7 +40,7 @@ import zoneinfo
 import yaml
 
 from scoring import scoring
-from . import archive, sources
+from . import archive, briefing, sources
 from .registry import Registry, ensure
 from .symbols import CATEGORIES, EXTRA, TOPICS, map_series, topic_info
 
@@ -60,7 +60,7 @@ TICKER_ALIAS = {"GOOG": "GOOGL", "BRK/B": "BRK.B", "BRK-B": "BRK.B"}
 
 
 # ------------------------------------------------------------------ helpers
-def get_json(url, headers=None, tries=4, timeout=40):
+def get_json(url, headers=None, tries=7, timeout=40):
     err = None
     for i in range(tries):
         try:
@@ -71,7 +71,7 @@ def get_json(url, headers=None, tries=4, timeout=40):
             err = e
             if e.code in (400, 401, 403, 404, 422):
                 raise
-            wait = int(e.headers.get("Retry-After") or 0) or 2 * (i + 1)
+            wait = int(e.headers.get("Retry-After") or 0) or min(30, 2 ** (i + 1))  # 429: back off 2, 4, 8, 16, 30 s
             time.sleep(min(wait, 30))
         except Exception as e:
             err = e
@@ -916,14 +916,33 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     runs = runs[-240:]
 
     out.mkdir(parents=True, exist_ok=True)
+    # agenda 3-5: Kalshi perps, venue appendix, Adanos sectors and news, briefing (never fails the pull)
+    extra = {"kalshi_perps": [], "venue_appendix": [], "sectors": [], "news": [], "briefing": []}
+    perps_raw, perps_st = archive.kalshi_perps(now)
+    br_stat = {}
+    try:
+        extra["kalshi_perps"] = briefing.perps_rows(perps_raw if perps_st == "ok" else None, lambda t, c: ensure(t, c))
+        extra["venue_appendix"] = briefing.venue_appendix(out_rows, ev_rows, extra["kalshi_perps"], coins, infos)
+        if adanos_key:
+            extra["sectors"] = briefing.sectors(adanos_key, d1, d2, br_stat)
+            picks = [(r["topic"], (infos.get(r["topic"]) or {}).get("adanos_symbol"), r.get("name"))
+                     for r in sorted((x for x in out_rows if x.get("pick_rank")), key=lambda x: x["pick_rank"])
+                     if (infos.get(r["topic"]) or {}).get("adanos_kind") == "stocks"][:15]
+            extra["news"] = briefing.news(adanos_key, [p_ for p_ in picks if p_[1]], br_stat)
+        top = sorted((x for x in out_rows if x.get("pick_rank")), key=lambda x: x["pick_rank"])
+        extra["briefing"] = briefing.auto_briefing(today.isoformat(), extra["sectors"], extra["news"], top)
+    except Exception as e:
+        br_stat["error"] = f"{type(e).__name__}: {e}"[:200]
+    runs[-1].update(perps=perps_st, perps_rows=len(extra["kalshi_perps"]), sectors_rows=len(extra["sectors"]),
+                    news_rows=len(extra["news"]), briefing_calls=br_stat.get("calls", 0), briefing_error=br_stat.get("error"))
     try:  # permanent archive (never fails the pull)
         arc = archive.write(out, state, now, now_et, run_ts, mrows=mrows, raw=raw, topic_log=out_rows, events=ev_rows,
-                            adanos_key=adanos_key, ad_stat=ad_stat, runs=runs[:-1])
+                            adanos_key=adanos_key, ad_stat=ad_stat, runs=runs[:-1], perps=perps_raw if perps_st == "ok" else None)
     except Exception as e:
         arc = {"archive_files": 0, "archive_error": f"{type(e).__name__}: {e}"[:200]}
     runs[-1].update(arc)
     files = dict(topic_log=out_rows, events=ev_rows, score_history=history, daily_log=daily, runs=runs, adanos_daily=ad_cache,
-                 symbol_appendix=appendix, market_data=mkt, **raw)
+                 symbol_appendix=appendix, market_data=mkt, **raw, **extra)
     for k_, v in files.items():
         (out / f"{k_}.json").write_text(json.dumps(v, separators=(",", ":"), default=str))
     return runs[-1]

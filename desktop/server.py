@@ -26,10 +26,11 @@ DATA = SUP / "data"
 SETTINGS = SUP / "settings.json"
 WEB = APP / "web"
 DATASETS = ["topic_log", "score_history", "daily_log", "runs", "adanos_daily", "symbol_appendix", "market_data",
-            "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot", "events"]
+            "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot", "events",
+            "kalshi_perps", "venue_appendix", "sectors", "news", "briefing"]
 DEFAULT_SETTINGS = {"interval_min": 30, "adanos_key": ""}
 
-VERSION = "0.4"
+VERSION = "0.5"
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
 _old = _ver.read_text().strip() if _ver.exists() else None

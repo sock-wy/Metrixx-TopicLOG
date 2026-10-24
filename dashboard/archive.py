@@ -80,7 +80,7 @@ def adanos_day(key, day, stat):
     return out
 
 
-def write(out: pathlib.Path, state: pathlib.Path, now, now_et, run_ts, *, mrows, raw, topic_log, events, adanos_key, ad_stat, runs=()):
+def write(out: pathlib.Path, state: pathlib.Path, now, now_et, run_ts, *, mrows, raw, topic_log, events, adanos_key, ad_stat, runs=(), perps=None):
     root = out / "archive"
     day = now_et.date()
     base = root / f"{day:%Y/%m/%d}"
@@ -98,7 +98,9 @@ def write(out: pathlib.Path, state: pathlib.Path, now, now_et, run_ts, *, mrows,
 
     km = [{k: r.get(k) for k in ("topic", "series", "event", "market", "bid", "ask", "last", "vol24", "oi", "close")}
           for r in mrows if (r.get("vol24") or 0) > 0 or (r.get("oi") or 0) > 0]
-    perps, perps_status = kalshi_perps(now)
+    perps_status = "ok" if perps else None
+    if perps is None:
+        perps, perps_status = kalshi_perps(now)
     for name, obj in (("kalshi_markets", km), ("kalshi_perps", perps), ("polymarket", raw.get("polymarket")),
                       ("us_movers", raw.get("us_movers")), ("topic_log", topic_log), ("events", events)):
         if obj:
