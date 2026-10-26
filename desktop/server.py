@@ -1,7 +1,9 @@
 """Topic Log desktop app: a local server that pulls the data on a timer and serves the dashboard.
 
-Data and settings live in ~/Library/Application Support/TopicLog/. The window is a native
-pywebview window when available, otherwise a Chrome app window, otherwise the default browser.
+Data and settings live in ~/Library/Application Support/TopicLog/ (macOS) or %APPDATA%/TopicLog/ (Windows).
+The window is a native pywebview window when available, otherwise a Chrome / Edge app window, otherwise the
+default browser. On Windows the app is one TopicLog.exe (PyInstaller, desktop/windows/); an Adanos key can sit
+next to it in settings.default.json.
 """
 from __future__ import annotations
 
@@ -19,9 +21,14 @@ import traceback
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-APP = pathlib.Path(__file__).resolve().parent
+APP = pathlib.Path(__file__).resolve().parent  # inside TopicLog.exe this is the unpacked bundle
 sys.path.insert(0, str(APP))
-SUP = pathlib.Path.home() / "Library" / "Application Support" / "TopicLog"
+WINDOWS = sys.platform == "win32"
+EXE_DIR = pathlib.Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else APP
+if WINDOWS:
+    SUP = pathlib.Path(os.environ.get("APPDATA") or pathlib.Path.home() / "AppData" / "Roaming") / "TopicLog"
+else:
+    SUP = pathlib.Path.home() / "Library" / "Application Support" / "TopicLog"
 DATA = SUP / "data"
 SETTINGS = SUP / "settings.json"
 WEB = APP / "web"
@@ -54,10 +61,11 @@ _ver.write_text(VERSION)
 
 def load_settings():
     s = dict(DEFAULT_SETTINGS)
-    try:  # defaults shipped inside the app (the Adanos key the user provided)
-        s.update(json.loads((APP / "settings.default.json").read_text()))
-    except Exception:
-        pass
+    for f in (APP / "settings.default.json", EXE_DIR / "settings.default.json"):
+        try:  # defaults shipped with the app (the Adanos key the user provided); on Windows, next to the .exe
+            s.update(json.loads(f.read_text(encoding="utf-8-sig")))
+        except Exception:
+            pass
     try:
         saved = json.loads(SETTINGS.read_text())
         if saved.get("interval_v", 1) < INTERVAL_V:
@@ -71,7 +79,10 @@ def load_settings():
 
 def save_settings(s):
     SETTINGS.write_text(json.dumps(s, indent=1))
-    os.chmod(SETTINGS, 0o600)
+    try:
+        os.chmod(SETTINGS, 0o600)
+    except OSError:
+        pass
 
 
 state = {"running": False, "last_run": None, "last_ok": None, "error": None, "next_run": None, "summary": None}
@@ -201,8 +212,15 @@ def main():
         os._exit(0)
     except Exception:
         pass
-    chrome = "/Applications/Google Chrome.app"
-    if os.path.exists(chrome):
+    if WINDOWS:
+        edges = [pathlib.Path(os.environ.get(v, "")) / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+                 for v in ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")]
+        edge = next((e for e in edges if e.is_file()), None)
+        if edge:
+            subprocess.Popen([str(edge), f"--app={url}", f"--user-data-dir={SUP / 'edge'}", "--window-size=1520,960"])
+        else:
+            webbrowser.open(url)
+    elif os.path.exists(chrome := "/Applications/Google Chrome.app"):
         subprocess.Popen(["open", "-na", chrome, "--args", f"--app={url}", f"--user-data-dir={SUP / 'chrome'}",
                           "--window-size=1520,960"])
     else:

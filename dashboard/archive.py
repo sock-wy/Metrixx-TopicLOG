@@ -51,7 +51,7 @@ def adanos_day(key, day, stat):
     """One complete UTC day for the whole Adanos universe (reddit / x / news; crypto: reddit), 10 symbols per /compare call."""
     import concurrent.futures as cf
     try:
-        uni = json.loads(UNIVERSE.read_text())
+        uni = json.loads(UNIVERSE.read_text(encoding="utf-8"))
     except Exception:
         return None
     jobs = []

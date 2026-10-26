@@ -94,7 +94,7 @@ def mid(b, a):
 
 def load(path, default):
     try:
-        return json.loads(pathlib.Path(path).read_text())
+        return json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
     except Exception:
         return default
 
@@ -581,7 +581,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     today = now_et.date()
     run_ts = now.replace(microsecond=0).isoformat()
     cfg = scoring.load_config(ROOT / "config" / "weights_w0.yaml")
-    cat_cfg = yaml.safe_load((HERE / "catalysts.yaml").read_text())
+    cat_cfg = yaml.safe_load((HERE / "catalysts.yaml").read_text(encoding="utf-8"))
     macro_dates = sorted([(e["date"] if isinstance(e["date"], dt.date) else dt.date.fromisoformat(e["date"]), e.get("type", "macro"))
                           for e in cat_cfg["events"]])
     macro_classes = set(cat_cfg["applies_to"]) | {"macro"}

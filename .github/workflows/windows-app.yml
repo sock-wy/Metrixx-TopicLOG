@@ -1,0 +1,36 @@
+name: Topic Log Windows app
+
+on:
+  push:
+    branches: [feat/dashboard]
+    paths: ["desktop/**", "dashboard/**", "scoring/**", "config/**", ".github/workflows/windows-app.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: python -m pip install --upgrade pip pyinstaller pyyaml pywebview tzdata
+      - name: Build TopicLog.exe (no Adanos key inside)
+        run: python desktop/windows/build_win.py
+      - name: Self-test (a real pull without an Adanos key)
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "selftest.json"
+          Start-Process -FilePath "desktop\dist\win\TopicLog.exe" -ArgumentList "--selftest", "`"$out`"" -Wait
+          Get-Content $out
+          python -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('ok') else 1)" $out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TopicLog-windows
+          path: desktop/dist/win/TopicLog.exe
+          retention-days: 7
