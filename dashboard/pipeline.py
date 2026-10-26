@@ -40,7 +40,7 @@ import zoneinfo
 import yaml
 
 from scoring import scoring
-from . import archive, briefing, sources
+from . import archive, briefing, digest, sources
 from .registry import Registry, ensure
 from .symbols import CATEGORIES, EXTRA, TOPICS, map_series, topic_info
 
@@ -935,9 +935,16 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         br_stat["error"] = f"{type(e).__name__}: {e}"[:200]
     runs[-1].update(perps=perps_st, perps_rows=len(extra["kalshi_perps"]), sectors_rows=len(extra["sectors"]),
                     news_rows=len(extra["news"]), briefing_calls=br_stat.get("calls", 0), briefing_error=br_stat.get("error"))
+    try:  # compact JSON of this pull for Claude to read (claude_digest.json)
+        extra["claude_digest"] = digest.build(runs[-1], WD["weights"], out_rows, ev_rows, history, extra["sectors"],
+                                              extra["news"], extra["briefing"])
+    except Exception as e:
+        extra["claude_digest"] = []
+        runs[-1]["digest_error"] = f"{type(e).__name__}: {e}"[:200]
     try:  # permanent archive (never fails the pull)
         arc = archive.write(out, state, now, now_et, run_ts, mrows=mrows, raw=raw, topic_log=out_rows, events=ev_rows,
-                            adanos_key=adanos_key, ad_stat=ad_stat, runs=runs[:-1], perps=perps_raw if perps_st == "ok" else None)
+                            adanos_key=adanos_key, ad_stat=ad_stat, runs=runs[:-1], perps=perps_raw if perps_st == "ok" else None,
+                            digest=extra.get("claude_digest"))
     except Exception as e:
         arc = {"archive_files": 0, "archive_error": f"{type(e).__name__}: {e}"[:200]}
     runs[-1].update(arc)

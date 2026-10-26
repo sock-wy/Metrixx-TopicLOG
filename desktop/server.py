@@ -34,11 +34,11 @@ SETTINGS = SUP / "settings.json"
 WEB = APP / "web"
 DATASETS = ["topic_log", "score_history", "daily_log", "runs", "adanos_daily", "symbol_appendix", "market_data",
             "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot", "events",
-            "kalshi_perps", "venue_appendix", "sectors", "news", "briefing"]
+            "kalshi_perps", "venue_appendix", "sectors", "news", "briefing", "claude_digest"]
 DEFAULT_SETTINGS = {"interval_min": 480, "adanos_key": ""}
 INTERVAL_V = 2  # v2: three pulls a day by default (Oct 26); older saved intervals move to 8 hours once
 
-VERSION = "0.6"
+VERSION = "0.7"
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
 _old = _ver.read_text().strip() if _ver.exists() else None
@@ -183,6 +183,21 @@ class Handler(SimpleHTTPRequestHandler):
             save_settings(s)
             wake.set() if body.get("refresh") else None
             return self._json({"ok": True})
+        if self.path == "/api/save":  # "Export JSON for Claude": save to Downloads and copy to the clipboard
+            name = pathlib.Path(str(body.get("name") or "topiclog.json")).name
+            text = str(body.get("text") or "")
+            folder = pathlib.Path.home() / "Downloads"
+            folder = folder if folder.is_dir() else SUP
+            (folder / name).write_text(text, encoding="utf-8")
+            copied = False
+            try:
+                cmd = ["clip"] if WINDOWS else ["pbcopy"] if sys.platform == "darwin" else None
+                if cmd:
+                    subprocess.run(cmd, input=text.encode("utf-8"), check=True, timeout=10)
+                    copied = True
+            except Exception:
+                pass
+            return self._json({"path": str(folder / name), "copied": copied})
         if self.path == "/api/quit":
             self._json({"ok": True})
             threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start()

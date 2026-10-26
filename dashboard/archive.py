@@ -1,7 +1,7 @@
 """Permanent archive: every pull writes what it saw, so backtests are no longer limited by API history.
 
 Layout (gzipped JSON, one file per dataset per pull), under <out>/archive/:
-  YYYY/MM/DD/HHMM_<name>.json.gz     per pull: kalshi_markets, kalshi_perps, polymarket, us_movers, topic_log, events
+  YYYY/MM/DD/HHMM_<name>.json.gz     per pull: kalshi_markets, kalshi_perps, polymarket, us_movers, topic_log, events, claude_digest
   YYYY/MM/DD/daily_<name>.json.gz    once per ET day, first pull at/after 17:00 ET: us_stocks, crypto_spot, earnings_calendar
   adanos/YYYY-MM-DD.json.gz          once per complete UTC day: every symbol in the Adanos universe, every platform
 
@@ -80,7 +80,8 @@ def adanos_day(key, day, stat):
     return out
 
 
-def write(out: pathlib.Path, state: pathlib.Path, now, now_et, run_ts, *, mrows, raw, topic_log, events, adanos_key, ad_stat, runs=(), perps=None):
+def write(out: pathlib.Path, state: pathlib.Path, now, now_et, run_ts, *, mrows, raw, topic_log, events, adanos_key, ad_stat, runs=(), perps=None,
+          digest=None):
     root = out / "archive"
     day = now_et.date()
     base = root / f"{day:%Y/%m/%d}"
@@ -102,7 +103,8 @@ def write(out: pathlib.Path, state: pathlib.Path, now, now_et, run_ts, *, mrows,
     if perps is None:
         perps, perps_status = kalshi_perps(now)
     for name, obj in (("kalshi_markets", km), ("kalshi_perps", perps), ("polymarket", raw.get("polymarket")),
-                      ("us_movers", raw.get("us_movers")), ("topic_log", topic_log), ("events", events)):
+                      ("us_movers", raw.get("us_movers")), ("topic_log", topic_log), ("events", events),
+                      ("claude_digest", digest)):
         if obj:
             _write(base / f"{stamp}_{name}.json.gz", {**meta, "rows": obj})
             written.append(name)

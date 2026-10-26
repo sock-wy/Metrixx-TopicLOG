@@ -1,6 +1,6 @@
 # Topic Log dashboard · Topic Log 看板
 
-**Status 状态:** v2 · scoring w2 (default 默认) · claude.ai dashboard refreshed 3×/day (07, 15, 23 ET) 每天刷新 3 次 · desktop app 桌面 app `Topic Log.app` v0.6 · every pull archived 每次拉取永久存档 · agenda 3–5 added 已加入议程 3–5 (venue appendix 场所附录, Adanos sectors 板块 + news 新闻, briefing 解读)
+**Status 状态:** v2 · scoring w2 (default 默认) · claude.ai dashboard refreshed 3×/day (07, 15, 23 ET) 每天刷新 3 次 · desktop app 桌面 app `Topic Log.app` v0.7 · every pull archived 每次拉取永久存档 · agenda 3–5 added 已加入议程 3–5 (venue appendix 场所附录, Adanos sectors 板块 + news 新闻, briefing 解读)
 
 Agenda item 1 (10/16): one place to see, every few hours, which market topics people are talking about and trading on, rank them for the day's MYCAST episode, and tune the ranking by hand. The pick of record is the first pull at or after 15:00 ET.
 
@@ -24,7 +24,7 @@ every pull 每次拉取 (cloud 云端: 07:00, 15:00, 23:00 ET 每天 3 次 · de
   6. score     打分      within-pull percentile per component → weighted mean 每个指标取当次百分位 → 加权平均
   7. rank      排名      sort, record the 15:00 ET pick 排序、记录每日选题
   8. briefing  解读      venue appendix, Kalshi perps, Adanos sectors and news; cloud: Claude writes the briefing 场所附录、永续合约、Adanos 板块和新闻；云端由 Claude 写解读
-  9. save      保存      18 datasets + archive 18 个数据集 + 存档
+  9. save      保存      19 datasets (incl. claude_digest) + archive 19 个数据集（含给 Claude 的精简 JSON）+ 存档
 ```
 
 The page redoes steps 4–7 in the browser every time you move a control, so tuning is instant. Nothing you change is written back to the data; the stored ranks (`w0 #`, daily picks) stay as the pipeline computed them.
@@ -140,6 +140,7 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 ### Workbench · 3 · OUT — output (right) · 右栏：输出
 
 - **Your pick / Pool / Top 10 shared with w0**: rank 1 with your settings; topics passed vs gated; overlap with the stored w0 top 10. 你的第一名；过门槛和被筛的数量；与 w0 前 10 的重合。
+- **Export JSON for Claude 导出给 Claude 的 JSON** (also on the Briefing tab 解读页也有): a compact JSON of this pull, about 30 KB / 8k tokens: the run and method, the top 20 topics with their inputs, percentiles, rank in the previous pull, top events and news, top-10 entries and exits, sector movers per platform, the briefing, a glossary, and `your_view` (the ranking with the settings on screen). It is copied to the clipboard and downloaded (in the apps: saved to Downloads); the box below always shows it to copy by hand. Paste it into Claude and ask about today's topics. 一份精简 JSON（约 30 KB / 8 千 token）：运行信息和方法、前 20 个话题及其指标、百分位、上次排名、主要事件和新闻、前 10 名的进出、各平台板块变化、解读、字段说明，以及 `your_view`（按你屏幕上的设置排出的名次）。会复制到剪贴板并下载（app 里存到"下载"文件夹）；下方文本框也会显示，可以手动复制。贴给 Claude 就能问今天的话题。
 - **Search 搜索** and **Show gated 显示被筛话题** (with the gate that removed them 及原因).
 - **Ranked table 排名表**: `#` your rank (▲▼ vs w0 相对 w0 的升降), `w0 #`, Topic (`new` = created this pull 本次新建), Name, Class, From (K Kalshi · P Polymarket · A Adanos · M movers), Tier, Score, nine component percentiles (attn, attn X, activity, flow, OI, move, sent, mom, vol), Quality, Gate. Click a header to sort, a row to open it. 点表头排序，点行展开。
 - **Topic breakdown 话题详情**: score arithmetic 得分计算, catalyst 催化剂, each component's percentile and points 各指标百分位和贡献分, raw inputs from every source 每个源的原始数字, rank over the last 10 days 近 10 天名次, most traded events 成交最多的事件.
@@ -190,9 +191,9 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 python -m dashboard.pipeline --state STATE_DIR --out OUT_DIR --adanos-key "$ADANOS_API_KEY"   # or ADANOS_KEY env
 ```
 
-`STATE_DIR` holds the previous `score_history.json`, `daily_log.json`, `runs.json`, `adanos_daily.json` (any may be missing). The cloud scheduled task downloads them from the dashboard, runs this, has Claude rewrite `briefing.json` from `sectors.json`, `news.json` and the top 10 topics, uploads the 18 outputs, repoints the datasets, then runs `dashboard/archive_push.sh out`.
+`STATE_DIR` holds the previous `score_history.json`, `daily_log.json`, `runs.json`, `adanos_daily.json` (any may be missing). The cloud scheduled task downloads them from the dashboard, runs this, has Claude rewrite `briefing.json` from `sectors.json`, `news.json` and the top 10 topics, uploads the 19 outputs, repoints the datasets, then runs `dashboard/archive_push.sh out`.
 
-`STATE_DIR` 放上一次的 4 个状态文件（可缺）。云端定时任务从看板下载它们、运行、让 Claude 根据板块、新闻和前 10 名重写 `briefing.json`、上传 18 个输出、更新数据集，再推送存档。
+`STATE_DIR` 放上一次的 4 个状态文件（可缺）。云端定时任务从看板下载它们、运行、让 Claude 根据板块、新闻和前 10 名重写 `briefing.json`、上传 19 个输出、更新数据集，再推送存档。
 
 | File 文件 | What 内容 |
 |---|---|
@@ -200,17 +201,18 @@ python -m dashboard.pipeline --state STATE_DIR --out OUT_DIR --adanos-key "$ADAN
 | `registry.py` | automatic topics · 自动归类 |
 | `symbols.py` | Kalshi rules, aliases, topic metadata · Kalshi 规则、别名、话题信息 |
 | `sources.py` | free sources · 免费数据源 |
+| `digest.py` | `claude_digest.json`: one pull in ~30 KB for Claude · 给 Claude 读的精简 JSON |
 | `briefing.py` | venue appendix, Kalshi perps, Adanos sectors and news, automatic briefing · 场所附录、永续合约、板块、新闻、自动解读 |
 | `archive.py`, `archive_push.sh`, `adanos_universe.json` | permanent archive · 永久存档 |
 | `catalysts.yaml` | CPI / FOMC dates · 宏观日历 |
 | `page/index.html` | the dashboard page (cloud and app) · 看板页面 |
 | `backfill/` | history pulls for backtests · 回测用的历史数据脚本 |
 
-Outputs 输出 (one JSON per dataset 每个数据集一个 JSON): `topic_log` (one row per topic 每个话题一行), `events`, `score_history` (10 days), `daily_log` (45 days), `runs`, `adanos_daily`, `symbol_appendix`, `market_data`, `kalshi_perps`, `venue_appendix`, `sectors`, `news`, `briefing`, plus raw `us_stocks`, `earnings_calendar`, `us_movers`, `polymarket`, `crypto_spot`.
+Outputs 输出 (one JSON per dataset 每个数据集一个 JSON): `topic_log` (one row per topic 每个话题一行), `events`, `score_history` (10 days), `daily_log` (45 days), `runs`, `adanos_daily`, `symbol_appendix`, `market_data`, `kalshi_perps`, `venue_appendix`, `sectors`, `news`, `briefing`, `claude_digest` (the compact JSON for Claude, `dashboard/digest.py`; the cloud task's briefing step reads only this file), plus raw `us_stocks`, `earnings_calendar`, `us_movers`, `polymarket`, `crypto_spot`.
 
 ### Archive · 存档
 
-Every pull writes what it saw to `archive/` (gzipped JSON): Kalshi markets, Kalshi perps (price, OI, funding), Polymarket, US movers, topic log and events on every pull; US stocks, crypto spot and earnings once a day after 17:00 ET; one complete day of Adanos (~4,800 stocks, ~180 coins, Reddit / X / News) once a day. The cloud appends it to the repo's `archive` branch (~5 MB/day); the app keeps it locally.
+Every pull writes what it saw to `archive/` (gzipped JSON): Kalshi markets, Kalshi perps (price, OI, funding), Polymarket, US movers, topic log, events and the Claude digest on every pull; US stocks, crypto spot and earnings once a day after 17:00 ET; one complete day of Adanos (~4,800 stocks, ~180 coins, Reddit / X / News) once a day. The cloud appends it to the repo's `archive` branch (~5 MB/day); the app keeps it locally.
 
 每次拉取把看到的数据压缩存进 `archive/`：每次存 Kalshi 市场、永续合约、Polymarket、异动、话题表和事件；每天 17:00 后存美股全表、加密现货、财报；每天存一次 Adanos 全量（约 4800 只股票、180 个币，三个平台）。云端推到仓库的 `archive` 分支（每天约 5 MB），app 存在本地。
 

@@ -87,6 +87,9 @@
 #dash-root .brief-note { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); display: flex; flex-direction: column; gap: 6px; }
 #dash-root .brief-note h4 { margin: 0; font-size: var(--cds-font-size-body); font-weight: 600; }
 #dash-root .brief-note p { margin: 0; font-size: var(--cds-font-size-body); line-height: 1.5; white-space: pre-line; }
+#dash-root .cx-box { display: flex; flex-direction: column; gap: 6px; margin-top: var(--cds-gap-sm); }
+#dash-root .cx-box textarea { width: 100%; min-height: 9rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); padding: 6px; box-sizing: border-box; }
+#dash-root .cx-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 #dash-root .news-list { display: flex; flex-direction: column; gap: var(--cds-gap-md); }
 #dash-root .news-topic h4 { margin: 0 0 4px; font-size: var(--cds-font-size-body); }
 #dash-root .news-topic h4 small { font-weight: 400; color: var(--color-fg-muted); margin-left: 6px; }
@@ -240,6 +243,8 @@
       <!-- 3 · output -->
       <div class="wb-col wb-out" id="wb-out">
         <div class="wb-colhead"><h3>Output</h3><span class="wb-step">3 · out</span></div>
+        <div class="cx-row"><button class="btn cx-btn" type="button" title="A compact JSON of this pull (top 20 with inputs, events, news, sectors, briefing, and your current ranking) to paste into Claude">Export JSON for Claude</button><span class="tl-note cx-msg"></span></div>
+        <div class="cx-box" hidden><textarea readonly aria-label="JSON for Claude"></textarea></div>
         <div class="pick" id="pick">
           <div class="tl-tile"><span class="tl-tile-k">Your pick</span><span class="tl-tile-v" id="pk-topic">—</span><span class="tl-tile-s" id="pk-sub"></span></div>
           <div class="tl-tile"><span class="tl-tile-k">Pool</span><span class="tl-tile-v" id="pk-pool">—</span><span class="tl-tile-s" id="pk-pool-sub"></span></div>
@@ -306,6 +311,8 @@
       <h3>Today's read</h3>
       <p class="tl-note" id="brief-src">Sector changes, news on the top topics and today's picks, read by Claude on each cloud pull (the desktop app shows an automatic summary).</p>
       <div class="brief-notes" id="brief-notes" data-source="briefing"></div>
+      <div class="cx-row"><button class="btn cx-btn" type="button" title="A compact JSON of this pull to paste into Claude">Export JSON for Claude</button><span class="tl-note cx-msg"></span></div>
+      <div class="cx-box" hidden><textarea readonly aria-label="JSON for Claude"></textarea></div>
     </div>
     <div class="tl-card" id="card-sectors">
       <h3>Sectors on Adanos: what changed since the day before</h3>
@@ -1460,6 +1467,35 @@ window.TL = (() => {
       return d;
     }));
   }
+  // ------------------------------------------------------------------ export JSON for Claude
+  // The pipeline writes claude_digest.json (dashboard/digest.py); this adds the ranking with the settings on screen.
+  const asciiJson = (o) => JSON.stringify(o).replace(/[\u007f-\uffff]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+  async function exportForClaude(btn) {
+    const wrap = btn.closest('.tl-card, .wb-col'); const msg = wrap.querySelector('.cx-msg'); const box = wrap.querySelector('.cx-box');
+    const base = ok('claude_digest') ? rows_('claude_digest')[0] : null;
+    if (!base) { msg.textContent = 'No digest in this pull yet (it comes with the next pull).'; return; }
+    const keys = Object.keys(S).filter((k) => !k.startsWith('_'));
+    const live = (result && result.live) || [];
+    const out = { ...base, your_view: {
+      note: 'Ranking with the settings on screen when exported; may differ from the stored ' + (base.run && base.run.pick_version || 'w2') + ' ranking in "top".',
+      exported_at: new Date().toISOString(), settings: Object.fromEntries(keys.map((k) => [k, S[k]])),
+      top: live.slice(0, 20).map((r) => ({ rank: r.my_rank, topic: r.topic, score: r.my_score == null ? null : +r.my_score.toFixed(3), stored_rank: r.pick_rank ?? null })),
+    } };
+    const txt = asciiJson(out);
+    const name = 'topiclog_claude_' + String((base.run && base.run.run_et) || '').replace(/[^0-9]/g, '').slice(0, 12) + '.json';
+    box.hidden = false; const ta = box.querySelector('textarea'); ta.value = txt; ta.scrollTop = 0;
+    const done = [];
+    if (window.tlSaveFile) {  // desktop app: saved to Downloads and copied by the local server
+      try { const r = await window.tlSaveFile(name, txt); if (r.path) done.push('saved to ' + r.path); if (r.copied) done.push('copied'); } catch (e) { /* fall through */ }
+    } else {
+      try { await navigator.clipboard.writeText(txt); done.push('copied to the clipboard'); } catch (e) { /* blocked in some frames */ }
+      try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); a.download = name; document.body.append(a); a.click(); a.remove(); done.push('download started'); } catch (e) { /* blocked */ }
+    }
+    msg.textContent = `${(txt.length / 1024).toFixed(0)} KB · ${done.length ? done.join(' · ') : 'select the text below and copy it'}`;
+    if (!done.length) { ta.focus(); ta.select(); }
+  }
+  document.querySelectorAll('.cx-btn').forEach((b) => b.addEventListener('click', () => exportForClaude(b)));
+
   // ------------------------------------------------------------------ venue appendix (agenda 3)
   state.vaQ = ''; state.vaClasses = new Set(); state.vaPerps = false;
   function drawVenues() {
