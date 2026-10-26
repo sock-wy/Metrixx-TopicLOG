@@ -19,5 +19,5 @@ shell = (root / "desktop/web/shell.html").read_text()
 PY
 # optional: SEED=<dir with the latest pull> ./build.sh  -> first start shows that data
 if [ -n "$SEED" ]; then mkdir -p "$A/seed"; for f in "$SEED"/*.json; do [ "$(wc -c < "$f")" -gt 2 ] && cp "$f" "$A/seed/"; done; fi
-[ -n "$1" ] && printf '{"interval_min": 30, "adanos_key": "%s"}' "$1" > "$A/settings.default.json"
+[ -n "$1" ] && printf '{"interval_min": 480, "adanos_key": "%s"}' "$1" > "$A/settings.default.json"
 echo "built $OUT"

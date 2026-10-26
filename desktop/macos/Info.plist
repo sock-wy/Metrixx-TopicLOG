@@ -5,8 +5,8 @@
   <key>CFBundleName</key><string>Topic Log</string>
   <key>CFBundleDisplayName</key><string>Topic Log</string>
   <key>CFBundleIdentifier</key><string>ai.metrixx.topiclog</string>
-  <key>CFBundleVersion</key><string>0.5</string>
-  <key>CFBundleShortVersionString</key><string>0.5</string>
+  <key>CFBundleVersion</key><string>0.6</string>
+  <key>CFBundleShortVersionString</key><string>0.6</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>TopicLog</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>

@@ -1,6 +1,6 @@
 # Topic Log dashboard · Topic Log 看板
 
-**Status 状态:** v2 · scoring w2 (default 默认) · claude.ai dashboard refreshed 8×/day 每天刷新 8 次 · desktop app 桌面 app `Topic Log.app` v0.5 · every pull archived 每次拉取永久存档 · agenda 3–5 added 已加入议程 3–5 (venue appendix 场所附录, Adanos sectors 板块 + news 新闻, briefing 解读)
+**Status 状态:** v2 · scoring w2 (default 默认) · claude.ai dashboard refreshed 3×/day (07, 15, 23 ET) 每天刷新 3 次 · desktop app 桌面 app `Topic Log.app` v0.6 · every pull archived 每次拉取永久存档 · agenda 3–5 added 已加入议程 3–5 (venue appendix 场所附录, Adanos sectors 板块 + news 新闻, briefing 解读)
 
 Agenda item 1 (10/16): one place to see, every few hours, which market topics people are talking about and trading on, rank them for the day's MYCAST episode, and tune the ranking by hand. The pick of record is the first pull at or after 15:00 ET.
 
@@ -14,7 +14,7 @@ Deeper write-up with the backtests: the "Topic Log Dashboard Briefing" doc and t
 ## 1. The overall logic · 整体逻辑
 
 ```
-every pull 每次拉取 (cloud 云端: every 3 h 每 3 小时 · desktop 桌面: your interval 你设的间隔)
+every pull 每次拉取 (cloud 云端: 07:00, 15:00, 23:00 ET 每天 3 次 · desktop 桌面: your interval, default 8 h 你设的间隔，默认 8 小时)
   1. collect   抓取     Kalshi · Polymarket · Adanos (Reddit, X, News) · prices 价格 (Yahoo; Binance → Coinbase → Kraken)
                         + supporting 辅助: Nasdaq stock list 股票列表, Nasdaq earnings 财报, Yahoo movers 异动, Kalshi perps 永续合约
   2. topics    生成话题  every item gets a topic automatically 每条东西自动归到一个话题 (registry.py)
@@ -164,12 +164,12 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 
 ### Desktop app · 桌面 app (`Topic Log.app`)
 
-- **Pull every 拉取间隔** (15 min, 30 min, 1 h, 3 h): the next pull moves to the new interval; it does not pull at once. 改了只影响下一次时间，不会马上拉。
+- **Pull every 拉取间隔** (15 min, 30 min, 1 h, 3 h, 8 h, 12 h, 24 h; default 8 h = 3 pulls a day 默认 8 小时，即每天 3 次): the next pull moves to the new interval; it does not pull at once. 改了只影响下一次时间，不会马上拉。 With 24 h, pull after 15:00 ET so the day gets a pick, and after 17:00 ET for the daily archive parts. 选 24 小时的话，最好在美东 15:00 之后拉，当天才有选题；17:00 之后拉才会存每日全量。
 - **Pull now 立即拉取**: fetch every source now (a few minutes; the dot turns amber). 几分钟，进行中圆点变黄。
 - **Refresh view 刷新显示**: reload the page from data already on the Mac. 用 Mac 上已有的数据重载页面。
 - **Adanos key… 填 key**: stored in `~/Library/Application Support/TopicLog/settings.json` (mode 600). **Quit 退出**.
 - Data, history and archive live in `~/Library/Application Support/TopicLog/data/`, separate from the cloud dashboard; page settings are kept per Mac. 数据、历史和存档在这个文件夹，与云端独立；页面设置保存在本机。
-- First start after an update replaces the data with the pull shipped in the app, then pulls on schedule. 更新后第一次启动会换成安装包里附带的数据，然后按时拉取。
+- First start uses the pull shipped in the app; after an update the data on the Mac is kept unless the shipped pull is newer. 第一次启动用安装包里附带的数据；更新时如果 Mac 上的数据更新，就保留本地数据和历史。
 - Build 打包: `SEED=<dir of a pull> ./desktop/build.sh [ADANOS_API_KEY]` → `desktop/dist/Topic Log.app`. Build without a key for anyone else. 给别人用时不要带 key。
 
 ---

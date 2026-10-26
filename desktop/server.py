@@ -28,14 +28,25 @@ WEB = APP / "web"
 DATASETS = ["topic_log", "score_history", "daily_log", "runs", "adanos_daily", "symbol_appendix", "market_data",
             "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot", "events",
             "kalshi_perps", "venue_appendix", "sectors", "news", "briefing"]
-DEFAULT_SETTINGS = {"interval_min": 30, "adanos_key": ""}
+DEFAULT_SETTINGS = {"interval_min": 480, "adanos_key": ""}
+INTERVAL_V = 2  # v2: three pulls a day by default (Oct 26); older saved intervals move to 8 hours once
 
-VERSION = "0.5"
+VERSION = "0.6"
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
 _old = _ver.read_text().strip() if _ver.exists() else None
-if (_old != VERSION or not any(DATA.glob("*.json"))) and (APP / "seed").exists():
-    # first start, or first start after an update: begin from the pull shipped with this version
+
+
+def _last_ts(folder):
+    try:
+        return json.loads((folder / "runs.json").read_text())[-1].get("run_ts") or ""
+    except Exception:
+        return ""
+
+
+if (APP / "seed").exists() and (not any(DATA.glob("*.json")) or _last_ts(APP / "seed") > _last_ts(DATA)):
+    # first start, or the pull shipped with the app is newer than the data on this Mac: begin from it.
+    # Never replace newer local data (and its history) on an update.
     for p in (APP / "seed").glob("*.json"):
         shutil.copy(p, DATA / p.name)
 _ver.write_text(VERSION)
@@ -48,7 +59,11 @@ def load_settings():
     except Exception:
         pass
     try:
-        s.update({k: v for k, v in json.loads(SETTINGS.read_text()).items() if v not in (None, "")})
+        saved = json.loads(SETTINGS.read_text())
+        if saved.get("interval_v", 1) < INTERVAL_V:
+            saved.update(interval_min=DEFAULT_SETTINGS["interval_min"], interval_v=INTERVAL_V)
+            save_settings(saved)
+        s.update({k: v for k, v in saved.items() if v not in (None, "")})
     except Exception:
         pass
     return s
@@ -96,7 +111,7 @@ def scheduler():
         state["last_ok"] = state["last_run"] = last.get("run_ts")
     while True:
         s = load_settings()
-        interval = max(15, int(s.get("interval_min") or 30)) * 60
+        interval = max(15, int(s.get("interval_min") or 480)) * 60
         ref = state["last_run"]
         due = 0 if not ref else max(0, interval - (time.time() - dt.datetime.fromisoformat(ref).timestamp()))
         state["next_run"] = dt.datetime.fromtimestamp(time.time() + due, dt.timezone.utc).isoformat()
@@ -151,6 +166,7 @@ class Handler(SimpleHTTPRequestHandler):
             s = load_settings()
             if "interval_min" in body:
                 s["interval_min"] = max(15, int(body["interval_min"]))
+            s["interval_v"] = INTERVAL_V
             if body.get("adanos_key"):
                 s["adanos_key"] = str(body["adanos_key"]).strip()
             save_settings(s)
