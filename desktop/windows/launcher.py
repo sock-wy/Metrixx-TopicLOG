@@ -39,7 +39,9 @@ def selftest(out: str) -> None:
         res["pull"] = {k: row.get(k) for k in ("run_et", "topics", "scored", "gated", "pick_top", "kalshi", "prices",
                                                "polymarket_status", "us_stocks_status", "perps_rows")}
         res["files"] = sorted(p.name for p in d.glob("*.json"))
-        res["ok"] = all(res[k] is True for k in ("web", "d3", "config", "universe", "tz")) and bool(row.get("topics"))
+        dg = d / "claude_digest.json"
+        res["digest"] = dg.is_file() and dg.stat().st_size > 1000
+        res["ok"] = all(res[k] is True for k in ("web", "d3", "config", "universe", "tz", "digest")) and bool(row.get("topics"))
     except Exception:
         res["ok"] = False
         res["error"] = traceback.format_exc()

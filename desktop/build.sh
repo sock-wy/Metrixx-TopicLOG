@@ -7,7 +7,7 @@ cp "$ROOT/desktop/macos/Info.plist" "$OUT/Contents/"; cp "$ROOT/desktop/macos/To
 cp "$ROOT/desktop/macos/AppIcon.icns" "$OUT/Contents/Resources/"
 A="$OUT/Contents/Resources/app"
 cp "$ROOT/desktop/server.py" "$A/"; cp "$ROOT/desktop/web/"* "$A/web/"
-cp "$ROOT/dashboard/"{__init__.py,pipeline.py,sources.py,symbols.py,registry.py,archive.py,briefing.py,adanos_universe.json,catalysts.yaml} "$A/dashboard/"
+cp "$ROOT/dashboard/"{__init__.py,pipeline.py,sources.py,symbols.py,registry.py,archive.py,briefing.py,digest.py,adanos_universe.json,catalysts.yaml} "$A/dashboard/"
 cp "$ROOT/scoring/"{__init__.py,scoring.py} "$A/scoring/"; cp "$ROOT/config/weights_w0.yaml" "$A/config/"
 curl -sL https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js -o "$A/web/d3.min.js"
 python3 - "$ROOT" "$A" <<'PY'

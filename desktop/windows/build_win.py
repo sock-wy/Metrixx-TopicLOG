@@ -25,7 +25,7 @@ shutil.copy(ROOT / "desktop" / "server.py", STAGE)
 shutil.copy(WIN / "launcher.py", STAGE)
 for f in (ROOT / "desktop" / "web").iterdir():
     shutil.copy(f, STAGE / "web")
-for f in ("__init__.py", "pipeline.py", "sources.py", "symbols.py", "registry.py", "archive.py", "briefing.py",
+for f in ("__init__.py", "pipeline.py", "sources.py", "symbols.py", "registry.py", "archive.py", "briefing.py", "digest.py",
           "adanos_universe.json", "catalysts.yaml"):
     shutil.copy(ROOT / "dashboard" / f, STAGE / "dashboard")
 for f in ("__init__.py", "scoring.py"):
@@ -48,7 +48,7 @@ PyInstaller.__main__.run([
     "--add-data", f"{STAGE / 'dashboard' / 'adanos_universe.json'}{sep}dashboard",
     "--add-data", f"{STAGE / 'dashboard' / 'catalysts.yaml'}{sep}dashboard",
     *[a for m in ("server", "dashboard.pipeline", "dashboard.sources", "dashboard.symbols", "dashboard.registry",
-                  "dashboard.archive", "dashboard.briefing", "scoring.scoring", "yaml", "webview")
+                  "dashboard.archive", "dashboard.briefing", "dashboard.digest", "scoring.scoring", "yaml", "webview")
       for a in ("--hidden-import", m)],
     "--collect-data", "tzdata",
 ])
