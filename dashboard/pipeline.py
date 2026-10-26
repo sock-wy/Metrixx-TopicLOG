@@ -779,7 +779,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         if i["asset_class"] in macro_classes:
             nxt = next(((d, typ) for d, typ in macro_dates if d >= today), None)
             if nxt:
-                cats.append((trading_days_until(today, nxt[0]), f"{nxt[1]} {nxt[0]:%b %-d}"))
+                cats.append((trading_days_until(today, nxt[0]), f"{nxt[1]} {nxt[0]:%b} {nxt[0].day}"))
         if k and k.get("kpi_days") is not None:
             cats.append((k["kpi_days"], "KPI market resolves"))
         if t in earn and i["asset_class"] == "equity":

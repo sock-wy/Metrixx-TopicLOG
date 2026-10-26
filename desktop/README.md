@@ -10,3 +10,8 @@
 - Its history is separate from the cloud dashboard's.
 
 Build: `./desktop/build.sh [ADANOS_API_KEY]` → `desktop/dist/Topic Log.app`.
+
+
+## Windows
+
+`TopicLog.exe` is built by GitHub Actions (`.github/workflows/windows-app.yml` runs `desktop/windows/build_win.py`, PyInstaller one-file, then `TopicLog.exe --selftest out.json`, which runs a real pull without an Adanos key). Data lives in `%APPDATA%\TopicLog\`. The .exe carries no key (the repo is public); put `settings.default.json` (`{"interval_min": 480, "adanos_key": "..."}`) next to the .exe, or use the Adanos key button.

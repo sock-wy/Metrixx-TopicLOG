@@ -3,7 +3,7 @@ name: Topic Log Windows app
 on:
   push:
     branches: [feat/dashboard]
-    paths: ["desktop/**", "dashboard/**", "scoring/**", "config/**", ".github/workflows/windows-app.yml"]
+    paths: ["desktop/**", "dashboard/**", "scoring/**", "config/**", ".github/workflows/windows-app.yml", "!**/*.md"]
   workflow_dispatch:
 
 permissions:

@@ -172,6 +172,16 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 - First start uses the pull shipped in the app; after an update the data on the Mac is kept unless the shipped pull is newer. 第一次启动用安装包里附带的数据；更新时如果 Mac 上的数据更新，就保留本地数据和历史。
 - Build 打包: `SEED=<dir of a pull> ./desktop/build.sh [ADANOS_API_KEY]` → `desktop/dist/Topic Log.app`. Build without a key for anyone else. 给别人用时不要带 key。
 
+### Windows app · Windows 版 (`TopicLog.exe`)
+
+- One file, no Python needed: double-click `TopicLog.exe`. Same page, buttons and data as the Mac app. 单个文件，不用装 Python，双击即可；页面、按钮、数据和 Mac 版一样。
+- The Adanos key sits in `settings.default.json` **in the same folder as the .exe**; without it, use the **Adanos key…** button. 把 key 放在和 exe 同一个文件夹的 `settings.default.json` 里；没有这个文件时用 **Adanos key…** 按钮填。
+- Data, history and archive: `%APPDATA%\TopicLog\` (paste it into the Explorer address bar). The first start has no data until the first pull finishes (a few minutes). 数据在 `%APPDATA%\TopicLog\`；第一次打开要等第一次拉取完成（几分钟）才有数据。
+- The window is a native window (Edge WebView2, built into Windows 10/11); if that fails it opens as an Edge app window. 窗口用 Windows 自带的 Edge 内核；不行时用 Edge 应用窗口打开。
+- The .exe is not signed: Windows may show "Windows protected your PC" → **More info → Run anyway**. 没有签名，Windows 可能提示"已保护你的电脑"，点"更多信息 → 仍要运行"。
+- To stop it, press **Quit** in the app bar (closing the window also stops it). 用 **Quit** 退出（关窗口也会退出）。
+- Build 打包: GitHub Actions builds it on every push that touches the app (`.github/workflows/windows-app.yml` → `desktop/windows/build_win.py`), runs a real pull as a self-test, and keeps `TopicLog.exe` as a 7-day artifact. The repo is public, so the .exe never carries the key. 每次推送由 GitHub Actions 自动打包并自测一次真实拉取；仓库是公开的，所以 exe 里永远不放 key。
+
 ---
 
 ## 3. For developers · 开发说明
