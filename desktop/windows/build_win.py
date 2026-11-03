@@ -22,10 +22,12 @@ shutil.rmtree(STAGE, ignore_errors=True)
 for d in ("web", "dashboard", "scoring", "config"):
     (STAGE / d).mkdir(parents=True)
 shutil.copy(ROOT / "desktop" / "server.py", STAGE)
+shutil.copy(ROOT / "desktop" / "episode.py", STAGE)
+shutil.copy(ROOT / "desktop" / "episode_prompt.md", STAGE)
 shutil.copy(WIN / "launcher.py", STAGE)
 for f in (ROOT / "desktop" / "web").iterdir():
     shutil.copy(f, STAGE / "web")
-for f in ("__init__.py", "pipeline.py", "sources.py", "symbols.py", "registry.py", "archive.py", "briefing.py", "digest.py",
+for f in ("__init__.py", "pipeline.py", "sources.py", "symbols.py", "registry.py", "archive.py", "briefing.py", "digest.py", "daily.py",
           "adanos_universe.json", "catalysts.yaml"):
     shutil.copy(ROOT / "dashboard" / f, STAGE / "dashboard")
 for f in ("__init__.py", "scoring.py"):
@@ -45,9 +47,10 @@ PyInstaller.__main__.run([
     "--distpath", str(OUT), "--workpath", str(ROOT / "desktop" / "dist" / "win_build"), "--specpath", str(ROOT / "desktop" / "dist"),
     "--add-data", f"{STAGE / 'web'}{sep}web",
     "--add-data", f"{STAGE / 'config'}{sep}config",
+    "--add-data", f"{STAGE / 'episode_prompt.md'}{sep}.",
     "--add-data", f"{STAGE / 'dashboard' / 'adanos_universe.json'}{sep}dashboard",
     "--add-data", f"{STAGE / 'dashboard' / 'catalysts.yaml'}{sep}dashboard",
-    *[a for m in ("server", "dashboard.pipeline", "dashboard.sources", "dashboard.symbols", "dashboard.registry",
+    *[a for m in ("server", "episode", "dashboard.daily", "dashboard.pipeline", "dashboard.sources", "dashboard.symbols", "dashboard.registry",
                   "dashboard.archive", "dashboard.briefing", "dashboard.digest", "scoring.scoring", "yaml", "webview")
       for a in ("--hidden-import", m)],
     "--collect-data", "tzdata",

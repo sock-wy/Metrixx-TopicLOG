@@ -2,9 +2,9 @@
 
 **Status 状态:** v2 · scoring w2 (default 默认) · claude.ai dashboard refreshed 3×/day (07, 15, 23 ET) 每天刷新 3 次 · desktop app 桌面 app `Topic Log.app` v0.7 · every pull archived 每次拉取永久存档 · agenda 3–5 added 已加入议程 3–5 (venue appendix 场所附录, Adanos sectors 板块 + news 新闻, briefing 解读)
 
-Agenda item 1 (10/16): one place to see, every few hours, which market topics people are talking about and trading on, rank them for the day's MYCAST episode, and tune the ranking by hand. The pick of record is the first pull at or after 15:00 ET.
+Agenda item 1 (10/16): one place to see, every few hours, which market topics people are talking about and trading on, rank them for the day's MYCAST episode, and tune the ranking by hand. The pick of record is the first pull at or after 15:00 ET (the 16:15 ET pull since Nov 3).
 
-议程第 1 项（10/16）：一个地方，每隔几小时看到大家在讨论、在交易哪些市场话题，为当天的 MYCAST 节目排序，并且可以手动调整排序。每天的正式选题是美东 15:00（含）之后的第一次拉取。
+议程第 1 项（10/16）：一个地方，每隔几小时看到大家在讨论、在交易哪些市场话题，为当天的 MYCAST 节目排序，并且可以手动调整排序。每天的正式选题是美东 15:00（含）之后的第一次拉取（11/3 起即 16:15 那次）。
 
 Deeper write-up with the backtests: the "Topic Log Dashboard Briefing" doc and the "Topic Log Backtest v3" page.
 更详细的说明和回测：见「Topic Log Dashboard Briefing」文档和「Topic Log Backtest v3」页面。
@@ -14,7 +14,7 @@ Deeper write-up with the backtests: the "Topic Log Dashboard Briefing" doc and t
 ## 1. The overall logic · 整体逻辑
 
 ```
-every pull 每次拉取 (cloud 云端: 07:00, 15:00, 23:00 ET 每天 3 次 · desktop 桌面: your interval, default 8 h 你设的间隔，默认 8 小时)
+every pull 每次拉取 (cloud 云端: 07:00 and 16:15 ET 每天 2 次 · desktop 桌面: 07:00 + 16:15 ET by default, or an interval 默认同样两个时间，也可选间隔)
   1. collect   抓取     Kalshi · Polymarket · Adanos (Reddit, X, News) · prices 价格 (Yahoo; Binance → Coinbase → Kraken)
                         + supporting 辅助: Nasdaq stock list 股票列表, Nasdaq earnings 财报, Yahoo movers 异动, Kalshi perps 永续合约
   2. topics    生成话题  every item gets a topic automatically 每条东西自动归到一个话题 (registry.py)
@@ -165,7 +165,7 @@ Stored fields 存储字段: w0 = `rank`, `demand_score`; default ranking 默认�
 
 ### Desktop app · 桌面 app (`Topic Log.app`)
 
-- **Pull every 拉取间隔** (15 min, 30 min, 1 h, 3 h, 8 h, 12 h, 24 h; default 8 h = 3 pulls a day 默认 8 小时，即每天 3 次): the next pull moves to the new interval; it does not pull at once. 改了只影响下一次时间，不会马上拉。 With 24 h, pull after 15:00 ET so the day gets a pick, and after 17:00 ET for the daily archive parts. 选 24 小时的话，最好在美东 15:00 之后拉，当天才有选题；17:00 之后拉才会存每日全量。
+- **Pull 拉取时间** (07:00 + 16:15 ET (default since v0.9 默认), or every 15 min, 30 min, 1 h, 3 h, 8 h, 12 h, 24 h; default 8 h = 3 pulls a day 默认 8 小时，即每天 3 次): the next pull moves to the new interval; it does not pull at once. 改了只影响下一次时间，不会马上拉。 With 24 h, pull after 15:00 ET so the day gets a pick, and after 17:00 ET for the daily archive parts. 选 24 小时的话，最好在美东 15:00 之后拉，当天才有选题；17:00 之后拉才会存每日全量。
 - **Pull now 立即拉取**: fetch every source now (a few minutes; the dot turns amber). 几分钟，进行中圆点变黄。
 - **Refresh view 刷新显示**: reload the page from data already on the Mac. 用 Mac 上已有的数据重载页面。
 - **Adanos key… 填 key**: stored in `~/Library/Application Support/TopicLog/settings.json` (mode 600). **Quit 退出**.
@@ -212,9 +212,9 @@ Outputs 输出 (one JSON per dataset 每个数据集一个 JSON): `topic_log` (o
 
 ### Archive · 存档
 
-Every pull writes what it saw to `archive/` (gzipped JSON): Kalshi markets, Kalshi perps (price, OI, funding), Polymarket, US movers, topic log, events and the Claude digest on every pull; US stocks, crypto spot and earnings once a day after 17:00 ET; one complete day of Adanos (~4,800 stocks, ~180 coins, Reddit / X / News) once a day. The cloud appends it to the repo's `archive` branch (~5 MB/day); the app keeps it locally.
+Every pull writes what it saw to `archive/` (gzipped JSON): Kalshi markets, Kalshi perps (price, OI, funding), Polymarket, US movers, topic log, events and the Claude digest on every pull; US stocks, crypto spot and earnings once a day after the close (16:15 ET pull); one complete day of Adanos (~4,800 stocks, ~180 coins, Reddit / X / News) once a day. The cloud appends it to the repo's `archive` branch (~5 MB/day); the app keeps it locally.
 
-每次拉取把看到的数据压缩存进 `archive/`：每次存 Kalshi 市场、永续合约、Polymarket、异动、话题表和事件；每天 17:00 后存美股全表、加密现货、财报；每天存一次 Adanos 全量（约 4800 只股票、180 个币，三个平台）。云端推到仓库的 `archive` 分支（每天约 5 MB），app 存在本地。
+每次拉取把看到的数据压缩存进 `archive/`：每次存 Kalshi 市场、永续合约、Polymarket、异动、话题表和事件；每天收盘后（16:15 那次）存美股全表、加密现货、财报；每天存一次 Adanos 全量（约 4800 只股票、180 个币，三个平台）。云端推到仓库的 `archive` 分支（每天约 5 MB），app 存在本地。
 
 ---
 
@@ -231,3 +231,12 @@ Every pull writes what it saw to `archive/` (gzipped JSON): Kalshi markets, Kals
 ---
 
 Back to the [project README](../README.md). 返回项目 README。
+
+
+## Daily Topic Log 每日话题表 (Nov 3)
+
+One readable JSON per New York calendar day, `topic_log_YYYY-MM-DD.json` (window 00:00:01–23:59:59 ET), rewritten by every pull of that day, so after the 16:15 ET pull it is the day's final state (`"final": true`). It holds: whether NYSE was open, the day's pulls, the pick of record, the top 50 topics with rank, score, tier, inputs, Adanos mentions and sentiment, price and moves, each topic's ranks through the day (`intraday`), all priced topics, sectors, news and the briefing. Use it to look back at any day (for example "anatomy of a trade").
+
+每个美东自然日一份 JSON（00:00:01–23:59:59 ET），当天每次拉取都会重写，16:15 那次之后就是当天的最终版（`"final": true`）。内容：当天是否开市、当天各次拉取、当日选题、前 50 个话题（排名、分数、层级、各项输入、Adanos 提及量和情绪、价格和涨跌）、每个话题当天的排名变化、全部有价格的话题、板块、新闻和 briefing。用来回看任意一天。
+
+Where 存在哪里: cloud 云端 → `archive` branch, `daily/`; desktop app 桌面 app → `<data folder>/daily/`, and a copy in `~/Desktop/TopicLog/daily/` when `~/Desktop/TopicLog` exists 桌面有 TopicLog 文件夹时同时复制一份.

@@ -2,7 +2,7 @@
 
 **Status:** v0.1 — macOS app
 
-`Topic Log.app`: the dashboard as a standalone desktop app. A local Python server pulls every source on a timer (15 min to 24 h, default 8 h, set in the app bar), keeps the history in `~/Library/Application Support/TopicLog/data/`, and shows the same page as the claude.ai dashboard (`dashboard/page/index.html`) through a small stand-in for the dashboard runtime (`web/shim.js`).
+`Topic Log.app`: the dashboard as a standalone desktop app. A local Python server pulls every source at 07:00 and 16:15 ET (default since v0.9; a pull missed while the Mac slept runs on wake) or on an interval of 15 min to 24 h, set in the app bar, keeps the history in `~/Library/Application Support/TopicLog/data/`, and shows the same page as the claude.ai dashboard (`dashboard/page/index.html`) through a small stand-in for the dashboard runtime (`web/shim.js`).
 
 - First launch finds Python 3.9+ (Anaconda, Homebrew or system), creates a private venv with `pyyaml` and `pywebview`, then opens a native window. Without pywebview it opens a Chrome app window, else the default browser.
 - The Adanos key can be set from the app bar; it is stored in `settings.json` in the support folder (mode 600), never in the repo.
@@ -14,4 +14,10 @@ Build: `./desktop/build.sh [ADANOS_API_KEY]` → `desktop/dist/Topic Log.app`.
 
 ## Windows
 
-`TopicLog.exe` is built by GitHub Actions (`.github/workflows/windows-app.yml` runs `desktop/windows/build_win.py`, PyInstaller one-file, then `TopicLog.exe --selftest out.json`, which runs a real pull without an Adanos key). Data lives in `%APPDATA%\TopicLog\`. The .exe carries no key (the repo is public); put `settings.default.json` (`{"interval_min": 480, "adanos_key": "..."}`) next to the .exe, or use the Adanos key button.
+`TopicLog.exe` is built by GitHub Actions (`.github/workflows/windows-app.yml` runs `desktop/windows/build_win.py`, PyInstaller one-file, then `TopicLog.exe --selftest out.json`, which runs a real pull without an Adanos key and reports every data source; a source that cannot be reached shows as a warning). Data lives in `%APPDATA%\TopicLog\`. The .exe carries no key (the repo is public); put `settings.default.json` (`{"interval_min": 0, "adanos_key": "..."}` (0 = 07:00 and 16:15 ET)) next to the .exe, or use the Adanos key button.
+
+## v0.9 (Nov 3)
+- Pulls at 07:00 and 16:15 ET by default (older saved intervals move to this once).
+- MYCAST episodes (v0.8: digest → Claude draft → review → ElevenLabs MP3) now always write with `claude-sonnet-5-5`, also when an older `keys.json` names another model.
+- Daily Topic Log `topic_log_YYYY-MM-DD.json` in the data folder's `daily/`, copied to `~/Desktop/TopicLog/daily/` when that folder exists (macOS may ask once for Desktop access).
+- Nasdaq and Yahoo requests send browser headers (home networks hung or got 401/429 without them); source errors carry a short hint (antivirus/HTTPS inspection, firewall, rate limit).

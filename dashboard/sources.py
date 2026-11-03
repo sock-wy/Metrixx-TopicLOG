@@ -15,19 +15,43 @@ import urllib.parse
 import urllib.request
 
 UA = {"User-Agent": "Mozilla/5.0 (Metrixx TopicLog dashboard)"}
+# Nasdaq and Yahoo answer home connections only when the request looks like a browser: without these headers
+# Nasdaq often hangs until the timeout and Yahoo returns 401/429 (seen on a Windows PC on a home network, Nov 3).
+BROWSER = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/129.0.0.0 Safari/537.36",
+           "Accept": "application/json, text/plain, */*", "Accept-Language": "en-US,en;q=0.9"}
+HOST_HEADERS = {"api.nasdaq.com": {**BROWSER, "Origin": "https://www.nasdaq.com", "Referer": "https://www.nasdaq.com/"},
+                "query1.finance.yahoo.com": {**BROWSER, "Origin": "https://finance.yahoo.com",
+                                             "Referer": "https://finance.yahoo.com/"}}
+
+
+def _explain(e):
+    """A short hint for the usual failures on a user's own computer."""
+    s = f"{type(e).__name__}: {e}"
+    if "CERTIFICATE_VERIFY_FAILED" in s:
+        return s + " (antivirus or company network inspecting HTTPS)"
+    if isinstance(e, TimeoutError) or "timed out" in s:
+        return s + " (no answer: site busy, or blocked by a firewall)"
+    if " 429" in s or "Too Many" in s:
+        return s + " (rate limited: try again later)"
+    if " 451" in s or " 403" in s:
+        return s + " (refused from this network or country)"
+    return s
 
 
 def _get(url, headers=None, timeout=40, tries=3):
     err = None
+    host = urllib.parse.urlsplit(url).hostname or ""
+    base = HOST_HEADERS.get(host) or {**UA, "Accept": "application/json"}
     for i in range(tries):
         try:
-            req = urllib.request.Request(url, headers={**UA, "Accept": "application/json", **(headers or {})})
+            req = urllib.request.Request(url, headers={**base, **(headers or {})})
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.load(r)
         except Exception as e:
             err = e
             time.sleep(2 * (i + 1))
-    raise err
+    raise RuntimeError(_explain(err)) from err
 
 
 def _num(x):

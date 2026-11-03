@@ -22,6 +22,7 @@ def selftest(out: str) -> None:
         res["d3"] = (base / "web" / "d3.min.js").is_file()
         res["config"] = (base / "config" / "weights_w0.yaml").is_file()
         res["universe"] = (base / "dashboard" / "adanos_universe.json").is_file()
+        res["episode_prompt"] = (base / "episode_prompt.md").is_file()
         import zoneinfo
 
         zoneinfo.ZoneInfo("America/New_York")
@@ -36,12 +37,20 @@ def selftest(out: str) -> None:
 
         d = pathlib.Path(tempfile.mkdtemp())
         row = pipeline.run(d, d, adanos_key=None)
-        res["pull"] = {k: row.get(k) for k in ("run_et", "topics", "scored", "gated", "pick_top", "kalshi", "prices",
-                                               "polymarket_status", "us_stocks_status", "perps_rows")}
+        res["pull"] = {k: row.get(k) for k in ("run_et", "topics", "scored", "gated", "pick_top", "kalshi", "prices", "perps_rows")}
+        # one line per data source, so a source that cannot be reached shows up (CI warns on each, the app logs it)
+        res["sources"] = {
+            "kalshi": {"status": row.get("kalshi"), "rows": row.get("kalshi_markets")},
+            "prices": {"status": row.get("prices"), "rows": row.get("priced")},
+            "adanos": {"status": row.get("adanos"), "error": row.get("adanos_error")},
+            **{n: {"status": row.get(f"{n}_status"), "rows": row.get(f"{n}_rows"), "error": row.get(f"{n}_error")}
+               for n in ("us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot")},
+        }
         res["files"] = sorted(p.name for p in d.glob("*.json"))
         dg = d / "claude_digest.json"
         res["digest"] = dg.is_file() and dg.stat().st_size > 1000
-        res["ok"] = all(res[k] is True for k in ("web", "d3", "config", "universe", "tz", "digest")) and bool(row.get("topics"))
+        res["daily"] = any((d / "daily").glob("topic_log_*.json"))
+        res["ok"] = all(res[k] is True for k in ("web", "d3", "config", "universe", "episode_prompt", "tz", "digest", "daily")) and bool(row.get("topics"))
     except Exception:
         res["ok"] = False
         res["error"] = traceback.format_exc()

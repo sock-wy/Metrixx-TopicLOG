@@ -121,7 +121,7 @@ def build(run: dict, weights: dict, rows: list, events: list, history: list, sec
     return [{
         "schema": SCHEMA,
         "about": "Metrixx Topic Log: market topics ranked by how likely they are to carry today's MYCAST episode. "
-                 "Facts from public data; not investment advice. The 15:00 ET pull is the pick of record.",
+                 "Facts from public data; not investment advice. The afternoon pull (16:15 ET) is the pick of record.",
         "run": {"run_et": run.get("run_et"), "run_ts": run_ts, "pick_version": run.get("pick_version"),
                 "topics": run.get("topics"), "scored": run.get("scored"), "gated": run.get("gated"),
                 "sources": {k: run.get(k) for k in keys if run.get(k) is not None}},

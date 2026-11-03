@@ -2,7 +2,7 @@
 
 Layout (gzipped JSON, one file per dataset per pull), under <out>/archive/:
   YYYY/MM/DD/HHMM_<name>.json.gz     per pull: kalshi_markets, kalshi_perps, polymarket, us_movers, topic_log, events, claude_digest
-  YYYY/MM/DD/daily_<name>.json.gz    once per ET day, first pull at/after 17:00 ET: us_stocks, crypto_spot, earnings_calendar
+  YYYY/MM/DD/daily_<name>.json.gz    once per ET day, first pull at/after 16:10 ET: us_stocks, crypto_spot, earnings_calendar
   adanos/YYYY-MM-DD.json.gz          once per complete UTC day: every symbol in the Adanos universe, every platform
 
 The cloud scheduled task pushes <out>/archive to the `archive` branch of the repo; the desktop app keeps it in its
@@ -109,7 +109,7 @@ def write(out: pathlib.Path, state: pathlib.Path, now, now_et, run_ts, *, mrows,
             _write(base / f"{stamp}_{name}.json.gz", {**meta, "rows": obj})
             written.append(name)
 
-    if now_et.hour >= 17 and st.get("daily_day") != day.isoformat():
+    if now_et.hour * 60 + now_et.minute >= 16 * 60 + 10 and st.get("daily_day") != day.isoformat():  # after the close (16:15 pull)
         for name in ("us_stocks", "crypto_spot", "earnings_calendar"):
             if raw.get(name):
                 _write(base / f"daily_{name}.json.gz", {**meta, "rows": raw[name]})

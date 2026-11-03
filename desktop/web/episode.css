@@ -1,0 +1,43 @@
+/* Episode tab (desktop app only): MYCAST script -> approve -> MP3 */
+#dash-root .ep-grid { display: grid; grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); gap: var(--cds-gap-lg); align-items: start; }
+@media (max-width: 900px) { #dash-root .ep-grid { grid-template-columns: 1fr; } }
+#dash-root .ep-new { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); }
+#dash-root .ep-new select, #dash-root .ep-input { font: inherit; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); border-radius: var(--cds-radius); padding: 5px 8px; min-width: 0; }
+#dash-root .ep-new select { max-width: 26rem; }
+#dash-root .ep-list { display: flex; flex-direction: column; gap: 6px; }
+#dash-root .ep-item { text-align: left; font: inherit; font-size: var(--cds-font-size-caption); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 8px 10px; cursor: pointer; color: var(--color-fg); display: flex; flex-direction: column; gap: 2px; }
+#dash-root .ep-item[aria-current="true"] { border-color: var(--color-fg); box-shadow: inset 0 0 0 1px var(--color-fg); }
+#dash-root .ep-item .t { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#dash-root .ep-item .m { color: var(--color-fg-muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+#dash-root .ep-status { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 11px; border: 1px solid var(--color-border-line); color: var(--color-fg-muted); white-space: nowrap; }
+#dash-root .ep-status.draft { border-color: var(--color-fg-muted); }
+#dash-root .ep-status.approved { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+#dash-root .ep-status.audio { background: var(--color-ok); color: #fff; border-color: var(--color-ok); }
+#dash-root .ep-status.discarded { text-decoration: line-through; }
+#dash-root .ep-status.busy { color: var(--color-warn); border-color: var(--color-warn); animation: pulse 1s infinite alternate; }
+#dash-root .ep-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); }
+#dash-root .ep-title { flex: 1 1 20rem; font-family: var(--font-anthropic-serif); font-size: 22px; border: 1px solid transparent; background: transparent; color: var(--color-fg); border-radius: var(--cds-radius); padding: 2px 6px; min-width: 0; }
+#dash-root .ep-title:hover, #dash-root .ep-title:focus { border-color: var(--color-border-line); background: var(--color-bg); outline: none; }
+#dash-root .ep-meta { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+#dash-root .ep-why { font-size: var(--cds-font-size-body); margin: 0; max-width: 80ch; }
+#dash-root .ep-script { width: 100%; min-height: 30rem; box-sizing: border-box; resize: vertical; font-family: var(--font-anthropic-serif); font-size: 16px; line-height: 1.6; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); padding: 14px 16px; }
+#dash-root .ep-script:focus { outline: 2px solid var(--color-fg); outline-offset: 1px; }
+#dash-root .ep-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); }
+#dash-root .ep-row .ep-input { flex: 1 1 18rem; }
+#dash-root .btn:disabled { opacity: .45; cursor: default; }
+#dash-root .btn.danger { color: var(--color-bad); }
+#dash-root .ep-checks { border: 1px solid var(--color-warn); border-radius: var(--cds-radius); padding: 8px 12px; font-size: var(--cds-font-size-caption); }
+#dash-root .ep-checks h4 { margin: 0 0 4px; font-size: var(--cds-font-size-caption); color: var(--color-warn); }
+#dash-root .ep-checks ul, #dash-root .ep-src ul { margin: 0; padding-left: 1.1rem; }
+#dash-root .ep-err { color: var(--color-bad); font-size: var(--cds-font-size-caption); white-space: pre-wrap; margin: 0; }
+#dash-root .ep-msg { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+#dash-root .ep-src { font-size: var(--cds-font-size-caption); }
+#dash-root .ep-src a { color: inherit; }
+#dash-root .ep-frame td { white-space: normal; text-align: left; vertical-align: top; }
+#dash-root .ep-frame td:first-child { color: var(--color-fg-muted); width: 8rem; }
+#dash-root .ep-empty { color: var(--color-fg-muted); font-size: var(--cds-font-size-body); padding: var(--cds-pad-xl); text-align: center; }
+#dash-root audio { width: min(100%, 28rem); height: 32px; }
+#dash-root details > summary { cursor: pointer; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+
+/* keys form in the app bar */
+.app-bar #ab-keysform { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

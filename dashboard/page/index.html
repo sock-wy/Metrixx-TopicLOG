@@ -348,7 +348,7 @@
   <!-- ============================== Daily picks -->
   <section class="tl-page" id="daily" role="tabpanel" aria-labelledby="tab-daily" hidden>
     <div class="tl-card" id="card-daily-chart">
-      <h3>Daily pick, 15:00 ET pull</h3>
+      <h3>Daily pick, afternoon pull (16:15 ET)</h3>
       <p class="tl-note">The rank-1 topic's score each day, labelled with the topic. The pick is the default ranking of the day: w2 from Oct 24, w1 on Oct 23, w0 before. This is Sheet 2 (2_topic_log) as of the pick time; Step 4 (the editor's pick) and the episode log come later.</p>
       <div class="tl-chart" id="daily-chart" data-source="daily_log"></div>
     </div>
@@ -376,7 +376,7 @@
   <section class="tl-page" id="runs" role="tabpanel" aria-labelledby="tab-runs" hidden>
     <div class="tl-card" id="card-runs-chart">
       <h3>Topics scored and gated per pull</h3>
-      <p class="tl-note">Cloud: three pulls a day at 07, 15 and 23 ET (every 3 hours until Oct 25). The 15:00 ET pull is the day's pick. A missing bar means a pull did not run.</p>
+      <p class="tl-note">Cloud: two pulls a day at 07:00 and 16:15 ET since Nov 3 (07, 15 and 23 ET from Oct 26; every 3 hours before). The afternoon pull is the day's pick. A missing bar means a pull did not run.</p>
       <div class="tl-chart" id="runs-chart" data-source="runs"></div>
     </div>
     <div class="tl-card" id="card-runs-table">
@@ -1136,12 +1136,12 @@ window.TL = (() => {
   function drawDaily() {
     const tbody = document.querySelector('#daily-table tbody');
     const box = document.getElementById('daily-chart');
-    if (!ok('daily_log')) { emptyRow(tbody, 8, dash.data('daily_log').status === 'loading' ? 'Loading…' : 'The first entry lands with the 15:00 ET pull.'); box.replaceChildren(); return; }
+    if (!ok('daily_log')) { emptyRow(tbody, 8, dash.data('daily_log').status === 'loading' ? 'Loading…' : 'The first entry lands with the afternoon pull (16:15 ET).'); box.replaceChildren(); return; }
     const RK = (r) => ('pick_rank' in r ? r.pick_rank : 'w1_rank' in r ? r.w1_rank : r.rank);  // the default of the day: w2 from Oct 24, w1 on Oct 23, w0 before
     const all = rows('daily_log').map((r) => ({ ...r, d_rank: RK(r), d_score: r.pick_score ?? r.w1_score ?? r.demand_score, d_tier: r.pick_tier ?? r.w1_tier ?? r.tier })).filter((r) => r.d_rank != null && r.d_rank <= 5);
     const { out, s } = sortRows('daily', all, 'date', 'desc');
     ariaSort('daily-table', s);
-    if (!out.length) emptyRow(tbody, 8, 'The first entry lands with the 15:00 ET pull.');
+    if (!out.length) emptyRow(tbody, 8, 'The first entry lands with the afternoon pull (16:15 ET).');
     else {
       const frag = document.createDocumentFragment();
       for (const r of out) {
@@ -1157,7 +1157,7 @@ window.TL = (() => {
     if (state.page !== 'daily' || !box.clientWidth) return;
     box.replaceChildren();
     const picks = rows('daily_log').filter((r) => RK(r) === 1).map((r) => ({ d: new Date(r.date + 'T00:00:00Z'), s: r.pick_score ?? r.w1_score ?? r.demand_score, topic: r.topic })).sort((a, b) => a.d - b.d);
-    if (!picks.length) { box.append(el('p', 'tl-note', 'No daily pick recorded yet. The 15:00 ET pull writes the first one.')); return; }
+    if (!picks.length) { box.append(el('p', 'tl-note', 'No daily pick recorded yet. The afternoon pull (16:15 ET) writes the first one.')); return; }
     const W = box.clientWidth, H = 260, m = { t: 20, r: 16, b: 28, l: 40 };
     const x = d3.scaleBand(picks.map((p) => +p.d), [m.l, W - m.r]).padding(0.3);
     const y = d3.scaleLinear([0, 1], [H - m.b, m.t]);
@@ -1180,7 +1180,7 @@ window.TL = (() => {
     for (const r of out) {
       const tr = el('tr'); tr.dataset.key = r.run_ts;
       const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
-      td(r.run_ts, 'l'); td(String(r.pull_hour_et).padStart(2, '0') + ':00'); td(r.kalshi, 'l'); td(show(r.kalshi_markets, d3.format(','))); td(r.adanos, 'l');
+      td(r.run_ts, 'l'); td(r.pull_hour_et == null ? '' : String(Math.floor(r.pull_hour_et)).padStart(2, '0') + ':' + String(Math.round((r.pull_hour_et % 1) * 60)).padStart(2, '0')); td(r.kalshi, 'l'); td(show(r.kalshi_markets, d3.format(','))); td(r.adanos, 'l');
       td(r.adanos_quota_left == null ? '–' : String(r.adanos_quota_left)); td(r.prices, 'l'); td(String(r.scored)); td(String(r.gated));
       td(r.top_topic, 'l'); td(r.momentum_top, 'l'); td(String(r.seconds));
       frag.append(tr);

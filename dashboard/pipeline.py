@@ -41,6 +41,7 @@ import yaml
 
 from scoring import scoring
 from . import archive, briefing, digest, sources
+from . import daily as daily_mod
 from .registry import Registry, ensure
 from .symbols import CATEGORIES, EXTRA, TOPICS, map_series, topic_info
 
@@ -53,7 +54,7 @@ ADANOS = "https://api.adanos.org"
 YAHOO = "https://query1.finance.yahoo.com/v8/finance/spark"
 YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart/"
 UA = {"User-Agent": "Mozilla/5.0 (Metrixx TopicLog dashboard)"}
-PULL_HOURS_ET = [7, 15, 23]  # cloud schedule since Oct 26 (was every 3 h)
+PULL_HOURS_ET = [7, 16.25]  # 07:00 and 16:15 ET since Nov 3 (07/15/23 from Oct 26, every 3 h before)
 HISTORY_DAYS, DAILY_DAYS, ADANOS_DAYS = 10, 45, 10
 STOCK_PLATFORMS = ("reddit", "x", "news")
 TICKER_ALIAS = {"GOOG": "GOOGL", "BRK/B": "BRK.B", "BRK-B": "BRK.B"}
@@ -850,7 +851,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
                      momentum_pct=r["momentum_pct"], k_vol=r["k_vol"], k_oi=r["k_oi"], p_vol=r["p_vol"], p_oi=r["p_oi"],
                      gate=r["gate"]) for r in out_rows]
     d = today.isoformat()
-    if now_et.hour >= 15 and not any(r["date"] == d for r in daily):  # first pull at or after the 15:00 ET pick
+    if now_et.hour >= 15 and not any(r["date"] == d for r in daily):  # first pull at or after 15:00 ET is the pick (16:15 since Nov 3)
         daily += [dict(date=d, **{k_: r.get(k_) for k_ in ("rank", "pick_rank", "pick_score", "pick_tier", "topic", "name", "asset_class", "tier", "gate", "demand_score",
                                                           "momentum_pct", "momentum_rank", "k_vol", "p_vol", "abnormal_move", "chg_24h")})
                   for r in out_rows]
@@ -948,6 +949,11 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     except Exception as e:
         arc = {"archive_files": 0, "archive_error": f"{type(e).__name__}: {e}"[:200]}
     runs[-1].update(arc)
+    try:  # the day's Topic Log under its ET date (never fails the pull)
+        runs[-1]["daily_file"] = daily_mod.write(out, now_et, runs=runs, rows=out_rows, history=history, market=mkt,
+                                                 sectors=extra["sectors"], news=extra["news"], digest=extra.get("claude_digest"))
+    except Exception as e:
+        runs[-1]["daily_error"] = f"{type(e).__name__}: {e}"[:200]
     files = dict(topic_log=out_rows, events=ev_rows, score_history=history, daily_log=daily, runs=runs, adanos_daily=ad_cache,
                  symbol_appendix=appendix, market_data=mkt, **raw, **extra)
     for k_, v in files.items():

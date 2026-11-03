@@ -28,6 +28,7 @@ jobs:
           $out = Join-Path $env:RUNNER_TEMP "selftest.json"
           Start-Process -FilePath "desktop\dist\win\TopicLog.exe" -ArgumentList "--selftest", "`"$out`"" -Wait
           Get-Content $out
+          python -c "import json,sys; d=json.load(open(sys.argv[1])); [print(f'::warning::source {n}: {v}') for n, v in (d.get('sources') or {}).items() if v.get('status') not in ('ok', 'fetched', 'cached', 'skipped')]" $out
           python -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('ok') else 1)" $out
       - uses: actions/upload-artifact@v4
         with:
