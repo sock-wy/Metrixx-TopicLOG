@@ -35,15 +35,19 @@ def init(sup, data, app, exe_dir):
     EPI = SUP / "episodes"
     EPI.mkdir(parents=True, exist_ok=True)
     KEYS = SUP / "keys.json"
-    if not KEYS.exists():  # first start: take a keys.json placed next to the app (then it lives in the support folder)
-        near = [EXE_DIR, APP] + ([APP.parents[3]] if len(APP.parents) > 3 else [])  # .exe folder; folder holding Topic Log.app
-        for f in [d / "keys.json" for d in near]:
-            try:
-                k = json.loads(f.read_text(encoding="utf-8-sig"))
-                save_keys(k)
-                break
-            except Exception:
-                pass
+    # every start: a keys.json placed next to the app fills any key the support folder does not have yet
+    # (keys saved with Episode keys… are kept; then they live in the support folder)
+    near = [EXE_DIR, APP] + ([APP.parents[3]] if len(APP.parents) > 3 else [])  # .exe folder; folder holding Topic Log.app
+    for f in [d / "keys.json" for d in near]:
+        try:
+            k = json.loads(f.read_text(encoding="utf-8-sig"))
+        except Exception:
+            continue
+        have = load_keys()
+        missing = {a: b for a, b in k.items() if a in KEY_FIELDS and not have.get(a)}
+        if missing or not KEYS.exists():
+            save_keys(missing)
+        break
 
 
 def now():
