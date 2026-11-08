@@ -10,7 +10,9 @@
       $('ab-text').textContent = s.running ? 'Pulling Kalshi, Adanos, prices and free sources…'
         : s.error ? `Last pull failed: ${s.error}` : `Last pull ${fmt(s.last_ok)} · next ${fmt(s.next_run)}`;
       $('ab-refresh').disabled = s.running;
-      if (document.activeElement !== $('ab-interval')) $('ab-interval').value = String(s.interval_min);
+      status = s;
+      const on = (s.schedule || []).filter((x) => x.on).map((x) => x.t);
+      $('ab-sched-sum').textContent = on.join(' · ') + ' CT' + (s.weekdays_only ? ' (weekdays)' : '');
       $('ab-key').textContent = s.has_key ? 'Adanos key set' : 'No Adanos key';
       $('ab-key').className = s.has_key ? 'key-ok' : 'key-missing';
       if (s.last_ok && s.last_ok !== lastSeen && !s.running) { if (lastSeen !== null) window.TLDATA.load(); lastSeen = s.last_ok; }
@@ -20,7 +22,47 @@
   }
   const post = (path, body) => fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
   $('ab-refresh').addEventListener('click', async () => { await post('/api/refresh'); setTimeout(poll, 300); });
-  $('ab-interval').addEventListener('change', async (e) => { await post('/api/settings', { interval_min: Number(e.target.value) }); poll(); });
+  // ---- schedule panel
+  let status = null; let rows = [];
+  const panel = $('ab-sched-panel');
+  function drawRows() {
+    const box = $('sched-rows'); box.replaceChildren();
+    rows.sort((a, b) => a.t.localeCompare(b.t));
+    rows.forEach((r, i) => {
+      const lock = r.t === (status && status.pick_slot);
+      const line = document.createElement('div'); line.className = 'sched-row';
+      const t = document.createElement('input'); t.type = 'time'; t.value = r.t; t.disabled = lock; t.setAttribute('aria-label', 'Pull time ' + (i + 1));
+      t.addEventListener('change', () => { r.t = t.value; drawRows(); });
+      const on = document.createElement('input'); on.type = 'checkbox'; on.checked = r.on; on.disabled = lock; on.setAttribute('aria-label', 'On');
+      on.addEventListener('change', () => { r.on = on.checked; });
+      const lab = document.createElement('label'); lab.append(on, ' on');
+      line.append(t, lab);
+      if (lock) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = 'pick of record'; line.append(b); }
+      else { const x = document.createElement('button'); x.type = 'button'; x.textContent = 'Remove'; x.addEventListener('click', () => { rows.splice(i, 1); drawRows(); }); line.append(x); }
+      box.append(line);
+    });
+    $('sched-add').disabled = rows.length >= ((status && status.max_slots) || 6);
+  }
+  $('ab-sched').addEventListener('click', () => {
+    if (!panel.hidden) { panel.hidden = true; return; }
+    rows = ((status && status.schedule) || []).map((x) => ({ ...x }));
+    $('sched-wk').checked = !!(status && status.weekdays_only);
+    $('sched-err').textContent = '';
+    $('sched-next').textContent = status && status.next_run ? `Next pull now: ${fmt(status.next_run)} (your computer's time)` : '';
+    drawRows(); panel.hidden = false;
+  });
+  $('sched-add').addEventListener('click', () => {
+    const used = new Set(rows.map((r) => r.t)); let h = 18;
+    while (used.has(String(h).padStart(2, '0') + ':15') && h < 23) h++;
+    rows.push({ t: String(h).padStart(2, '0') + ':15', on: true }); drawRows();
+  });
+  $('sched-cancel').addEventListener('click', () => { panel.hidden = true; });
+  $('sched-save').addEventListener('click', async () => {
+    const r = await (await post('/api/schedule', { schedule: rows, weekdays_only: $('sched-wk').checked })).json();
+    if (r.error) { $('sched-err').textContent = r.error; return; }
+    panel.hidden = true; poll();
+  });
+  $('ab-folder').addEventListener('click', () => post('/api/open-folder', {}));
   $('ab-reload').addEventListener('click', () => { window.TLDATA.load(); const b = $('ab-reload'); b.textContent = 'Refreshed'; setTimeout(() => { b.textContent = 'Refresh view'; }, 1200); });
   $('ab-keybtn').addEventListener('click', () => { const f = $('ab-keyform'); f.hidden = !f.hidden; if (!f.hidden) $('ab-keyinput').focus(); });
   $('ab-keysave').addEventListener('click', async () => {

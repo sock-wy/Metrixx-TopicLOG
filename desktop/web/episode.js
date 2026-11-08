@@ -46,9 +46,24 @@
     h('h3', null, 'New MYCAST episode'),
     h('div', { class: 'ep-new' }, pick, draftBtn, newMsg),
     h('p', { class: 'tl-note' }, 'Claude reads this pull\'s digest, checks the story on the web and drafts a spoken script (1–3 minutes). Nothing is recorded until you approve the script and press Make audio.'));
+  // own script (e.g. Jim's): paste it, skip the Claude draft, then approve -> Make audio as usual
+  const pTitle = h('input', { class: 'ep-input', placeholder: 'Title', 'aria-label': 'Title of your script', style: 'flex:2 1 16rem' });
+  const pTopic = h('input', { class: 'ep-input', placeholder: 'Ticker / topic (optional)', 'aria-label': 'Topic', style: 'flex:1 1 9rem' });
+  const pText = h('textarea', { class: 'ep-script', placeholder: 'Paste the full spoken script here.', 'aria-label': 'Your script', style: 'min-height:12rem' });
+  const pMsg = h('span', { class: 'ep-msg' });
+  const pBtn = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
+    if (dirty && !confirm('Discard unsaved edits in the open episode?')) return;
+    pBtn.disabled = true;
+    try { const ep = await api('paste', { title: pTitle.value, topic: pTopic.value, script: pText.value });
+      pTitle.value = pTopic.value = pText.value = ''; pMsg.textContent = ''; pasteCard.open = false; dirty = false; await open(ep.id);
+    } catch (e) { pMsg.textContent = e.message; }
+    pBtn.disabled = false; refresh();
+  } }, 'Use this script');
+  const pasteCard = h('details', { class: 'tl-card ep-paste' }, h('summary', null, h('strong', null, 'Use my own script'), ' · paste a finished script (no Claude draft), then approve and Make audio with ElevenLabs'),
+    h('div', { class: 'ep-row', style: 'margin-top:8px' }, pTitle, pTopic), pText, h('div', { class: 'ep-row' }, pBtn, pMsg));
   const list = h('div', { class: 'ep-list' });
   const editor = h('div', { class: 'tl-card' }, h('div', { class: 'ep-empty' }, 'Draft a script, or pick an episode on the left.'));
-  page.append(newCard, h('div', { class: 'ep-grid' }, h('div', { class: 'ep-list-wrap' }, h('p', { class: 'tl-note', style: 'margin-bottom:6px' }, 'Episodes on this computer'), list), editor));
+  page.append(newCard, pasteCard, h('div', { class: 'ep-grid' }, h('div', { class: 'ep-list-wrap' }, h('p', { class: 'tl-note', style: 'margin-bottom:6px' }, 'Episodes on this computer'), list), editor));
 
   let cur = null;          // episode shown in the editor
   let dirty = false;       // unsaved edits in the editor
@@ -69,9 +84,12 @@
     if (prev && [...pick.options].some((o) => o.value === prev)) pick.value = prev;
     const missing = ['anthropic_api_key'].filter((k) => !keys[k]);
     draftBtn.disabled = !d.candidates.top.length || missing.length > 0;
-    const record = run && /\s15:\d\d$/.test(run.run_et || '');
-    newMsg.textContent = missing.length ? 'Set the Anthropic key with Episode keys… in the app bar first.'
-      : run ? `From the pull of ${run.run_et} ET${record ? ' (pick of record)' : ' (not the 15:00 ET pick of record)'}.` : '';
+    // pick of record = the 16:15 ET (15:15 CT) pull; any pull from 16:10 ET on counts (the day's first such pull)
+    const hm = (run && run.run_et || '').slice(11, 16); const mins = hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3)) : -1;
+    const record = mins >= 16 * 60 + 10;
+    const ct = hm ? `${String((Number(hm.slice(0, 2)) + 23) % 24).padStart(2, '0')}:${hm.slice(3)} CT` : '';
+    newMsg.textContent = missing.length ? 'Set the Anthropic key with Episode keys… in the app bar first (or use your own script below).'
+      : run ? `From the pull of ${run.run_et.slice(0, 10)} ${ct}${record ? ' (pick of record)' : ' (not the 15:15 CT pick of record)'}.` : '';
     // list
     list.replaceChildren(...(d.episodes.length ? d.episodes.filter((e) => e.status !== 'discarded' || (cur && cur.id === e.id)).map((e) => h('button', {
       class: 'ep-item', type: 'button', 'aria-current': cur && cur.id === e.id ? 'true' : 'false', onclick: () => open(e.id),
@@ -129,7 +147,7 @@
     const unapproveBtn = approved ? h('button', { class: 'btn', type: 'button', disabled: !!busy, onclick: () => act('unapprove') }, 'Back to draft') : null;
     const discardBtn = h('button', { class: 'btn danger', type: 'button', disabled: !!busy, onclick: () => { if (confirm('Discard this episode? It stays on disk but leaves the list.')) act('discard'); } }, 'Discard');
     const note = h('input', { class: 'ep-input', placeholder: 'Revision note for Claude, e.g. "shorter Teaching Moment, open with the 777X"', 'aria-label': 'Revision note' });
-    const regenBtn = h('button', { class: 'btn', type: 'button', disabled: !!busy, onclick: async () => {
+    const regenBtn = h('button', { class: 'btn', type: 'button', disabled: !!busy || !!ep.own_script, title: ep.own_script ? 'Your own script: edit it directly' : null, onclick: async () => {
       if (dirty && !confirm('Regenerate from the last saved version? Unsaved edits are lost.')) return;
       if (await act('regen', { note: note.value })) note.value = '';
     } }, busy === 'drafting' ? 'Regenerating…' : 'Regenerate');
@@ -143,7 +161,7 @@
     if (ep.has_audio) {
       audioRow.append(h('audio', { controls: true, preload: 'none', src: `/api/ep/${ep.id}/audio.mp3?t=${encodeURIComponent(ep.audio.at)}` }),
         h('button', { class: 'btn', type: 'button', onclick: () => api(`${ep.id}/reveal`, {}) }, 'Show file'),
-        h('span', { class: 'ep-msg' }, `v${ep.audio.version} · ${(ep.audio.bytes / 1e6).toFixed(1)} MB${ep.audio.downloads ? ' · copied to Downloads' : ''}${ep.audio.version !== ep.approved_version ? ' · made from an older version' : ''}`));
+        h('span', { class: 'ep-msg' }, `v${ep.audio.version} · ${(ep.audio.bytes / 1e6).toFixed(1)} MB${ep.audio.downloads ? ' · in Topic Log Data/audio' : ''}${ep.audio.version !== ep.approved_version ? ' · made from an older version' : ''}`));
     }
     if (!audioReady && !busy) audioRow.append(h('span', { class: 'ep-msg' }, dirty ? 'Save and approve your edits to make audio.' : 'Approve the script to make audio.'));
     const verSel = h('select', { class: 'ep-input', style: 'flex:0 0 auto', 'aria-label': 'Version history', onchange: () => {
@@ -160,13 +178,13 @@
     put(editor, 
       h('div', { class: 'ep-head' }, title, h('span', { class: 'ep-status ' + (busy ? 'busy' : ep.status) }, busy ? (busy === 'audio' ? 'Making audio…' : 'Drafting…') : STATUS[ep.status]), verSel),
       h('div', { class: 'ep-meta' }, h('span', null, `${ep.name || ''} (${ep.topic || '–'})`), h('span', null, `Episode date ${ep.date}`),
-        h('span', null, `Topic Log pull ${(ep.run && ep.run.run_et) || '–'} ET`), v.searches != null ? h('span', null, `${v.searches} web searches`) : null, count),
+        ep.own_script ? h('span', null, 'Own script (pasted)') : h('span', null, `Topic Log pull ${(ep.run && ep.run.run_et) || '–'} ET`), v.searches != null ? h('span', null, `${v.searches} web searches`) : null, count),
       v.why ? h('p', { class: 'ep-why' }, v.why) : null,
       ep.error ? h('p', { class: 'ep-err' }, 'Last step failed: ' + ep.error) : null,
       (v.checks || []).length ? h('div', { class: 'ep-checks' }, h('h4', null, 'Check before recording'), h('ul', null, ...v.checks.map((c) => h('li', null, c)))) : null,
       ta,
       h('div', { class: 'ep-row' }, saveBtn, approveBtn, unapproveBtn, discardBtn, expMd, expTxt, msg),
-      h('div', { class: 'ep-row' }, note, regenBtn),
+      ep.own_script ? null : h('div', { class: 'ep-row' }, note, regenBtn),
       audioRow,
       h('details', null, h('summary', null, 'Audio frame fields'), frame),
       (v.sources || []).length ? h('details', { class: 'ep-src' }, h('summary', null, `Sources (${v.sources.length})`),

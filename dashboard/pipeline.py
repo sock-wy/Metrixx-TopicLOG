@@ -42,6 +42,7 @@ import yaml
 from scoring import scoring
 from . import archive, briefing, digest, sources
 from . import daily as daily_mod
+from . import rankhist
 from .registry import Registry, ensure
 from .symbols import CATEGORIES, EXTRA, TOPICS, map_series, topic_info
 
@@ -851,7 +852,8 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
                      momentum_pct=r["momentum_pct"], k_vol=r["k_vol"], k_oi=r["k_oi"], p_vol=r["p_vol"], p_oi=r["p_oi"],
                      gate=r["gate"]) for r in out_rows]
     d = today.isoformat()
-    if now_et.hour >= 15 and not any(r["date"] == d for r in daily):  # first pull at or after 15:00 ET is the pick (16:15 since Nov 3)
+    # first pull at or after the pick-of-record time is the day's pick: 16:15 ET = 15:15 CT since Nov 3 (15:00 ET before)
+    if rankhist.is_record_time(now_et.strftime("%Y-%m-%d %H:%M")) and not any(r["date"] == d for r in daily):
         daily += [dict(date=d, **{k_: r.get(k_) for k_ in ("rank", "pick_rank", "pick_score", "pick_tier", "topic", "name", "asset_class", "tier", "gate", "demand_score",
                                                           "momentum_pct", "momentum_rank", "k_vol", "p_vol", "abnormal_move", "chg_24h")})
                   for r in out_rows]
@@ -954,6 +956,12 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
                                                  sectors=extra["sectors"], news=extra["news"], digest=extra.get("claude_digest"))
     except Exception as e:
         runs[-1]["daily_error"] = f"{type(e).__name__}: {e}"[:200]
+    try:  # rank history (kept for good) and its analysis, for the Rank changes tab and the exports
+        rank_hist, rank_chg = rankhist.update(state, run_ts, out_rows)
+    except Exception as e:
+        rank_hist, rank_chg = load(state / "rank_history.json", []), {}
+        runs[-1]["rank_error"] = f"{type(e).__name__}: {e}"[:200]
+    extra["rank_history"], extra["rank_changes"] = rank_hist, [rank_chg]
     files = dict(topic_log=out_rows, events=ev_rows, score_history=history, daily_log=daily, runs=runs, adanos_daily=ad_cache,
                  symbol_appendix=appendix, market_data=mkt, **raw, **extra)
     for k_, v in files.items():

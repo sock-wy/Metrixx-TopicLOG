@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install build tools
-        run: python -m pip install --upgrade pip pyinstaller pyyaml pywebview tzdata
+        run: python -m pip install --upgrade pip pyinstaller pyyaml pywebview tzdata openpyxl reportlab
       - name: Build TopicLog.exe (no Adanos key inside)
         run: python desktop/windows/build_win.py
       - name: Self-test (a real pull without an Adanos key)
@@ -30,6 +30,13 @@ jobs:
           Get-Content $out
           python -c "import json,sys; d=json.load(open(sys.argv[1])); [print(f'::warning::source {n}: {v}') for n, v in (d.get('sources') or {}).items() if v.get('status') not in ('ok', 'fetched', 'cached', 'skipped')]" $out
           python -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('ok') else 1)" $out
+      - name: Publish TopicLog.exe to the "windows-latest" release (public download, no key inside)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view windows-latest 2>$null; if ($LASTEXITCODE -ne 0) { gh release create windows-latest --prerelease --title "Topic Log for Windows (latest build)" --notes "TopicLog.exe from feat/dashboard. No keys inside." --target $env:GITHUB_SHA }
+          gh release upload windows-latest desktop/dist/win/TopicLog.exe --clobber
       - uses: actions/upload-artifact@v4
         with:
           name: TopicLog-windows

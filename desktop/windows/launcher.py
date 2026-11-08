@@ -50,7 +50,13 @@ def selftest(out: str) -> None:
         dg = d / "claude_digest.json"
         res["digest"] = dg.is_file() and dg.stat().st_size > 1000
         res["daily"] = any((d / "daily").glob("topic_log_*.json"))
-        res["ok"] = all(res[k] is True for k in ("web", "d3", "config", "universe", "episode_prompt", "tz", "digest", "daily")) and bool(row.get("topics"))
+        zoneinfo.ZoneInfo("America/Chicago")
+        res["rank_seed"] = (base / "rank_seed.json").is_file()
+        res["rank_changes"] = (d / "rank_changes.json").is_file() and (d / "rank_changes.json").stat().st_size > 100
+        from dashboard import report
+        res["export"] = {f: report.export(d, d / "exports", f).stat().st_size > 1000 for f in ("pdf", "xlsx")}
+        res["ok"] = all(res[k] is True for k in ("web", "d3", "config", "universe", "episode_prompt", "tz", "digest", "daily", "rank_seed", "rank_changes")) \
+            and all(res["export"].values()) and bool(row.get("topics"))
     except Exception:
         res["ok"] = False
         res["error"] = traceback.format_exc()

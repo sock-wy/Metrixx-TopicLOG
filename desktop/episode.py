@@ -20,6 +20,7 @@ import urllib.error
 import urllib.request
 
 SUP = DATA = APP = EXE_DIR = None
+OUT_DIR = None  # set by server.py: kind -> folder in ~/Desktop/Topic Log Data/
 EPI = KEYS = None
 KEY_FIELDS = ("anthropic_api_key", "elevenlabs_api_key", "elevenlabs_voice_id")
 DEFAULT_KEYS = {"anthropic_api_key": "", "elevenlabs_api_key": "", "elevenlabs_voice_id": "",
@@ -263,6 +264,29 @@ def new(topic=None):
     return eid
 
 
+def new_pasted(title, script, topic=None):
+    """An episode from a script written elsewhere (Jim's own): no Claude draft. Review, approve, then make audio."""
+    script = re.sub(r"\n{3,}", "\n\n", (script or "").replace("\r\n", "\n").strip())
+    if len(script) < 40:
+        raise RuntimeError("Paste the full script first.")
+    topic = (topic or "").strip().upper() or None
+    try:
+        from zoneinfo import ZoneInfo
+        et = dt.datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        et = dt.datetime.now(dt.timezone(dt.timedelta(hours=-5)))
+    eid = dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-own" + ("-" + re.sub(r"[^A-Za-z0-9]", "", topic)[:12] if topic else "")
+    d = digest() or {}
+    name = next((t.get("name") for t in d.get("top", []) if t.get("topic") == topic), None)
+    ep = {"id": eid, "created": now(), "date": et.strftime("%Y-%m-%d"), "topic": topic, "name": name, "run": d.get("run"),
+          "status": "draft", "versions": [], "messages": None, "error": None, "own_script": True}
+    _add_version(ep, {"n": None, "at": now(), "source": "pasted", "note": "pasted script", "title": (title or "").strip() or None,
+                      "script": script, "why": None, "frame": None, "sources": None, "checks": None, "topic": topic, "name": name,
+                      "searches": None, "usage": None})
+    save(ep)
+    return eid
+
+
 def regenerate(eid, note):
     ep = load(eid)
     if _busy.get(eid):
@@ -368,11 +392,13 @@ def make_audio(eid):
         topic = re.sub(r"[^A-Za-z0-9]", "", ep.get("topic") or "episode")
         fname = f"mycast_{ep['date']}_{topic}_v{v['n']}.mp3"
         (_path(eid) / fname).write_bytes(audio)
-        dl = pathlib.Path.home() / "Downloads"
         copied = None
-        if dl.is_dir():
-            shutil.copy(_path(eid) / fname, dl / fname)
-            copied = str(dl / fname)
+        try:
+            dest = _out("audio")
+            shutil.copy(_path(eid) / fname, dest / fname)
+            copied = str(dest / fname)
+        except Exception:
+            pass
         with _lock:
             e = load(eid)
             e["audio"] = {"file": fname, "version": v["n"], "at": now(), "bytes": len(audio), "chars": len(v["script"]),
@@ -411,7 +437,18 @@ def export(eid, fmt):
         if v.get("sources"):
             lines += ["## Sources", ""] + [f"- [{s.get('title') or s.get('url')}]({s.get('url')})" for s in v["sources"]] + [""]
         name, text = f"mycast_{ep['date']}_{topic}_v{v['n']}.md", "\n".join(lines)
-    folder = pathlib.Path.home() / "Downloads"
-    folder = folder if folder.is_dir() else SUP
+    try:
+        folder = _out("scripts")
+    except Exception:
+        folder = SUP
     (folder / name).write_text(text, encoding="utf-8")
     return str(folder / name), text
+
+
+def _out(kind):
+    if OUT_DIR:
+        return OUT_DIR(kind)
+    d = pathlib.Path.home() / "Downloads"
+    if not d.is_dir():
+        raise RuntimeError("no output folder")
+    return d

@@ -34,13 +34,18 @@ SETTINGS = SUP / "settings.json"
 WEB = APP / "web"
 DATASETS = ["topic_log", "score_history", "daily_log", "runs", "adanos_daily", "symbol_appendix", "market_data",
             "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot", "events",
-            "kalshi_perps", "venue_appendix", "sectors", "news", "briefing", "claude_digest"]
-DEFAULT_SETTINGS = {"interval_min": 0, "adanos_key": ""}
-INTERVAL_V = 3  # v3 (Nov 3): fixed pull times 07:00 and 16:15 ET by default; older saved intervals move to it once
-# interval_min 0 = pull at these New York times every day (a pull missed while the computer slept runs on wake)
-PULL_TIMES_ET = ((7, 0), (16, 15))
+            "kalshi_perps", "venue_appendix", "sectors", "news", "briefing", "claude_digest", "rank_changes"]
+# Pull schedule (v1.0, Nov 8): times of day in Chicago time, set in the app (Schedule…). 15:15 CT (= 16:15 ET) is the
+# pick of record and cannot be removed. A changed schedule starts from the next time; a time missed while the
+# computer slept runs on wake.
+TZ_NAME = "America/Chicago"
+PICK_SLOT = "15:15"
+DEFAULT_SCHEDULE = [{"t": "06:00", "on": True}, {"t": PICK_SLOT, "on": True}]
+MAX_SLOTS, MIN_GAP_MIN = 6, 30
+DEFAULT_SETTINGS = {"adanos_key": "", "schedule": DEFAULT_SCHEDULE, "weekdays_only": False, "schedule_set_at": None}
+INTERVAL_V = 4  # v4: the schedule replaces the interval menu; older settings move to the default schedule once
 
-VERSION = "0.9"
+VERSION = "1.0"
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
 _old = _ver.read_text().strip() if _ver.exists() else None
@@ -74,7 +79,8 @@ def load_settings():
     try:
         saved = json.loads(SETTINGS.read_text())
         if saved.get("interval_v", 1) < INTERVAL_V:
-            saved.update(interval_min=DEFAULT_SETTINGS["interval_min"], interval_v=INTERVAL_V)
+            saved.pop("interval_min", None)
+            saved.update(schedule=DEFAULT_SCHEDULE, interval_v=INTERVAL_V)
             save_settings(saved)
         s.update({k: v for k, v in saved.items() if v not in (None, "")})
     except Exception:
@@ -103,20 +109,129 @@ def last_run_from_disk():
         return None
 
 
-DESKTOP_DIR = pathlib.Path.home() / "Desktop" / "TopicLog"
+# ------------------------------------------------------------------ the data folder on the Desktop
+def _desktop():
+    home = pathlib.Path.home()
+    for d in (home / "Desktop", home / "OneDrive" / "Desktop"):
+        if d.is_dir():
+            return d
+    return home
 
 
-def copy_daily(row):
-    """Copy the day's Topic Log (topic_log_YYYY-MM-DD.json) to ~/Desktop/TopicLog/daily/ when that folder exists."""
-    name = (row or {}).get("daily_file")
-    src = DATA / "daily" / name if name else None
-    if not (src and src.exists() and DESKTOP_DIR.is_dir()):
-        return
+OUT = _desktop() / "Topic Log Data"  # everything Topic Log produces, by kind; never inside the app's folder
+SUBDIRS = ("daily", "rank_history", "digests", "audio", "scripts", "exports")
+OLD_DESKTOP = _desktop() / "TopicLog"  # v0.9 copied the daily files to ~/Desktop/TopicLog/daily/
+
+
+def out_dir(kind):
+    d = OUT / kind
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+episode.OUT_DIR = out_dir  # episodes put MP3s in Topic Log Data/audio and scripts in Topic Log Data/scripts
+
+
+def _note(msg):
     try:
-        (DESKTOP_DIR / "daily").mkdir(exist_ok=True)
-        shutil.copy(src, DESKTOP_DIR / "daily" / name)
+        with open(SUP / "last_error.txt", "a", encoding="utf-8") as f:
+            f.write(f"{dt.datetime.now().isoformat(timespec='seconds')} {msg}\n")
+    except Exception:
+        pass
+
+
+def _stamp(run_ts):
+    from dashboard import rankhist
+    return rankhist.to_ct(run_ts).replace(" ", "_").replace(":", "") + "CT"
+
+
+def save_outputs(row):
+    """After a pull: the day's Topic Log, this pull's full ranking and its digest go to the data folder."""
+    try:
+        from dashboard import rankhist
+        name = (row or {}).get("daily_file")
+        if name and (DATA / "daily" / name).exists():
+            shutil.copy(DATA / "daily" / name, out_dir("daily") / name)
+        rows = json.loads((DATA / "topic_log.json").read_text())
+        run_ts = rows[0]["run_ts"] if rows else (row or {}).get("run_ts")
+        if run_ts:
+            snap = rankhist.snapshot(run_ts, rows)
+            (out_dir("rank_history") / f"rank_{_stamp(run_ts)}.json").write_text(json.dumps(snap, indent=1), encoding="utf-8")
+            if (DATA / "claude_digest.json").exists():
+                shutil.copy(DATA / "claude_digest.json", out_dir("digests") / f"claude_digest_{_stamp(run_ts)}.json")
     except Exception as e:  # e.g. macOS asked for Desktop access and it was refused
-        (SUP / "last_error.txt").write_text(f"daily copy: {type(e).__name__}: {e}")
+        _note(f"data folder: {type(e).__name__}: {e}")
+
+
+def _copy_missing(src_files, dest):
+    n = 0
+    for f in src_files:
+        if f.is_file() and not (dest / f.name).exists():
+            shutil.copy2(f, dest / f.name)
+            n += 1
+    return n
+
+
+def migrate():
+    """Every start: fill the data folder with what is already on this computer, and backfill the rank history.
+
+    Copies (never moves or deletes) the daily files, episode MP3s and scripts; rebuilds rank_history.json from
+    the history shipped with the app (archive since Oct 23) plus this computer's own 10-day score history."""
+    try:
+        from dashboard import rankhist
+        _copy_missing(list((DATA / "daily").glob("*.json")) + list((OLD_DESKTOP / "daily").glob("*.json")), out_dir("daily"))
+        _copy_missing(list((SUP / "episodes").glob("*/*.mp3")), out_dir("audio"))
+        hist = []
+        try:
+            hist = json.loads((DATA / "rank_history.json").read_text())
+        except Exception:
+            pass
+        for f in (APP / "rank_seed.json", APP / "dashboard" / "rank_seed.json"):
+            if f.exists():
+                hist = rankhist.merge(hist, json.loads(f.read_text()))
+                break
+        try:
+            names = {r["topic"]: (r.get("name"), r.get("asset_class")) for r in hist}
+            names.update({r["topic"]: (r.get("name"), r.get("asset_class")) for r in json.loads((DATA / "topic_log.json").read_text())})
+            hist = rankhist.merge(hist, rankhist.from_score_history(json.loads((DATA / "score_history.json").read_text()), names))
+        except Exception:
+            pass
+        if hist:
+            (DATA / "rank_history.json").write_text(json.dumps(hist, separators=(",", ":")))
+            (DATA / "rank_changes.json").write_text(json.dumps([rankhist.analyze(hist)], separators=(",", ":"), default=str))
+            have = {p.name for p in out_dir("rank_history").glob("*.json")}
+            by = {}
+            for h in hist:
+                by.setdefault(h["run_ts"], []).append(h)
+            for ts, rows in by.items():
+                name = f"rank_{_stamp(ts)}.json"
+                if name not in have:  # backfilled pulls: the top 50 that was kept
+                    snap = rankhist.snapshot(ts, rows)
+                    snap["notes"] = "Backfilled from the rank history: top 50 only. " + snap["notes"]
+                    (out_dir("rank_history") / name).write_text(json.dumps(snap, indent=1), encoding="utf-8")
+        readme = OUT / "README.txt"
+        if not readme.exists():
+            readme.write_text(README_DATA, encoding="utf-8")
+    except Exception as e:
+        _note(f"migrate: {type(e).__name__}: {e}")
+
+
+README_DATA = """Topic Log Data
+==============
+Everything the Topic Log app produces, written here automatically. Safe to read, copy or back up.
+The app only adds files here; it never deletes. You can move this folder's files elsewhere,
+but keep the folder name "Topic Log Data" on the Desktop so the app keeps writing to it.
+
+daily/         One file per New York trading day: topic_log_YYYY-MM-DD.json (ranks, prices, sentiment, news).
+rank_history/  One file per pull: rank_YYYY-MM-DD_HHMMCT.json, the full ranking with ranks overall and
+               within each category. Files marked "Backfilled" (pulls before this folder existed) hold the top 50.
+digests/       claude_digest_<time>CT.json for each pull, and every "Export JSON for Claude".
+audio/         MYCAST episode MP3s.
+scripts/       Episode scripts exported from the Episode tab (.md / .txt).
+exports/       Ranking reports (PDF and Excel) from the Export buttons.
+
+Times in file names are Chicago time (CT). Not investment advice.
+"""
 
 
 def pull():
@@ -127,7 +242,7 @@ def pull():
         from dashboard import pipeline
         s = load_settings()
         row = pipeline.run(DATA, DATA, adanos_key=s.get("adanos_key") or None)
-        copy_daily(row)
+        save_outputs(row)
         state.update(last_ok=dt.datetime.now(dt.timezone.utc).isoformat(), summary=row)
     except Exception as e:
         state["error"] = f"{type(e).__name__}: {e}"
@@ -138,30 +253,72 @@ def pull():
         lock.release()
 
 
-def _et():
+def _tz():
     from zoneinfo import ZoneInfo
-    return ZoneInfo("America/New_York")
+    return ZoneInfo(TZ_NAME)
 
 
-def slot_times(now=None):
-    """(last scheduled slot at or before now, next slot after now), as aware datetimes."""
-    et = _et()
-    now = (now or dt.datetime.now(dt.timezone.utc)).astimezone(et)
-    slots = [dt.datetime.combine(now.date() + dt.timedelta(days=d), dt.time(h, m), tzinfo=et)
-             for d in (-1, 0, 1) for h, m in PULL_TIMES_ET]
+def _hm(t):
+    h, m = str(t).strip().split(":")
+    h, m = int(h), int(m)
+    if not (0 <= h < 24 and 0 <= m < 60):
+        raise ValueError(t)
+    return h, m
+
+
+def clean_schedule(items):
+    """Validate a schedule from the app: HH:MM times, the pick slot always present and on, sorted, gaps >= 30 min."""
+    out, seen = [], set()
+    for it in items or []:
+        h, m = _hm(it.get("t") if isinstance(it, dict) else it)
+        t = f"{h:02d}:{m:02d}"
+        if t in seen:
+            continue
+        seen.add(t)
+        out.append({"t": t, "on": True if t == PICK_SLOT else bool(it.get("on", True)) if isinstance(it, dict) else True})
+    if PICK_SLOT not in seen:
+        out.append({"t": PICK_SLOT, "on": True})
+    out.sort(key=lambda x: x["t"])
+    if len(out) > MAX_SLOTS:
+        raise ValueError(f"At most {MAX_SLOTS} pull times a day.")
+    on = [x for x in out if x["on"]]
+    mins = [int(x["t"][:2]) * 60 + int(x["t"][3:]) for x in on]
+    for a, b, x in zip(mins, mins[1:] + [mins[0] + 1440], on):
+        if len(mins) > 1 and b - a < MIN_GAP_MIN:
+            raise ValueError(f"Pull times must be at least {MIN_GAP_MIN} minutes apart ({x['t']}).")
+    return out
+
+
+def slot_times(now=None, s=None):
+    """(last scheduled pull at or before now, next one after now), as aware datetimes in Chicago time."""
+    s = s or load_settings()
+    tz = _tz()
+    now = (now or dt.datetime.now(dt.timezone.utc)).astimezone(tz)
+    try:
+        sched = clean_schedule(s.get("schedule"))
+    except Exception:
+        sched = DEFAULT_SCHEDULE
+    times = [_hm(x["t"]) for x in sched if x["on"]]
+    slots = []
+    for d in range(-8, 9):
+        day = now.date() + dt.timedelta(days=d)
+        if s.get("weekdays_only") and day.weekday() >= 5:
+            continue
+        slots += [dt.datetime.combine(day, dt.time(h, m), tzinfo=tz) for h, m in times]
     return max(x for x in slots if x <= now), min(x for x in slots if x > now)
 
 
-def due_in(ref, interval_min, now=None):
-    """Seconds until the next pull (0 = pull now). ref = ISO time of the last pull, or None."""
+def due_in(ref, s, now=None):
+    """Seconds until the next pull (0 = pull now). ref = ISO time of the last pull, or None (never pulled: now).
+
+    The last scheduled time is pulled only if it came after both the last pull and the moment the schedule was
+    saved, so saving a schedule never starts a pull: it starts from the next time."""
     now = now or dt.datetime.now(dt.timezone.utc)
-    if not ref:
+    prev, nxt = slot_times(now, s)
+    marks = [dt.datetime.fromisoformat(x) for x in (ref, s.get("schedule_set_at")) if x]
+    if not ref or prev > max(marks):
         return 0
-    last = dt.datetime.fromisoformat(ref)
-    if not interval_min:  # fixed times
-        prev, nxt = slot_times(now)
-        return 0 if last < prev else (nxt - now).total_seconds()
-    return max(0, max(15, int(interval_min)) * 60 - (now - last).total_seconds())
+    return (nxt - now).total_seconds()
 
 
 def scheduler():
@@ -170,7 +327,7 @@ def scheduler():
         state["last_ok"] = state["last_run"] = last.get("run_ts")
     while True:
         s = load_settings()
-        due = due_in(state["last_run"], s.get("interval_min"))
+        due = due_in(state["last_run"], s)
         state["next_run"] = dt.datetime.fromtimestamp(time.time() + due, dt.timezone.utc).isoformat()
         if due > 0:
             # wake at least once a minute so a slot passed during sleep, or a settings change, is noticed
@@ -225,6 +382,11 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             if rest == "new":
                 return self._json({"id": episode.new(body.get("topic") or None)})
+            if rest == "paste":  # a script written elsewhere (e.g. Jim's): no Claude draft, straight to review -> audio
+                eid = episode.new_pasted(body.get("title"), body.get("script"), body.get("topic") or None)
+                ep = episode.load(eid)
+                ep.pop("messages", None)
+                return self._json(episode.view(ep))
             if rest == "keys":
                 episode.save_keys(body)
                 return self._json(episode.keys_status())
@@ -250,7 +412,7 @@ class Handler(SimpleHTTPRequestHandler):
             elif act == "reveal":
                 p = episode.audio_path(eid)
                 if p and p.exists():
-                    subprocess.Popen(["explorer", "/select,", str(p)] if WINDOWS else ["open", "-R", str(p)])
+                    reveal(p)
             else:
                 return self._json({"error": "unknown action"}, 404)
             ep = episode.load(eid)
@@ -277,8 +439,15 @@ class Handler(SimpleHTTPRequestHandler):
             return self._ep_get(self.path.split("?")[0][len("/api/ep/"):])
         if self.path.startswith("/api/status"):
             s = load_settings()
-            return self._json({**state, "interval_min": s["interval_min"], "has_key": bool(s.get("adanos_key")),
-                               "data_dir": str(DATA)})
+            try:
+                nxt = dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=due_in(state["last_run"], s))
+            except Exception:
+                nxt = None
+            return self._json({**state, "next_run": nxt.isoformat() if nxt else state["next_run"],
+                               "schedule": clean_schedule(s.get("schedule")), "weekdays_only": bool(s.get("weekdays_only")),
+                               "pick_slot": PICK_SLOT, "tz": TZ_NAME, "max_slots": MAX_SLOTS, "min_gap": MIN_GAP_MIN,
+                               "has_key": bool(s.get("adanos_key")), "data_dir": str(DATA), "out_dir": str(OUT),
+                               "version": VERSION})
         return super().do_GET()
 
     def do_POST(self):
@@ -291,20 +460,41 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"ok": True})
         if self.path == "/api/settings":
             s = load_settings()
-            if "interval_min" in body:
-                v = int(body["interval_min"])
-                s["interval_min"] = 0 if v <= 0 else max(15, v)
             s["interval_v"] = INTERVAL_V
             if body.get("adanos_key"):
                 s["adanos_key"] = str(body["adanos_key"]).strip()
             save_settings(s)
             wake.set() if body.get("refresh") else None
             return self._json({"ok": True})
-        if self.path == "/api/save":  # "Export JSON for Claude": save to Downloads and copy to the clipboard
+        if self.path == "/api/schedule":  # Schedule…: new pull times; they start from the next time, no pull now
+            s = load_settings()
+            try:
+                s["schedule"] = clean_schedule(body.get("schedule"))
+            except Exception as e:
+                return self._json({"error": str(e) if isinstance(e, ValueError) and " " in str(e) else f"Not a time: {e}. Use HH:MM, e.g. 06:30."}, 400)
+            s["weekdays_only"] = bool(body.get("weekdays_only"))
+            s["schedule_set_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
+            s["interval_v"] = INTERVAL_V
+            save_settings(s)
+            return self._json({"ok": True, "schedule": s["schedule"]})
+        if self.path == "/api/export":  # ranking + rank changes as PDF or Excel, into Topic Log Data/exports/
+            try:
+                from dashboard import report
+                path = report.export(DATA, out_dir("exports"), "xlsx" if body.get("format") == "xlsx" else "pdf")
+            except Exception as e:
+                return self._json({"error": f"{e}"}, 400)
+            reveal(path)
+            return self._json({"path": str(path)})
+        if self.path == "/api/open-folder":
+            reveal(out_dir(body.get("kind")) if body.get("kind") in SUBDIRS else OUT, inside=True)
+            return self._json({"ok": True, "path": str(OUT)})
+        if self.path == "/api/save":  # "Export JSON for Claude": save to Topic Log Data/digests and copy to the clipboard
             name = pathlib.Path(str(body.get("name") or "topiclog.json")).name
             text = str(body.get("text") or "")
-            folder = pathlib.Path.home() / "Downloads"
-            folder = folder if folder.is_dir() else SUP
+            try:
+                folder = out_dir("digests")
+            except Exception:
+                folder = SUP
             (folder / name).write_text(text, encoding="utf-8")
             copied = False
             try:
@@ -322,6 +512,18 @@ class Handler(SimpleHTTPRequestHandler):
         self._json({"error": "not found"}, 404)
 
 
+def reveal(path, inside=False):
+    """Show a file (or open a folder) in Finder / Explorer."""
+    try:
+        path = pathlib.Path(path)
+        if inside or path.is_dir():
+            subprocess.Popen(["explorer", str(path)] if WINDOWS else ["open", str(path)])
+        else:
+            subprocess.Popen(["explorer", "/select,", str(path)] if WINDOWS else ["open", "-R", str(path)])
+    except Exception:
+        pass
+
+
 def free_port(start=8765):
     for p in range(start, start + 50):
         with socket.socket() as s:
@@ -334,7 +536,7 @@ def main():
     port = free_port()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    threading.Thread(target=scheduler, daemon=True).start()
+    threading.Thread(target=lambda: (migrate(), scheduler()), daemon=True).start()
     url = f"http://127.0.0.1:{port}/"
     (SUP / "port").write_text(str(port))
     try:

@@ -9,14 +9,30 @@
   <span class="name">Topic Log</span>
   <span class="status"><span class="dot" id="ab-dot"></span><span id="ab-text">Starting…</span></span>
   <span class="spacer"></span>
-  <label for="ab-interval">Pull
-    <select id="ab-interval"><option value="0">07:00 + 16:15 ET</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="180">3 hours</option><option value="480">8 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option></select></label>
+  <button id="ab-sched" type="button" title="Set the times of day Topic Log pulls (Chicago time)">Schedule: <span id="ab-sched-sum">…</span></button>
   <button id="ab-refresh" class="primary" type="button" title="Fetch fresh data from every source now (takes a few minutes)">Pull now</button>
   <button id="ab-reload" type="button" title="Reload the view from the data already on this Mac">Refresh view</button>
   <span id="ab-key"></span>
   <button id="ab-keybtn" type="button">Adanos key…</button>
   <span id="ab-keyform" hidden><input id="ab-keyinput" type="password" placeholder="sk_live_…" aria-label="Adanos API key" size="28"> <button id="ab-keysave" type="button">Save</button></span>
+  <button id="ab-folder" type="button" title="Open Topic Log Data on the Desktop: daily files, rank history, audio, exports">Data folder</button>
   <button id="ab-quit" type="button">Quit</button>
+</div>
+<div id="ab-sched-panel" class="sched-panel" hidden role="dialog" aria-label="Pull schedule">
+  <h3>Pull schedule <span class="muted">(Chicago time, 24-hour)</span></h3>
+  <p class="muted">Topic Log pulls at these times every day. 15:15 is the pick of record (16:15 ET) and always runs.
+    Changes start from the next time; saving never starts a pull. A time missed while the computer slept runs when it wakes.</p>
+  <div id="sched-rows"></div>
+  <div class="sched-actions">
+    <button id="sched-add" type="button">+ Add time</button>
+    <label><input id="sched-wk" type="checkbox"> Weekdays only</label>
+  </div>
+  <p id="sched-next" class="muted"></p>
+  <p id="sched-err" class="err"></p>
+  <div class="sched-actions">
+    <button id="sched-save" type="button" class="primary">Apply</button>
+    <button id="sched-cancel" type="button">Cancel</button>
+  </div>
 </div>
 <script src="d3.min.js"></script>
 <script src="shim.js"></script>

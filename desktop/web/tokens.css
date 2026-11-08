@@ -45,3 +45,19 @@ html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); fon
 .app-bar button.primary { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
 .app-bar button:disabled { opacity: .5; cursor: default; }
 .app-bar .key-ok { color: var(--color-ok); } .app-bar .key-missing { color: var(--color-warn); }
+/* schedule panel (app bar) */
+.sched-panel { position: fixed; top: 52px; right: 24px; z-index: 30; width: min(26rem, calc(100vw - 32px)); background: var(--color-panel);
+  border: 1px solid var(--color-border-line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 14px 16px; font-size: 12px; color: var(--color-fg); }
+.sched-panel h3 { margin: 0 0 6px; font-size: 14px; }
+.sched-panel .muted { color: var(--color-fg-muted); font-weight: 400; }
+.sched-panel p { margin: 0 0 10px; line-height: 1.45; }
+.sched-panel .err { color: var(--color-bad); margin: 0; }
+.sched-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--color-border-line); }
+.sched-row label { display: flex; align-items: center; gap: 4px; color: var(--color-fg-muted); }
+.sched-row .badge { font-size: 11px; border-radius: 999px; padding: 1px 8px; background: var(--color-fg); color: var(--color-bg); }
+.sched-panel input[type=time] { font: inherit; font-size: 13px; background: var(--color-bg); color: var(--color-fg); border: 1px solid var(--color-border-line); border-radius: 6px; padding: 3px 6px; }
+.sched-panel button { font: inherit; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.sched-panel button.primary { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+.sched-panel button:disabled { opacity: .45; cursor: default; }
+.sched-actions { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+.sched-actions label { display: flex; align-items: center; gap: 4px; }
