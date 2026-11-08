@@ -122,7 +122,8 @@ def listing():
         cur = ep["versions"][-1] if ep.get("versions") else {}
         out.append({"id": ep["id"], "created": ep.get("created"), "date": ep.get("date"), "topic": ep.get("topic"),
                     "title": cur.get("title") or ep.get("topic"), "status": ep.get("status"), "busy": _busy.get(ep["id"]),
-                    "versions": len(ep.get("versions", [])), "has_audio": bool(ep.get("audio"))})
+                    "versions": len(ep.get("versions", [])), "has_audio": bool(ep.get("audio")),
+                    "style": "own" if ep.get("own_script") else ep.get("style") or "market"})
     return out
 
 
@@ -143,11 +144,17 @@ def candidates():
 
 
 # ------------------------------------------------------------------ Claude
-def prompt_text():
-    for f in (SUP / "episode_prompt.md", APP / "episode_prompt.md"):
+STYLES = {"market": ("episode_prompt.md", "Market"), "teaching": ("episode_prompt_teaching.md", "Teaching moment")}
+
+
+def prompt_text(style="market"):
+    """System prompt for a style: market (trader's read) or teaching (the story as a worked example of one concept).
+    A copy in the support folder wins over the one shipped with the app, so either can be edited without a rebuild."""
+    name = STYLES.get(style, STYLES["market"])[0]
+    for f in (SUP / name, APP / name):
         if f.exists():
             return f.read_text(encoding="utf-8")
-    raise RuntimeError("episode_prompt.md is missing")
+    raise RuntimeError(f"{name} is missing")
 
 
 def _post(url, headers, body, timeout):
@@ -164,10 +171,10 @@ def _post(url, headers, body, timeout):
         raise RuntimeError(f"HTTP {e.code}: {msg}") from None
 
 
-def _claude(messages, keys):
+def _claude(messages, keys, style="market"):
     if not keys.get("anthropic_api_key"):
         raise RuntimeError("No Anthropic key. Set it with Keys… in the app bar.")
-    body = {"model": keys["claude_model"], "max_tokens": 8000, "system": prompt_text(), "messages": messages,
+    body = {"model": keys["claude_model"], "max_tokens": 8000, "system": prompt_text(style), "messages": messages,
             "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
     headers = {"Content-Type": "application/json", "x-api-key": keys["anthropic_api_key"], "anthropic-version": "2023-06-01"}
     for _ in range(3):  # a long search turn can pause; continue it
@@ -232,7 +239,8 @@ def _run(eid, fn):
     threading.Thread(target=work, daemon=True).start()
 
 
-def new(topic=None):
+def new(topic=None, style="market"):
+    style = style if style in STYLES else "market"
     d = digest()
     if not d:
         raise RuntimeError("No digest yet. Pull first (the digest comes with every pull).")
@@ -244,14 +252,14 @@ def new(topic=None):
     eid = dt.datetime.now().strftime("%Y%m%d-%H%M%S") + ("-" + re.sub(r"[^A-Za-z0-9]", "", topic)[:12] if topic else "")
     name = next((t.get("name") for t in d.get("top", []) if t.get("topic") == topic), None)
     ep = {"id": eid, "created": now(), "date": et.strftime("%Y-%m-%d"), "topic": topic, "name": name,
-          "run": d.get("run"), "status": "draft", "versions": [], "messages": None, "error": None}
+          "run": d.get("run"), "status": "draft", "versions": [], "messages": None, "error": None, "style": style}
     save(ep)
     _busy[eid] = "drafting"
 
     def go():
         keys = load_keys()
         msgs = [{"role": "user", "content": _first_message(ep, d)}]
-        data = _claude(msgs, keys)
+        data = _claude(msgs, keys, style)
         out = _parse(data)
         with _lock:
             e = load(eid)
@@ -287,8 +295,13 @@ def new_pasted(title, script, topic=None):
     return eid
 
 
-def regenerate(eid, note):
+def regenerate(eid, note, style=None):
+    """New version from Claude. style switches the episode to the other prompt (market <-> teaching) for this and later drafts."""
     ep = load(eid)
+    if style in STYLES and style != (ep.get("style") or "market"):
+        ep["style"] = style
+        save(ep)
+        note = (note + " " if note else "") + f"Rewrite it as the {STYLES[style][1]} edition, following the system instructions; keep the facts."
     if _busy.get(eid):
         raise RuntimeError("Busy; wait for the current step.")
     if not ep.get("messages"):
@@ -303,7 +316,7 @@ def regenerate(eid, note):
         msgs = ep["messages"][:1] + [{"role": "assistant", "content": prev},
                                      {"role": "user", "content": "Revision note: " + (note or "Write a fresh take; keep the facts.") +
                                       "\nReturn the full JSON object again."}]
-        out = _parse(_claude(msgs, keys))
+        out = _parse(_claude(msgs, keys, ep.get("style") or "market"))
         with _lock:
             e = load(eid)
             _add_version(e, _version_from(out, "claude", note))

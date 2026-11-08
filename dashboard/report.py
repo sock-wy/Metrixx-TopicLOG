@@ -51,20 +51,38 @@ def tables(data_dir: pathlib.Path) -> dict:
             ("By category", ["Category", "Rank in category", "Overall rank", "Topic", "Name", "Score", "Tier", "Price", "24h %"], cat),
             ("Vs previous pull", None, diff(pp), pp),
             ("Vs previous day", None, diff(pd), pd),
+            ("Drivers, vs day before", DRV_HEAD, _drv(ch.get("drivers_day"))),
+            ("Drivers, vs pull before", DRV_HEAD, _drv(ch.get("drivers_pull"))),
+            ("Four angles, vs day before", ANG_HEAD, _ang(ch.get("angles_day"))),
+            ("Four angles, vs pull before", ANG_HEAD, _ang(ch.get("angles_pull"))),
             ("Top-10 streaks", ["Topic", "Name", "Category", "Rank now", "Current streak (days)", "Longest streak", "Days in top 10", "Days tracked"],
              [[s["topic"], s["name"], s["category"], s["rank_now"], s["current_streak"], s["longest_streak"], s["days_in_top"], s["days"]]
               for s in ch.get("streaks", [])]),
-            ("Rank volatility", ["Topic", "Name", "Category", "Pulls", "Mean rank", "SD of rank", "Best", "Worst", "Times #1"],
-             [[v["topic"], v["name"], v["category"], v["pulls"], v["mean_rank"], v["sd_rank"], v["best"], v["worst"], v["times_no1"]]
-              for v in ch.get("volatility", [])]),
             ("Daily picks", ["Date", "Pull (ET)", "Pick of record", "Topic", "Name", "Category", "Score", "Rank next day"],
              [[p["date"], p["run_et"], "yes" if p["of_record"] else "no (last pull of day)", p["topic"], p["name"], p["category"], p["score"],
                p["next_day_rank"] if p["next_day_rank"] is not None else ("out of top 50" if p["has_next"] else "")]
               for p in ch.get("picks", [])]),
-            ("Top-10 turnover", ["Pull (ET)", "Share of top 10 new vs pull before", "#1"],
-             [[t["run_et"], t["turnover"], t["top"]] for t in ch.get("turnover", [])]),
         ],
     }
+
+
+DRV_HEAD = ["Topic", "Name", "Category", "Rank before", "Rank now", "Places", "Driven by", "Attention (pts)", "Price & volume (pts)", "Money (pts)"]
+ANG_HEAD = ["Angle", "Direction", "Topic", "Name", "Before", "After", "Change", "Rank now"]
+ANG_LABEL = {"attention": "Attention (x normal)", "money": "Money (OI x normal)", "price": "Price (sigma)", "sentiment": "Sentiment (-1 to 1)"}
+
+
+def _drv(rows):
+    return [[r["topic"], r["name"], r["category"], r["prev_rank"], r["rank"], r["places"], r["main"],
+             *[round(r["by_angle"].get(k, 0) * 100, 1) for k in ("attention", "price", "money")]] for r in rows or []]
+
+
+def _ang(a):
+    out = []
+    for k in ("attention", "money", "price", "sentiment"):
+        for d, lab in (("up", "rose"), ("down", "fell")):
+            for x in ((a or {}).get("angles", {}).get(k, {}).get(d) or []):
+                out.append([ANG_LABEL[k], lab, x["topic"], x["name"], x["before"], x["after"], x["change"], x["rank"]])
+    return out
 
 
 DIFF_HEAD = (["Rank now", "Topic", "Name", "Category", "Rank before"], ["Rank before", "Topic", "Name", "Category", "Rank now"],
@@ -168,7 +186,7 @@ def _pdf(t, path):
         for title, h, rows in zip(DIFF_TITLE, DIFF_HEAD, d[2] or ([], [], [])):
             s += [Paragraph(title, ss["Heading4"]), tbl(h, rows)]
     s.append(PageBreak())
-    for name in ("Top-10 streaks", "Rank volatility", "Daily picks"):
+    for name in ("Drivers, vs day before", "Four angles, vs day before", "Daily picks"):
         x = sheets[name]
         s += [Paragraph(name, ss["Heading2"]), tbl(x[1], x[2][:30]), Spacer(1, 8)]
     doc.build(s, onFirstPage=foot, onLaterPages=foot)

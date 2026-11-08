@@ -24,6 +24,18 @@ CATEGORIES = {"equity": "Stocks", "crypto": "Crypto", "macro": "Macro", "theme":
               "index": "Indexes", "rates": "Rates", "fx": "FX", "private": "Private companies"}
 FIELDS = ("run_ts", "run_et", "topic", "name", "asset_class", "pick_rank", "pick_score", "pick_tier", "chg_24h")
 
+# w2 weights (dashboard/pipeline.py WD): each input's share of the score, by angle
+W2 = {"attention_shift": .35, "attention_x": .35, "volume_abn": .125, "momentum": .125, "money_stock": .05}
+ANGLE_OF = {"attention_shift": "attention", "attention_x": "attention", "volume_abn": "price", "momentum": "price",
+            "money_stock": "money"}
+# the four angles: label, the measure used to rank risers / fallers, how to show it
+ANGLES = {
+    "attention": dict(label="Attention", metric="att", unit="x normal", what="Mentions on Reddit, X and news vs the topic's own 20-day normal (Adanos)"),
+    "money": dict(label="Money", metric="money", unit="x normal", what="Prediction-market open interest (money left in the market) vs its normal, Kalshi + Polymarket"),
+    "price": dict(label="Price & volume", metric="mom", unit="sigma", what="Size of the 24h price move in typical days (sigma), with trading volume vs normal"),
+    "sentiment": dict(label="Sentiment", metric="sent", unit="-1 to 1", what="Average Adanos sentiment of the posts and articles, -1 (negative) to 1 (positive)"),
+}
+
 
 def _et():
     from zoneinfo import ZoneInfo
@@ -61,24 +73,74 @@ def is_record_time(run_et: str) -> bool:
     return int(hm[:2]) * 60 + int(hm[3:5]) >= record_threshold(day)
 
 
+def _pct(values):
+    """Percentile within the pool (average rank / (n-1)); None stays None; one value = 0.5. Same as scoring.pctrank."""
+    idx = sorted((i for i, v in enumerate(values) if v is not None), key=lambda i: values[i])
+    out = [None] * len(values)
+    n = len(idx)
+    if n == 1:
+        out[idx[0]] = 0.5
+    i = 0
+    while n > 1 and i < n:
+        j = i
+        while j + 1 < n and values[idx[j + 1]] == values[idx[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            out[idx[k]] = ((i + j) / 2) / (n - 1)
+        i = j + 1
+    return out
+
+
+def _mean(xs):
+    xs = [x for x in xs if isinstance(x, (int, float))]
+    return sum(xs) / len(xs) if xs else None
+
+
+def _inputs(r):
+    """The raw measures behind the four angles, for one topic on one pull."""
+    att = r.get("attention_shift")
+    money = r.get("money_stock")
+    return {"att": _r(math.exp(att)) if isinstance(att, (int, float)) else None,          # mentions vs 20-day normal, as a multiple
+            "att_x": _r(math.exp(r["attention_x"])) if isinstance(r.get("attention_x"), (int, float)) else None,
+            "mentions": sum(int(r.get(f"ad_mentions_{p}") or 0) for p in ("reddit", "x", "news")) or None,
+            "money": _r(math.exp(money)) if isinstance(money, (int, float)) else None,   # open interest vs normal, as a multiple
+            "pm_vol": _r((r.get("k_vol") or 0) + (r.get("p_vol") or 0)) or None,       # prediction-market 24h volume, $
+            "mom": _r(abs(r["momentum"]), 2) if isinstance(r.get("momentum"), (int, float)) else None,
+            "vol": _r(math.exp(r["volume_abn"])) if isinstance(r.get("volume_abn"), (int, float)) else None,
+            "sent": _r(_mean([r.get(f"ad_sent_d_{p}") for p in ("reddit", "x", "news")]), 3)}
+
+
 def rows_from_pull(run_ts: str, rows: list) -> list:
-    """Top TOP_N of a pull's topic_log rows by pick_rank (falls back to rank when a pull had no pick_rank)."""
+    """Top TOP_N of a pull's topic_log rows by pick_rank (falls back to rank when a pull had no pick_rank), with the
+    inputs behind the four angles and each w2 input's contribution to the score (weight x percentile in the pool)."""
     key = "pick_rank" if any(r.get("pick_rank") for r in rows) else "rank"
-    top = sorted((r for r in rows if r.get(key)), key=lambda r: r[key])[:TOP_N]
+    live = [r for r in rows if r.get(key)]
+    pct = {c: _pct([r.get(c) for r in live]) for c in W2}
+    contrib = {}
+    for i, r in enumerate(live):
+        c = {"attention": 0.0, "price": 0.0, "money": 0.0}
+        for col, w in W2.items():
+            c[ANGLE_OF[col]] += w * (pct[col][i] if pct[col][i] is not None else 0.5)
+        contrib[r["topic"]] = {k: round(v, 4) for k, v in c.items()}
+    top = sorted(live, key=lambda r: r[key])[:TOP_N]
     et = to_et(run_ts)
     return [{"run_ts": run_ts, "run_et": et, "topic": r["topic"], "name": r.get("name"), "asset_class": r.get("asset_class"),
              "pick_rank": r.get(key), "pick_score": _r(r.get("pick_score") if key == "pick_rank" else r.get("demand_score")),
-             "pick_tier": r.get("pick_tier") if key == "pick_rank" else r.get("tier"), "chg_24h": _r(r.get("chg_24h"))}
+             "pick_tier": r.get("pick_tier") if key == "pick_rank" else r.get("tier"), "chg_24h": _r(r.get("chg_24h")),
+             "in": _inputs(r), "c": contrib[r["topic"]] if key == "pick_rank" else None}
             for r in top]
 
 
 def merge(history: list, new_rows: list) -> list:
-    """Add rows of pulls not yet in history (a pull already present is kept as is)."""
+    """Add rows of pulls not yet in history. A pull already present is kept, unless it has no inputs and the new rows do."""
+    rich = {h["run_ts"] for h in history if h.get("in")}
     have = {h["run_ts"] for h in history}
-    add = [r for r in new_rows if r["run_ts"] not in have]
+    new_rich = {r["run_ts"] for r in new_rows if r.get("in")}
+    replace = (new_rich & have) - rich
+    add = [r for r in new_rows if r["run_ts"] not in have or r["run_ts"] in replace]
     if not add:
         return history
-    out = history + add
+    out = [h for h in history if h["run_ts"] not in replace] + add
     out.sort(key=lambda h: (h["run_ts"], h.get("pick_rank") or 0))
     return out
 
@@ -172,6 +234,16 @@ def analyze(history: list) -> dict:
     out = {"schema": SCHEMA, "pulls": len(pulls), "days": len(rec), "first_et": to_et(pulls[0][0]), "last_et": to_et(last_ts),
            "last_ct": to_ct(last_ts), "top_k": TOP_K}
 
+    out["angles_meta"] = ANGLES
+    rich = [(ts, rows) for ts, rows in pulls if any(r.get("in") for r in rows)]
+    rich_rec = [p for p in rec if any(r.get("in") for r in p[3])]
+    if len(rich) > 1:
+        out["angles_pull"] = {"from_et": to_et(rich[-2][0]), "to_et": to_et(rich[-1][0]), **_angles(rich[-2][1], rich[-1][1])}
+        out["drivers_pull"] = _drivers(rich[-2][1], rich[-1][1])
+    if len(rich_rec) > 1:
+        a, b = rich_rec[-2], rich_rec[-1]
+        out["angles_day"] = {"from_et": a[2], "to_et": b[2], **_angles(a[3], b[3])}
+        out["drivers_day"] = _drivers(a[3], b[3])
     out["latest"] = {"top": [{"rank": r["pick_rank"], "topic": r["topic"], "name": r.get("name"),
                               "category": CATEGORIES.get(r.get("asset_class"), r.get("asset_class")), "score": r.get("pick_score"),
                               "tier": r.get("pick_tier"), "chg_24h": r.get("chg_24h")} for r in last_rows[:20]]}
@@ -242,6 +314,46 @@ def analyze(history: list) -> dict:
                       "next_day_rank": nxt, "has_next": i + 1 < len(rec)})
     out["picks"] = picks[::-1]
     return out
+
+
+def _angles(a_rows, b_rows, n=6):
+    """Per angle: the topics whose measure rose and fell most from pull a to pull b (topics in the top 50 both times)."""
+    ra = {r["topic"]: r for r in a_rows if r.get("in")}
+    out = {}
+    for key, meta in ANGLES.items():
+        m = meta["metric"]
+        ch = []
+        for r in b_rows:
+            o = ra.get(r["topic"])
+            if not (o and r.get("in")):
+                continue
+            x0, x1 = o["in"].get(m), r["in"].get(m)
+            if x0 is None or x1 is None:
+                continue
+            ch.append({"topic": r["topic"], "name": r.get("name"), "category": CATEGORIES.get(r.get("asset_class"), r.get("asset_class")),
+                       "before": x0, "after": x1, "change": round(x1 - x0, 3), "rank": r["pick_rank"], "prev_rank": o["pick_rank"],
+                       "extra": {"mentions": r["in"].get("mentions"), "pm_vol": r["in"].get("pm_vol"), "vol": r["in"].get("vol")}})
+        ch.sort(key=lambda x: -x["change"])
+        out[key] = {"up": [x for x in ch if x["change"] > 0][:n], "down": [x for x in ch[::-1] if x["change"] < 0][:n]}
+    return {"angles": out}
+
+
+def _drivers(a_rows, b_rows, n=12):
+    """Biggest rank moves (top 20 either time) and which angle moved the score: change in each angle's contribution."""
+    ra = {r["topic"]: r for r in a_rows}
+    out = []
+    for r in b_rows:
+        o = ra.get(r["topic"])
+        if not (o and r.get("c") and o.get("c")) or (r["pick_rank"] > 20 and o["pick_rank"] > 20):
+            continue
+        d = {k: round(r["c"][k] - o["c"][k], 4) for k in r["c"]}
+        main = max(d, key=lambda k: abs(d[k]))
+        out.append({"topic": r["topic"], "name": r.get("name"), "category": CATEGORIES.get(r.get("asset_class"), r.get("asset_class")),
+                    "prev_rank": o["pick_rank"], "rank": r["pick_rank"], "places": o["pick_rank"] - r["pick_rank"],
+                    "score_change": round((r.get("pick_score") or 0) - (o.get("pick_score") or 0), 4), "by_angle": d,
+                    "main": ANGLES[main]["label"] if abs(d[main]) > 0.005 else "No single angle"})
+    out.sort(key=lambda x: -abs(x["places"]))
+    return [x for x in out if x["places"]][:n]
 
 
 def by_category(rows: list, per=10) -> list:

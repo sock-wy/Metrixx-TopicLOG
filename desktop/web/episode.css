@@ -43,3 +43,4 @@
 .app-bar #ab-keysform { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #dash-root .ep-paste > summary { font-size: var(--cds-font-size-body); color: var(--color-fg); }
 #dash-root .ep-paste[open] { display: flex; flex-direction: column; gap: var(--cds-gap-sm); }
+#dash-root .ep-style { border: 1px solid var(--color-border-line); border-radius: 999px; padding: 0 8px; }

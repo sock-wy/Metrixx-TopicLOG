@@ -4,6 +4,11 @@
 #dash-root .tl-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
 #dash-root .tl-take { color: var(--color-fg-muted); font-size: var(--cds-font-size-body); margin: 0; max-width: 70ch; }
 #dash-root .tl-take b { color: var(--color-fg); font-weight: 600; }
+#dash-root .tl-groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+#dash-root .tl-group { font: inherit; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); background: none; border: 1px solid var(--color-border-line); border-radius: 999px; padding: 5px 16px; color: var(--color-fg-muted); cursor: pointer; }
+#dash-root .tl-group[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+#dash-root .tl-group[hidden], #dash-root .tl-tab[hidden] { display: none; }
+#dash-root .tl-tabs.single { display: none; }
 #dash-root .tl-tabs { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); border-bottom: 1px solid var(--color-border-line); }
 #dash-root .tl-tab { font: inherit; font-size: var(--cds-font-size-body); background: none; border: 0; border-bottom: 2px solid transparent; padding: var(--cds-pad-xs) var(--cds-pad-sm); color: var(--color-fg-muted); cursor: pointer; }
 #dash-root .tl-tab[aria-selected="true"] { color: var(--color-fg); border-bottom-color: var(--color-fg); }
@@ -26,6 +31,18 @@
 #dash-root .rk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); }
 #dash-root .tl-btn { font: inherit; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); border-radius: var(--cds-radius); padding: 5px 10px; cursor: pointer; }
 #dash-root .rk-h { margin: 6px 0 2px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-weight: var(--cds-font-weight-medium); }
+#dash-root { --rk-att: #E8A33D; --rk-price: #4C8DF6; --rk-money: #2BB673; }
+#dash-root .rk-headrow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--cds-gap-sm); align-items: flex-start; }
+#dash-root .rk-seg { display: flex; gap: 4px; flex-wrap: wrap; }
+#dash-root .tl-btn.on { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+#dash-root .rk-angles { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--cds-gap-md, 16px); }
+#dash-root .rk-angle .rk-mini td { padding: 3px 6px; font-size: var(--cds-font-size-caption); }
+#dash-root .rk-bar { position: relative; height: 12px; min-width: 9rem; background: linear-gradient(to right, transparent calc(50% - 0.5px), var(--color-border-line) calc(50% - 0.5px), var(--color-border-line) calc(50% + 0.5px), transparent calc(50% + 0.5px)); }
+#dash-root .rk-bar span { position: absolute; top: 2px; height: 8px; border-radius: 2px; opacity: .9; }
+#dash-root .rk-bar .rk-seg-price { top: 4px; height: 4px; }
+#dash-root .rk-bar .rk-seg-money { top: 5px; height: 2px; }
+#dash-root .rk-barh { min-width: 10rem; }
+#dash-root .rk-key { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: baseline; }
 #dash-root .rk-list { margin: 0; padding-left: 1.1rem; font-size: var(--cds-font-size-caption); line-height: 1.6; }
 #dash-root .tl-card h3 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
 #dash-root .tl-note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); max-width: 75ch; }
@@ -150,15 +167,21 @@
     </p>
   </header>
 
+  <nav class="tl-groups" aria-label="Sections">
+    <button type="button" class="tl-group" data-group="workbench" aria-pressed="true">Workbench</button>
+    <button type="button" class="tl-group" data-group="market" aria-pressed="false">Market</button>
+    <button type="button" class="tl-group" data-group="changes" aria-pressed="false">Changes</button>
+    <button type="button" class="tl-group" data-group="apps" aria-pressed="false">Apps</button>
+  </nav>
   <nav class="tl-tabs" role="tablist" aria-label="Dashboard pages">
-    <button class="tl-tab" role="tab" id="tab-ranking" data-page="ranking" aria-selected="true">Workbench</button>
-    <button class="tl-tab" role="tab" id="tab-brief" data-page="brief" aria-selected="false">Briefing</button>
-    <button class="tl-tab" role="tab" id="tab-daily" data-page="daily" aria-selected="false">Daily picks</button>
-    <button class="tl-tab" role="tab" id="tab-ranks" data-page="ranks" aria-selected="false">Rank changes</button>
-    <button class="tl-tab" role="tab" id="tab-runs" data-page="runs" aria-selected="false">Daily steps</button>
-    <button class="tl-tab" role="tab" id="tab-raw" data-page="raw" aria-selected="false">Raw data</button>
-    <button class="tl-tab" role="tab" id="tab-market" data-page="market" aria-selected="false">Market data</button>
-    <button class="tl-tab" role="tab" id="tab-symbols" data-page="symbols" aria-selected="false">Topics &amp; events</button>
+    <button class="tl-tab" role="tab" id="tab-ranking" data-page="ranking" data-group="workbench" aria-selected="true">Workbench</button>
+    <button class="tl-tab" role="tab" id="tab-brief" data-page="brief" data-group="market" aria-selected="false">Briefing</button>
+    <button class="tl-tab" role="tab" id="tab-raw" data-page="raw" data-group="market" aria-selected="false">Raw data</button>
+    <button class="tl-tab" role="tab" id="tab-market" data-page="market" data-group="market" aria-selected="false">Market data</button>
+    <button class="tl-tab" role="tab" id="tab-symbols" data-page="symbols" data-group="market" aria-selected="false">Topics &amp; events</button>
+    <button class="tl-tab" role="tab" id="tab-ranks" data-page="ranks" data-group="changes" aria-selected="false">Rank changes</button>
+    <button class="tl-tab" role="tab" id="tab-daily" data-page="daily" data-group="changes" aria-selected="false">Daily picks</button>
+    <button class="tl-tab" role="tab" id="tab-runs" data-page="runs" data-group="changes" aria-selected="false">Daily steps</button>
   </nav>
 
   <!-- ============================== Workbench: sources | algorithm | output -->
@@ -380,52 +403,38 @@
   <!-- ============================== Rank changes -->
   <section class="tl-page" id="ranks" role="tabpanel" aria-labelledby="tab-ranks" hidden>
     <div class="tl-card" id="card-rk-head">
-      <h3>How the ranking changes</h3>
-      <p class="tl-note" id="rk-summary">Loading…</p>
-      <p class="tl-note">Ranking of record (pick_rank). Every pull's full ranking is kept for good (Topic Log Data/rank_history on the Desktop); history before this view existed is backfilled from the archive (top 50 per pull). "Top 10" is the unit of change below.</p>
+      <div class="rk-headrow">
+        <div>
+          <h3>What changed, and why</h3>
+          <p class="tl-note" id="rk-summary">Loading…</p>
+        </div>
+        <div class="rk-seg" role="group" aria-label="Compare">
+          <button type="button" class="tl-btn on" data-cmp="day">Today vs the day before</button>
+          <button type="button" class="tl-btn" data-cmp="pull">Latest pull vs the pull before</button>
+        </div>
+      </div>
+      <p class="tl-note" id="rk-when"></p>
       <div class="rk-actions" id="rk-actions" hidden>
         <button type="button" class="tl-btn" data-export="pdf">Export PDF</button>
         <button type="button" class="tl-btn" data-export="xlsx">Export Excel</button>
         <button type="button" class="tl-btn" data-folder="exports">Open exports folder</button>
         <span class="tl-note" id="rk-export-msg"></span>
       </div>
-      <p class="tl-note">The export holds the latest ranking overall and by category (stocks, crypto, macro…), plus every table on this page.</p>
     </div>
-    <div class="tl-grid">
-      <div class="tl-card" id="card-rk-pull"><h3>Latest pull vs the pull before</h3><p class="tl-note" id="rk-pull-when"></p><div id="rk-pull"></div></div>
-      <div class="tl-card" id="card-rk-day"><h3>Pick of record vs the day before</h3><p class="tl-note" id="rk-day-when"></p><div id="rk-day"></div></div>
+    <div class="tl-card" id="card-rk-drivers">
+      <h3>Biggest rank moves and what drove them</h3>
+      <p class="tl-note">Each topic's score is built from three angles (attention 70%, price and volume 25%, money 5%), each measured against the other topics on the same pull. The bar shows which angle pushed the score up (right) or down (left).</p>
+      <div class="tl-scroll" style="max-height: 30rem"><table class="tl-table" id="rk-drivers"><thead><tr>
+        <th class="l">Topic</th><th class="l tl-hide-sm">Category</th><th>Rank</th><th>Places</th><th class="l">Driven by</th><th class="l rk-barh"><span class="rk-key" style="background:var(--rk-att)"></span>Attention <span class="rk-key" style="background:var(--rk-price)"></span>Price <span class="rk-key" style="background:var(--rk-money)"></span>Money</th>
+      </tr></thead><tbody></tbody></table></div>
+      <p class="tl-note" id="rk-topchg"></p>
     </div>
-    <div class="tl-card" id="card-rk-path">
-      <h3>Rank path of today's top 10</h3>
-      <p class="tl-note">Each line is one of the latest top 10, across every pull kept. Lower is better (1 = top). A gap means the topic was outside the top 50.</p>
-      <div class="tl-chart" id="rk-path-chart"></div>
-    </div>
-    <div class="tl-card" id="card-rk-turn">
-      <h3>Top-10 turnover per pull</h3>
-      <p class="tl-note">Share of the top 10 that was not in the previous pull's top 10. High = the ranking reshuffled; low = the same names stayed on top.</p>
-      <div class="tl-chart" id="rk-turn-chart"></div>
-    </div>
-    <div class="tl-grid">
-      <div class="tl-card" id="card-rk-streaks">
-        <h3>Staying power in the top 10</h3>
-        <p class="tl-note">Per day of record. Current streak = days in a row up to the latest day.</p>
-        <div class="tl-scroll" style="max-height: 26rem"><table class="tl-table" id="rk-streaks"><thead><tr>
-          <th class="l">Topic</th><th class="l tl-hide-sm">Category</th><th>Rank now</th><th>Current streak</th><th>Longest</th><th>Days in top 10</th>
-        </tr></thead><tbody></tbody></table></div>
-      </div>
-      <div class="tl-card" id="card-rk-vol">
-        <h3>Most unstable ranks</h3>
-        <p class="tl-note">Topics in the top 20 at least 3 times, by the spread (SD) of their rank over all pulls.</p>
-        <div class="tl-scroll" style="max-height: 26rem"><table class="tl-table" id="rk-vol"><thead><tr>
-          <th class="l">Topic</th><th class="l tl-hide-sm">Category</th><th>Pulls</th><th>Mean rank</th><th>SD</th><th>Best</th><th>Worst</th><th>#1</th>
-        </tr></thead><tbody></tbody></table></div>
-      </div>
-    </div>
+    <div class="rk-angles" id="rk-angles"></div>
     <div class="tl-card" id="card-rk-picks">
       <h3>Daily picks and what happened next</h3>
-      <p class="tl-note">The #1 of each day's pick-of-record pull (16:15 ET = 15:15 CT; 15:00 ET before Nov 3), and its rank on the next recorded day. Days without that pull show the day's last pull instead.</p>
-      <div class="tl-scroll" style="max-height: 24rem"><table class="tl-table" id="rk-picks"><thead><tr>
-        <th class="l">Date</th><th class="l">Pull (ET)</th><th class="l">#1</th><th class="l tl-hide-sm">Name</th><th class="l tl-hide-sm">Category</th><th>Score</th><th>Rank next day</th>
+      <p class="tl-note">The #1 of each day's pick-of-record pull (15:15 CT), and where it ranked the next day.</p>
+      <div class="tl-scroll" style="max-height: 22rem"><table class="tl-table" id="rk-picks"><thead><tr>
+        <th class="l">Date</th><th class="l">#1</th><th class="l tl-hide-sm">Name</th><th class="l tl-hide-sm">Category</th><th>Rank next day</th>
       </tr></thead><tbody></tbody></table></div>
     </div>
   </section>
@@ -1587,6 +1596,13 @@ window.TL = (() => {
 
 
   // ---------- rank changes
+  let rkCmp = 'day';
+  document.querySelectorAll('#card-rk-head [data-cmp]').forEach((b) => b.addEventListener('click', () => {
+    rkCmp = b.dataset.cmp;
+    document.querySelectorAll('#card-rk-head [data-cmp]').forEach((x) => x.classList.toggle('on', x === b));
+    drawRanks();
+  }));
+  const ANG_COL = { attention: 'var(--rk-att)', price: 'var(--rk-price)', money: 'var(--rk-money)' };
   function drawRanks() {
     const sum = document.getElementById('rk-summary');
     const d = rows('rank_changes')[0];
@@ -1595,77 +1611,59 @@ window.TL = (() => {
       return;
     }
     document.getElementById('rk-actions').hidden = !window.tlSaveFile;
-    sum.textContent = `${d.pulls} pulls over ${d.days} days, ${d.first_et} to ${d.last_et} ET (latest = ${d.last_ct} CT).`;
-    const diffBox = (box, when, x) => {
-      const b = document.getElementById(box); b.replaceChildren();
-      document.getElementById(when).textContent = x ? `${x.from_et} ET → ${x.to_et} ET${x.turnover == null ? '' : ' · ' + fpct(x.turnover) + ' of the top 10 is new'}` : 'Needs two pulls.';
-      if (!x) return;
-      const list = (title, items, fmt) => {
-        b.append(el('h4', 'rk-h', title));
-        if (!items.length) { b.append(el('p', 'tl-note', 'None.')); return; }
-        const ul = el('ul', 'rk-list');
-        for (const it of items) { const li = el('li'); li.append(el('b', null, it.topic), document.createTextNode(' ' + (it.name || '') + ' · '), fmt(it)); ul.append(li); }
-        b.append(ul);
-      };
-      const chg = (it) => el('span', it.change > 0 ? 'tl-pos' : 'tl-neg', `${it.prev_rank} → ${it.rank} (${it.change > 0 ? '+' : ''}${it.change})`);
-      list('Entered the top 10', x.entered, (it) => el('span', 'tl-pos', `#${it.rank}${it.prev_rank ? ' (was ' + it.prev_rank + ')' : ' (was outside the top 50)'}`));
-      list('Left the top 10', x.dropped, (it) => el('span', 'tl-neg', `was #${it.prev_rank}, now ${it.rank ? '#' + it.rank : 'outside the top 50'}`));
-      list('Biggest moves (top 20)', x.movers.slice(0, 8), chg);
-    };
-    diffBox('rk-pull', 'rk-pull-when', d.vs_prev_pull);
-    diffBox('rk-day', 'rk-day-when', d.vs_prev_day);
-    const fill = (id, data, cells, empty) => {
-      const tb = document.querySelector(`#${id} tbody`);
-      if (!data.length) { emptyRow(tb, 8, empty); return; }
-      tb.replaceChildren(...data.map((r) => { const tr = el('tr'); for (const [v, cls] of cells(r)) { const t = el('td', cls); if (v instanceof Node) t.append(v); else t.textContent = v ?? '–'; tr.append(t); } return tr; }));
-    };
-    fill('rk-streaks', d.streaks || [], (r) => [[r.topic, 'l'], [r.category, 'l tl-hide-sm'], [r.rank_now == null ? 'out' : String(r.rank_now)], [String(r.current_streak)], [String(r.longest_streak)], [`${r.days_in_top} of ${r.days}`]], 'No history yet.');
-    fill('rk-vol', d.volatility || [], (r) => [[r.topic, 'l'], [r.category, 'l tl-hide-sm'], [String(r.pulls)], [String(r.mean_rank)], [String(r.sd_rank)], [String(r.best)], [String(r.worst)], [String(r.times_no1)]], 'Needs more pulls.');
-    fill('rk-picks', d.picks || [], (r) => [[r.date, 'l'], [r.run_et.slice(11) + (r.of_record ? '' : ' (last pull)'), 'l'], [r.topic, 'l'], [r.name || '', 'l tl-hide-sm'], [r.category, 'l tl-hide-sm'], [show(r.score, f3)],
-      [r.next_day_rank != null ? '#' + r.next_day_rank : r.has_next ? 'outside top 50' : '–']], 'No picks yet.');
-    if (state.page !== 'ranks') return;
-    // rank path
-    const box = document.getElementById('rk-path-chart');
-    if (box.clientWidth) {
-      box.replaceChildren();
-      const pts = (d.paths || []).map((p) => ({ ...p, t: new Date(p.run_et.replace(' ', 'T') + ':00') }));
-      const tops = d.path_topics || [];
-      const W = box.clientWidth, H = 320, m = { t: 12, r: 70, b: 28, l: 36 };
-      const x = d3.scaleTime(d3.extent(pts, (p) => p.t), [m.l, W - m.r]);
-      const y = d3.scaleLinear([1, 50], [m.t, H - m.b]);
-      const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Rank of the latest top 10 over time');
-      axisStyle(svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.max(2, Math.floor(W / 110))).tickFormat(d3.timeFormat('%b %-d'))));
-      axisStyle(svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([1, 10, 20, 30, 40, 50]).tickSize(-(W - m.l - m.r - 0))));
-      tops.forEach((t, i) => {
-        const c = dash.colors[i % dash.colors.length];
-        const line = d3.line((p) => x(p.t), (p) => y(p[t])).defined((p) => p[t] != null);
-        const g = svg.append('g').attr('class', 'rk-line');
-        g.append('path').datum(pts).attr('fill', 'none').attr('stroke', c).attr('stroke-width', i < 3 ? 2.2 : 1.4).attr('opacity', i < 3 ? 1 : 0.75).attr('d', line);
-        g.selectAll('circle').data(pts.filter((p) => p[t] != null)).join('circle').attr('cx', (p) => x(p.t)).attr('cy', (p) => y(p[t])).attr('r', 2.2).attr('fill', c)
-          .append('title').text((p) => `${t} · #${p[t]} · ${p.run_et} ET`);
-      });
-      // end labels, pushed apart so they do not overlap
-      const last = pts[pts.length - 1] || {};
-      const labs = tops.map((t, i) => ({ t, i, r: last[t], y: last[t] == null ? null : y(last[t]) })).filter((l) => l.y != null).sort((a, b) => a.y - b.y);
-      for (let k = 1; k < labs.length; k++) labs[k].y = Math.max(labs[k].y, labs[k - 1].y + 12);
-      svg.append('g').selectAll('text').data(labs).join('text').attr('x', W - m.r + 6).attr('y', (l) => l.y + 4)
-        .attr('fill', (l) => dash.colors[l.i % dash.colors.length]).style('font-size', 'var(--cds-font-size-caption)').text((l) => `#${l.r} ${l.t}`);
+    sum.textContent = `${d.pulls} pulls kept, ${d.first_et.slice(0, 10)} to ${d.last_et.slice(0, 10)}. Latest pull ${d.last_ct} CT.`;
+    const ang = d['angles_' + rkCmp], drv = d['drivers_' + rkCmp] || [], diff = d['vs_prev_' + rkCmp];
+    document.getElementById('rk-when').textContent = ang ? `Comparing ${ang.from_et} ET with ${ang.to_et} ET.` : 'Needs two pulls with full data.';
+    // drivers
+    const tb = document.querySelector('#rk-drivers tbody');
+    if (!drv.length) emptyRow(tb, 6, 'No big moves.');
+    else tb.replaceChildren(...drv.map((r) => {
+      const tr = el('tr');
+      tr.append(el('td', 'l', r.topic), el('td', 'l tl-hide-sm', r.category || ''), el('td', null, `${r.prev_rank} → ${r.rank}`),
+        el('td', r.places > 0 ? 'tl-pos' : 'tl-neg', (r.places > 0 ? '+' : '') + r.places), el('td', 'l', r.main));
+      const bar = el('td', 'l rk-barh'); const wrap = el('div', 'rk-bar');
+      for (const k of ['attention', 'price', 'money']) {
+        const v = r.by_angle[k] || 0, w = Math.min(50, Math.abs(v) / 0.35 * 50);
+        const seg = el('span', 'rk-seg-' + k); seg.style.width = w + '%'; seg.style.background = ANG_COL[k];
+        seg.style[v >= 0 ? 'left' : 'right'] = '50%'; seg.title = `${k}: ${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)} points`;
+        wrap.append(seg);
+      }
+      bar.append(wrap); tr.append(bar); return tr;
+    }));
+    document.getElementById('rk-topchg').textContent = diff
+      ? `Top 10: in ${diff.entered.map((e) => e.topic).join(', ') || 'none'} · out ${diff.dropped.map((e) => e.topic).join(', ') || 'none'}.` : '';
+    // four angles
+    const box = document.getElementById('rk-angles'); box.replaceChildren();
+    const meta = d.angles_meta || {};
+    const fmtv = (k, v) => v == null ? '–' : k === 'price' ? v.toFixed(1) + 'σ' : k === 'sentiment' ? (v > 0 ? '+' : '') + v.toFixed(2) : v.toFixed(1) + '×';
+    for (const k of ['attention', 'money', 'price', 'sentiment']) {
+      const m = meta[k] || {}, a = ang && ang.angles[k];
+      const card = el('div', 'tl-card rk-angle');
+      card.append(el('h3', null, m.label || k), el('p', 'tl-note', m.what || ''));
+      for (const [dir, title] of [['up', 'Rose most'], ['down', 'Fell most']]) {
+        card.append(el('h4', 'rk-h', title));
+        const list = a ? a[dir] : [];
+        if (!list.length) { card.append(el('p', 'tl-note', 'None.')); continue; }
+        const t = el('table', 'tl-table rk-mini');
+        for (const x of list.slice(0, 5)) {
+          const tr = el('tr');
+          tr.append(el('td', 'l', x.topic), el('td', null, `${fmtv(k, x.before)} → ${fmtv(k, x.after)}`), el('td', 'tl-note', `#${x.rank}`));
+          t.append(tr);
+        }
+        card.append(t);
+      }
+      box.append(card);
     }
-    // turnover
-    const tb = document.getElementById('rk-turn-chart');
-    if (tb.clientWidth) {
-      tb.replaceChildren();
-      const data = (d.turnover || []).filter((r) => r.turnover != null).map((r) => ({ ...r, t: r.run_et }));
-      const W = tb.clientWidth, H = 200, m = { t: 12, r: 16, b: 28, l: 40 };
-      const x = d3.scaleBand(data.map((r) => r.t), [m.l, W - m.r]).padding(0.25);
-      const y = d3.scaleLinear([0, 1], [H - m.b, m.t]);
-      const svg = d3.select(tb).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Top-10 turnover per pull');
-      const every = Math.ceil(data.length / Math.max(1, Math.floor(W / 80)));
-      axisStyle(svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(x.domain().filter((_, i) => i % every === 0)).tickFormat((v) => v.slice(5, 10))));
-      axisStyle(svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(-(W - m.l - m.r)).tickFormat(fpct)));
-      svg.append('g').selectAll('rect').data(data).join('rect').attr('x', (r) => x(r.t)).attr('width', x.bandwidth()).attr('y', (r) => y(r.turnover)).attr('height', (r) => y(0) - y(r.turnover)).attr('rx', 2).attr('fill', dash.colors[0])
-        .append('title').text((r) => `${r.run_et} ET · ${fpct(r.turnover)} new · #1 ${r.top}`);
-    }
+    // picks
+    const pb = document.querySelector('#rk-picks tbody');
+    const picks = d.picks || [];
+    if (!picks.length) emptyRow(pb, 5, 'No picks yet.');
+    else pb.replaceChildren(...picks.map((r) => {
+      const tr = el('tr');
+      tr.append(el('td', 'l', r.date), el('td', 'l', r.topic), el('td', 'l tl-hide-sm', r.name || ''), el('td', 'l tl-hide-sm', r.category || ''),
+        el('td', null, r.next_day_rank != null ? '#' + r.next_day_rank : r.has_next ? 'outside top 50' : '–'));
+      return tr;
+    }));
   }
   document.querySelectorAll('#rk-actions [data-export]').forEach((b) => b.addEventListener('click', async () => {
     const msg = document.getElementById('rk-export-msg'); msg.textContent = 'Exporting…';
@@ -1676,6 +1674,31 @@ window.TL = (() => {
   }));
   document.querySelectorAll('#rk-actions [data-folder]').forEach((b) => b.addEventListener('click', () => fetch('/api/open-folder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: b.dataset.folder }) })));
 
+
+  // ---------- four sections: a section shows its own sub-tabs; the selected tab decides the section
+  (function sections() {
+    const groupsNav = document.querySelector('.tl-groups'), tabsNav = document.querySelector('.tl-tabs');
+    const lastIn = {};
+    function sync() {
+      const tabs = [...tabsNav.querySelectorAll('.tl-tab')];
+      tabs.forEach((t) => { if (!t.dataset.group) t.dataset.group = t.dataset.ep ? 'apps' : 'workbench'; });
+      const sel = tabs.find((t) => t.getAttribute('aria-selected') === 'true') || tabs[0];
+      const g = sel.dataset.group; lastIn[g] = sel;
+      groupsNav.querySelectorAll('.tl-group').forEach((b) => {
+        b.setAttribute('aria-pressed', b.dataset.group === g ? 'true' : 'false');
+        b.hidden = !tabs.some((t) => t.dataset.group === b.dataset.group);
+      });
+      const mine = tabs.filter((t) => t.dataset.group === g);
+      tabs.forEach((t) => { t.hidden = t.dataset.group !== g; });
+      tabsNav.classList.toggle('single', mine.length < 2);
+    }
+    groupsNav.querySelectorAll('.tl-group').forEach((b) => b.addEventListener('click', () => {
+      const t = lastIn[b.dataset.group] || tabsNav.querySelector(`.tl-tab[data-group="${b.dataset.group}"]`);
+      if (t) t.click();
+    }));
+    new MutationObserver(sync).observe(tabsNav, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected'] });
+    sync();
+  })();
   const PAGES = ['ranking', 'brief', 'raw', 'daily', 'ranks', 'runs', 'market', 'symbols'];
   function go(page, link) {
     if (!PAGES.includes(page)) return;

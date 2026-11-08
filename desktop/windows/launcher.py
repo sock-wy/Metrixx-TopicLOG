@@ -22,7 +22,7 @@ def selftest(out: str) -> None:
         res["d3"] = (base / "web" / "d3.min.js").is_file()
         res["config"] = (base / "config" / "weights_w0.yaml").is_file()
         res["universe"] = (base / "dashboard" / "adanos_universe.json").is_file()
-        res["episode_prompt"] = (base / "episode_prompt.md").is_file()
+        res["episode_prompt"] = (base / "episode_prompt.md").is_file() and (base / "episode_prompt_teaching.md").is_file()
         import zoneinfo
 
         zoneinfo.ZoneInfo("America/New_York")

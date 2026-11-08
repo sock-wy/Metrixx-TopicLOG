@@ -24,6 +24,7 @@ for d in ("web", "dashboard", "scoring", "config"):
 shutil.copy(ROOT / "desktop" / "server.py", STAGE)
 shutil.copy(ROOT / "desktop" / "episode.py", STAGE)
 shutil.copy(ROOT / "desktop" / "episode_prompt.md", STAGE)
+shutil.copy(ROOT / "desktop" / "episode_prompt_teaching.md", STAGE)
 shutil.copy(WIN / "launcher.py", STAGE)
 for f in (ROOT / "desktop" / "web").iterdir():
     shutil.copy(f, STAGE / "web")
@@ -49,6 +50,7 @@ PyInstaller.__main__.run([
     "--add-data", f"{STAGE / 'web'}{sep}web",
     "--add-data", f"{STAGE / 'config'}{sep}config",
     "--add-data", f"{STAGE / 'episode_prompt.md'}{sep}.",
+    "--add-data", f"{STAGE / 'episode_prompt_teaching.md'}{sep}.",
     "--add-data", f"{STAGE / 'rank_seed.json'}{sep}.",
     "--add-data", f"{STAGE / 'dashboard' / 'adanos_universe.json'}{sep}dashboard",
     "--add-data", f"{STAGE / 'dashboard' / 'catalysts.yaml'}{sep}dashboard",

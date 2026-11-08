@@ -30,3 +30,13 @@ Build: `./desktop/build.sh [ADANOS_API_KEY]` → `desktop/dist/Topic Log.app`.
 - **Episode → Use my own script**: paste a finished script (e.g. Jim's), approve, Make audio with ElevenLabs. No Claude draft, no Anthropic key needed.
 - Pick of record = first pull at or after 16:10 ET (15:10 CT); the Episode tab no longer calls the 16:15 ET pull "not the pick of record".
 - Windows: CI also publishes TopicLog.exe to the `windows-latest` release.
+
+## v1.1 (Nov 8)
+- **Four sections** at the top: Workbench · Market (Briefing, Raw data, Market data, Topics & events) · Changes (Rank changes, Daily picks, Daily steps) · Apps (Episode). Each section shows its own tabs.
+- **Rank changes, reworked** around why the ranking moved, comparing today with the day before (pick of record) or the latest pull with the one before:
+  - Biggest rank moves and what drove them: for each big mover, the change in each angle's contribution to the score (attention 70%, price & volume 25%, money 5%; each input as its percentile on that pull).
+  - Four angles, risers and fallers: Attention (mentions vs 20-day normal), Money (prediction-market open interest vs normal), Price & volume (24h move in sigma), Sentiment (average Adanos sentiment).
+  - Daily picks and their next-day rank. The rank-path, turnover and volatility views were removed.
+  - The rank history now keeps each topic's inputs per pull (`in`, `c` fields); the seed was rebuilt from the archive with them.
+- **Episode: two prompts.** `episode_prompt.md` = Market angle (trader's read); `episode_prompt_teaching.md` = Teaching moment (the story as a worked example of one concept). Pick the angle next to Draft script; "Rewrite as …" switches an episode to the other angle. A copy of either file in the support folder overrides the bundled one.
+- Exports: drivers and four-angle tables added; volatility and turnover removed.

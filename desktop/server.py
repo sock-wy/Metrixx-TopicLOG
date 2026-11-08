@@ -45,7 +45,7 @@ MAX_SLOTS, MIN_GAP_MIN = 6, 30
 DEFAULT_SETTINGS = {"adanos_key": "", "schedule": DEFAULT_SCHEDULE, "weekdays_only": False, "schedule_set_at": None}
 INTERVAL_V = 4  # v4: the schedule replaces the interval menu; older settings move to the default schedule once
 
-VERSION = "1.0"
+VERSION = "1.1"
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
 _old = _ver.read_text().strip() if _ver.exists() else None
@@ -381,7 +381,7 @@ class Handler(SimpleHTTPRequestHandler):
     def _ep_post(self, rest, body):
         try:
             if rest == "new":
-                return self._json({"id": episode.new(body.get("topic") or None)})
+                return self._json({"id": episode.new(body.get("topic") or None, body.get("style") or "market")})
             if rest == "paste":  # a script written elsewhere (e.g. Jim's): no Claude draft, straight to review -> audio
                 eid = episode.new_pasted(body.get("title"), body.get("script"), body.get("topic") or None)
                 ep = episode.load(eid)
@@ -394,7 +394,7 @@ class Handler(SimpleHTTPRequestHandler):
             if act == "save":
                 episode.edit(eid, body.get("title"), body.get("script"))
             elif act == "regen":
-                episode.regenerate(eid, body.get("note") or "")
+                episode.regenerate(eid, body.get("note") or "", body.get("style"))
             elif act == "restore":
                 episode.restore(eid, body.get("n"))
             elif act == "approve":

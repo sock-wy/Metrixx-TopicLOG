@@ -25,7 +25,7 @@
   const STATUS = { draft: 'Draft', approved: 'Approved', audio: 'Audio made', discarded: 'Discarded' };
 
   // ---------------------------------------------------------------- tab + page
-  const tab = h('button', { class: 'tl-tab', role: 'tab', id: 'tab-episode', 'data-ep': '1', 'aria-selected': 'false' }, 'Episode');
+  const tab = h('button', { class: 'tl-tab', role: 'tab', id: 'tab-episode', 'data-ep': '1', 'data-group': 'apps', 'aria-selected': 'false' }, 'Episode');
   tabs.append(tab);
   const page = h('section', { class: 'tl-page', id: 'episode', role: 'tabpanel', 'aria-labelledby': 'tab-episode', hidden: true });
   const last = pages().pop(); last.after(page);
@@ -40,12 +40,14 @@
 
   // ---------------------------------------------------------------- layout
   const pick = h('select', { 'aria-label': 'Topic for the episode' });
+  const styleSel = h('select', { 'aria-label': 'Angle of the script' },
+    h('option', { value: 'market' }, 'Market angle'), h('option', { value: 'teaching' }, 'Teaching moment'));
   const draftBtn = h('button', { class: 'btn primary', type: 'button' }, 'Draft script');
   const newMsg = h('span', { class: 'ep-msg' });
   const newCard = h('div', { class: 'tl-card' },
     h('h3', null, 'New MYCAST episode'),
-    h('div', { class: 'ep-new' }, pick, draftBtn, newMsg),
-    h('p', { class: 'tl-note' }, 'Claude reads this pull\'s digest, checks the story on the web and drafts a spoken script (1–3 minutes). Nothing is recorded until you approve the script and press Make audio.'));
+    h('div', { class: 'ep-new' }, pick, styleSel, draftBtn, newMsg),
+    h('p', { class: 'tl-note' }, 'Claude reads this pull\'s digest, checks the story on the web and drafts a spoken script (about 4 minutes). Market angle = a trader\'s read: what moved, why, what to watch. Teaching moment = the story as a worked example of one concept (sigma, guidance, implied probability…). Nothing is recorded until you approve the script and press Make audio.'));
   // own script (e.g. Jim's): paste it, skip the Claude draft, then approve -> Make audio as usual
   const pTitle = h('input', { class: 'ep-input', placeholder: 'Title', 'aria-label': 'Title of your script', style: 'flex:2 1 16rem' });
   const pTopic = h('input', { class: 'ep-input', placeholder: 'Ticker / topic (optional)', 'aria-label': 'Topic', style: 'flex:1 1 9rem' });
@@ -107,7 +109,7 @@
   draftBtn.addEventListener('click', async () => {
     if (dirty && !confirm('Discard unsaved edits in the open episode?')) return;
     draftBtn.disabled = true;
-    try { const r = await api('new', { topic: pick.value || null }); dirty = false; await open(r.id); } catch (e) { newMsg.textContent = e.message; }
+    try { const r = await api('new', { topic: pick.value || null, style: styleSel.value }); dirty = false; await open(r.id); } catch (e) { newMsg.textContent = e.message; }
     draftBtn.disabled = false; refresh();
   });
 
@@ -151,6 +153,11 @@
       if (dirty && !confirm('Regenerate from the last saved version? Unsaved edits are lost.')) return;
       if (await act('regen', { note: note.value })) note.value = '';
     } }, busy === 'drafting' ? 'Regenerating…' : 'Regenerate');
+    const curStyle = ep.style || 'market', other = curStyle === 'market' ? 'teaching' : 'market';
+    const switchBtn = h('button', { class: 'btn', type: 'button', disabled: !!busy || !!ep.own_script, onclick: async () => {
+      if (dirty && !confirm('Rewrite from the last saved version? Unsaved edits are lost.')) return;
+      if (await act('regen', { note: note.value, style: other })) note.value = '';
+    } }, other === 'teaching' ? 'Rewrite as Teaching moment' : 'Rewrite as Market angle');
     const expMd = h('button', { class: 'btn', type: 'button', onclick: async () => { try { const r = await api(`${ep.id}/export`, { format: 'md' }); msg.textContent = 'Saved ' + r.path; } catch (e) { msg.textContent = e.message; } } }, 'Export .md');
     const expTxt = h('button', { class: 'btn', type: 'button', onclick: async () => { try { const r = await api(`${ep.id}/export`, { format: 'txt' }); msg.textContent = 'Saved ' + r.path; } catch (e) { msg.textContent = e.message; } } }, 'Export .txt');
     const audioReady = approved && !dirty;
@@ -178,13 +185,14 @@
     put(editor, 
       h('div', { class: 'ep-head' }, title, h('span', { class: 'ep-status ' + (busy ? 'busy' : ep.status) }, busy ? (busy === 'audio' ? 'Making audio…' : 'Drafting…') : STATUS[ep.status]), verSel),
       h('div', { class: 'ep-meta' }, h('span', null, `${ep.name || ''} (${ep.topic || '–'})`), h('span', null, `Episode date ${ep.date}`),
+        ep.own_script ? null : h('span', { class: 'ep-style' }, (ep.style || 'market') === 'teaching' ? 'Teaching moment' : 'Market angle'),
         ep.own_script ? h('span', null, 'Own script (pasted)') : h('span', null, `Topic Log pull ${(ep.run && ep.run.run_et) || '–'} ET`), v.searches != null ? h('span', null, `${v.searches} web searches`) : null, count),
       v.why ? h('p', { class: 'ep-why' }, v.why) : null,
       ep.error ? h('p', { class: 'ep-err' }, 'Last step failed: ' + ep.error) : null,
       (v.checks || []).length ? h('div', { class: 'ep-checks' }, h('h4', null, 'Check before recording'), h('ul', null, ...v.checks.map((c) => h('li', null, c)))) : null,
       ta,
       h('div', { class: 'ep-row' }, saveBtn, approveBtn, unapproveBtn, discardBtn, expMd, expTxt, msg),
-      ep.own_script ? null : h('div', { class: 'ep-row' }, note, regenBtn),
+      ep.own_script ? null : h('div', { class: 'ep-row' }, note, regenBtn, switchBtn),
       audioRow,
       h('details', null, h('summary', null, 'Audio frame fields'), frame),
       (v.sources || []).length ? h('details', { class: 'ep-src' }, h('summary', null, `Sources (${v.sources.length})`),
