@@ -32,6 +32,21 @@ else:
 DATA = SUP / "data"
 SETTINGS = SUP / "settings.json"
 WEB = APP / "web"
+
+
+def _edition():
+    """"customer" when an edition.json saying so sits in the app folder or next to the .exe; else "beta"."""
+    for d in (APP, EXE_DIR):
+        try:
+            e = json.loads((pathlib.Path(d) / "edition.json").read_text()).get("edition")
+            if e:
+                return str(e)
+        except Exception:
+            pass
+    return "beta"
+
+
+EDITION = _edition()
 DATASETS = ["topic_log", "score_history", "daily_log", "runs", "adanos_daily", "symbol_appendix", "market_data",
             "us_stocks", "earnings_calendar", "us_movers", "polymarket", "crypto_spot", "events",
             "kalshi_perps", "venue_appendix", "sectors", "news", "briefing", "claude_digest", "rank_changes"]
@@ -46,6 +61,7 @@ DEFAULT_SETTINGS = {"adanos_key": "", "schedule": DEFAULT_SCHEDULE, "weekdays_on
 INTERVAL_V = 4  # v4: the schedule replaces the interval menu; older settings move to the default schedule once
 
 VERSION = "1.1"
+
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
 _old = _ver.read_text().strip() if _ver.exists() else None
@@ -436,7 +452,18 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(b)
             return
         if self.path.startswith("/api/ep/"):
+            if EDITION == "customer":
+                return self._json({"error": "not in this edition"}, 404)
             return self._ep_get(self.path.split("?")[0][len("/api/ep/"):])
+        if self.path.split("?")[0] in ("/", "/index.html") and EDITION == "customer":
+            b = (WEB / "index.html").read_text(encoding="utf-8").replace('<html lang="en">', '<html lang="en" data-edition="customer">', 1).replace("<title>Topic Log</title>", "<title>Topic Log Pro</title>", 1).replace('<span class="name">Topic Log</span>', '<span class="name">Topic Log Pro</span>', 1).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+            return
         if self.path.startswith("/api/status"):
             s = load_settings()
             try:
@@ -447,13 +474,15 @@ class Handler(SimpleHTTPRequestHandler):
                                "schedule": clean_schedule(s.get("schedule")), "weekdays_only": bool(s.get("weekdays_only")),
                                "pick_slot": PICK_SLOT, "tz": TZ_NAME, "max_slots": MAX_SLOTS, "min_gap": MIN_GAP_MIN,
                                "has_key": bool(s.get("adanos_key")), "data_dir": str(DATA), "out_dir": str(OUT),
-                               "version": VERSION})
+                               "version": VERSION, "edition": EDITION})
         return super().do_GET()
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}")
         if self.path.startswith("/api/ep/"):
+            if EDITION == "customer":
+                return self._json({"error": "not in this edition"}, 404)
             return self._ep_post(self.path[len("/api/ep/"):], body)
         if self.path == "/api/refresh":
             wake.set()

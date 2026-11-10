@@ -40,3 +40,7 @@ Build: `./desktop/build.sh [ADANOS_API_KEY]` → `desktop/dist/Topic Log.app`.
   - The rank history now keeps each topic's inputs per pull (`in`, `c` fields); the seed was rebuilt from the archive with them.
 - **Episode: two prompts.** `episode_prompt.md` = Market angle (trader's read); `episode_prompt_teaching.md` = Teaching moment (the story as a worked example of one concept). Pick the angle next to Draft script; "Rewrite as …" switches an episode to the other angle. A copy of either file in the support folder overrides the bundled one.
 - Exports: drivers and four-angle tables added; volatility and turnover removed.
+
+## Customer edition (Topic Log Pro preview, Nov 10)
+- Same build; an `edition.json` with `{"edition": "customer"}` in the app folder (Mac: `Topic Log.app/Contents/Resources/app/`) or next to `TopicLog.exe` switches it.
+- Shows: Workbench output only (today's pick, ranking with score; no sources, algorithm, inputs, tiers, gates, w0, topic breakdown, scatter, Export JSON for Claude), Market and Changes sections. Hides: Apps / Episode (its API is off too), the Adanos key button, the weights sentence on Rank changes. App name "Topic Log Pro".

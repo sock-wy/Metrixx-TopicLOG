@@ -4,6 +4,19 @@
 #dash-root .tl-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
 #dash-root .tl-take { color: var(--color-fg-muted); font-size: var(--cds-font-size-body); margin: 0; max-width: 70ch; }
 #dash-root .tl-take b { color: var(--color-fg); font-weight: 600; }
+/* customer edition (edition.json = customer): output only, no algorithm, no internal tools */
+#dash-root .ed-pick { display: none; }
+[data-edition="customer"] #dash-root .ed-pick { display: inline; }
+[data-edition="customer"] #dash-root .ed-internal,
+[data-edition="customer"] #dash-root #wb-sources, [data-edition="customer"] #dash-root #wb-algo,
+[data-edition="customer"] #dash-root .wb-colhead, [data-edition="customer"] #dash-root .cx-row, [data-edition="customer"] #dash-root .cx-box,
+[data-edition="customer"] #dash-root #pick .tl-tile:nth-child(3), [data-edition="customer"] #dash-root .ed-internal-note,
+[data-edition="customer"] #dash-root [data-raw] { display: none !important; }
+[data-edition="customer"] #dash-root .wb { grid-template-columns: minmax(0, 1fr) !important; }
+[data-edition="customer"] #dash-root #rk-gated, [data-edition="customer"] #dash-root #pk-sub, [data-edition="customer"] #dash-root #pk-pool-sub,
+[data-edition="customer"] #dash-root #card-detail, [data-edition="customer"] #dash-root #card-scatter,
+[data-edition="customer"] #dash-root #rk-table th:nth-child(2), [data-edition="customer"] #dash-root #rk-table td:nth-child(2),[data-edition="customer"] #dash-root #rk-table th:nth-child(6), [data-edition="customer"] #dash-root #rk-table td:nth-child(6),[data-edition="customer"] #dash-root #rk-table th:nth-child(7), [data-edition="customer"] #dash-root #rk-table td:nth-child(7),[data-edition="customer"] #dash-root #rk-table th:nth-child(9), [data-edition="customer"] #dash-root #rk-table td:nth-child(9),[data-edition="customer"] #dash-root #rk-table th:nth-child(10), [data-edition="customer"] #dash-root #rk-table td:nth-child(10),[data-edition="customer"] #dash-root #rk-table th:nth-child(11), [data-edition="customer"] #dash-root #rk-table td:nth-child(11),[data-edition="customer"] #dash-root #rk-table th:nth-child(12), [data-edition="customer"] #dash-root #rk-table td:nth-child(12),[data-edition="customer"] #dash-root #rk-table th:nth-child(13), [data-edition="customer"] #dash-root #rk-table td:nth-child(13),[data-edition="customer"] #dash-root #rk-table th:nth-child(14), [data-edition="customer"] #dash-root #rk-table td:nth-child(14),[data-edition="customer"] #dash-root #rk-table th:nth-child(15), [data-edition="customer"] #dash-root #rk-table td:nth-child(15),[data-edition="customer"] #dash-root #rk-table th:nth-child(16), [data-edition="customer"] #dash-root #rk-table td:nth-child(16),[data-edition="customer"] #dash-root #rk-table th:nth-child(17), [data-edition="customer"] #dash-root #rk-table td:nth-child(17),[data-edition="customer"] #dash-root #rk-table th:nth-child(18), [data-edition="customer"] #dash-root #rk-table td:nth-child(18),[data-edition="customer"] #dash-root #rk-table th:nth-child(19), [data-edition="customer"] #dash-root #rk-table td:nth-child(19) { display: none !important; }
+[data-edition="customer"] #dash-root .wb-out { grid-column: auto !important; }
 #dash-root .tl-groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 #dash-root .tl-group { font: inherit; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); background: none; border: 1px solid var(--color-border-line); border-radius: 999px; padding: 5px 16px; color: var(--color-fg-muted); cursor: pointer; }
 #dash-root .tl-group[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
@@ -161,9 +174,10 @@
     <h2 class="tl-title">Metrixx Topic Log</h2>
     <p class="tl-take" id="takeaway">
       Latest pull <b data-source="latest_run" data-field="run_et">—</b> ET.
-      With your settings the pick is <b id="take-pick">—</b>; the stored w0 run picked
+      <span class="ed-pick">Today's pick: <b id="take-pick-c">—</b>.</span>
+      <span class="ed-internal">With your settings the pick is <b id="take-pick">—</b>; the stored w0 run picked
       <b data-source="topic_log" data-field="topic" data-where="rank=1">—</b> and momentum alone would pick
-      <b data-source="topic_log" data-field="topic" data-where="momentum_rank=1">—</b>.
+      <b data-source="topic_log" data-field="topic" data-where="momentum_rank=1">—</b>.</span>
     </p>
   </header>
 
@@ -274,7 +288,7 @@
         <div class="cx-row"><button class="btn cx-btn" type="button" title="A compact JSON of this pull (top 20 with inputs, events, news, sectors, briefing, and your current ranking) to paste into Claude">Export JSON for Claude</button><span class="tl-note cx-msg"></span></div>
         <div class="cx-box" hidden><textarea readonly aria-label="JSON for Claude"></textarea></div>
         <div class="pick" id="pick">
-          <div class="tl-tile"><span class="tl-tile-k">Your pick</span><span class="tl-tile-v" id="pk-topic">—</span><span class="tl-tile-s" id="pk-sub"></span></div>
+          <div class="tl-tile"><span class="tl-tile-k"><span class="ed-internal">Your pick</span><span class="ed-pick">Today's pick</span></span><span class="tl-tile-v" id="pk-topic">—</span><span class="tl-tile-s" id="pk-sub"></span></div>
           <div class="tl-tile"><span class="tl-tile-k">Pool</span><span class="tl-tile-v" id="pk-pool">—</span><span class="tl-tile-s" id="pk-pool-sub"></span></div>
           <div class="tl-tile"><span class="tl-tile-k">Top 10 shared with w0</span><span class="tl-tile-v" id="pk-overlap">—</span><span class="tl-tile-s">topics in both top 10s</span></div>
         </div>
@@ -423,7 +437,7 @@
     </div>
     <div class="tl-card" id="card-rk-drivers">
       <h3>Biggest rank moves and what drove them</h3>
-      <p class="tl-note">Each topic's score is built from three angles (attention 70%, price and volume 25%, money 5%), each measured against the other topics on the same pull. The bar shows which angle pushed the score up (right) or down (left).</p>
+      <p class="tl-note"><span class="ed-internal-note">Each topic's score is built from three angles (attention 70%, price and volume 25%, money 5%), each measured against the other topics on the same pull. </span>The bar shows which angle pushed the score up (right) or down (left).</p>
       <div class="tl-scroll" style="max-height: 30rem"><table class="tl-table" id="rk-drivers"><thead><tr>
         <th class="l">Topic</th><th class="l tl-hide-sm">Category</th><th>Rank</th><th>Places</th><th class="l">Driven by</th><th class="l rk-barh"><span class="rk-key" style="background:var(--rk-att)"></span>Attention <span class="rk-key" style="background:var(--rk-price)"></span>Price <span class="rk-key" style="background:var(--rk-money)"></span>Money</th>
       </tr></thead><tbody></tbody></table></div>
@@ -1024,6 +1038,7 @@ window.TL = (() => {
     const { live, gated, out } = result;
     const top = live[0];
     document.getElementById('take-pick').textContent = top ? top.topic : '—';
+    document.getElementById('take-pick-c').textContent = top ? `${top.topic}${top.name ? ' (' + top.name + ')' : ''}` : '—';
     document.getElementById('pk-topic').textContent = top ? top.topic : '—';
     document.getElementById('pk-sub').textContent = top ? `${top.my_tier} · score ${f3(top.my_score)} · w0 #${top.rank ?? '–'}` : '';
     document.getElementById('pk-pool').textContent = String(live.length);
@@ -1068,7 +1083,7 @@ window.TL = (() => {
     }
     tbody.replaceChildren(frag);
     if (!out.length) emptyRow(tbody, 19, 'No topic matches. Check the universe or the gates.');
-    document.getElementById('rk-count').textContent = `${out.length} topics shown · ▲▼ = places gained or lost against the stored w0 run`;
+    document.getElementById('rk-count').textContent = document.documentElement.dataset.edition === 'customer' ? `${out.length} topics shown` : `${out.length} topics shown · ▲▼ = places gained or lost against the stored w0 run`;
   }
   function drawDetail() {
     const r = result.out.find((x) => x.topic === state.sel) || result.live[0];

@@ -45,6 +45,8 @@ html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); fon
 .app-bar button.primary { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
 .app-bar button:disabled { opacity: .5; cursor: default; }
 .app-bar .key-ok { color: var(--color-ok); } .app-bar .key-missing { color: var(--color-warn); }
+/* customer edition: no key buttons */
+[data-edition="customer"] #ab-keybtn, [data-edition="customer"] #ab-key, [data-edition="customer"] #ab-keyform { display: none !important; }
 /* schedule panel (app bar) */
 .sched-panel { position: fixed; top: 52px; right: 24px; z-index: 30; width: min(26rem, calc(100vw - 32px)); background: var(--color-panel);
   border: 1px solid var(--color-border-line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 14px 16px; font-size: 12px; color: var(--color-fg); }

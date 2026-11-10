@@ -1,6 +1,7 @@
 // Episode tab (desktop app only): pick a topic -> Claude drafts a MYCAST script (with web search) ->
 // edit / regenerate -> approve -> ElevenLabs MP3. Talks to the local server under /api/ep/.
 (function () {
+  if (document.documentElement.dataset.edition === 'customer') return;  // customer edition: no Episode tab
   const root = document.getElementById('dash-root');
   const tabs = root.querySelector('.tl-tabs');
   const pages = () => [...root.querySelectorAll('.tl-page')];
