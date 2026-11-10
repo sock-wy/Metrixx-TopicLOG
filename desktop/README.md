@@ -43,4 +43,4 @@ Build: `./desktop/build.sh [ADANOS_API_KEY]` → `desktop/dist/Topic Log.app`.
 
 ## Customer edition (Topic Log Pro preview, Nov 10)
 - Same build; an `edition.json` with `{"edition": "customer"}` in the app folder (Mac: `Topic Log.app/Contents/Resources/app/`) or next to `TopicLog.exe` switches it.
-- Shows: Workbench output only (today's pick, ranking with score; no sources, algorithm, inputs, tiers, gates, w0, topic breakdown, scatter, Export JSON for Claude), Market and Changes sections. Hides: Apps / Episode (its API is off too), the Adanos key button, the weights sentence on Rank changes. App name "Topic Log Pro".
+- Shows: Workbench output only (today's pick, ranking with score; no sources, algorithm, inputs, tiers, gates, w0, topic breakdown, scatter, Export JSON for Claude), Market and Changes sections. Hides: the Raw data and Daily steps tabs, Apps / Episode (its API is off too), the Adanos key button, the weights sentence on Rank changes. App name "Topic Log Pro".
