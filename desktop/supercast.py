@@ -205,36 +205,42 @@ def _episodes_link(page, timeout=3000):
                          lambda p: p.locator("a[href*='episodes']").filter(has_text=re.compile(r"^\s*episodes\s*$", re.I))], timeout)
 
 
+def _new_button(page, timeout=3000):
+    return _first(page, [lambda p: p.get_by_role("link", name=re.compile(r"new episode", re.I)),
+                         lambda p: p.get_by_role("button", name=re.compile(r"new episode", re.I)),
+                         lambda p: p.get_by_text(re.compile(r"^\s*new episode\s*$", re.I))], timeout)
+
+
 def _login(page, base, wait_s=600):
-    """Open the dashboard and wait until Supercast's menu (with Episodes) shows, i.e. we are logged in."""
-    page.goto(base, wait_until="domcontentloaded")
-    link = _episodes_link(page, 6000)
-    if not link:
-        _say("Log in to Supercast in the browser window (only needed once). Waiting up to 10 minutes…")
-        deadline = time.time() + wait_s
-        while time.time() < deadline and not link:
-            time.sleep(2)
-            link = _episodes_link(page, 1500)
-            if not link and "/dashboard" not in page.url and re.search(r"supercast\.com/?$|/(channels|podcasts)\b", page.url):
-                try:
-                    page.goto(base, wait_until="domcontentloaded")  # logged in but landed elsewhere
-                except Exception:
-                    pass
-        if not link:
-            raise RuntimeError("Not logged in to Supercast after 10 minutes (no Episodes menu found).")
-        _say("Logged in.")
-    link.click()
-    page.wait_for_load_state("domcontentloaded")
-    EPISODES["url"] = page.url
-    _say(f"  Episodes page: {page.url}")
+    """Go straight to Episodes (<site>.supercast.com/dashboard/channels/episodes). Logged in = the New Episode
+    button (or the Episodes menu) is there. Only the very first run needs a login in this window."""
+    url = f"{base}/episodes"
+    page.goto(url, wait_until="domcontentloaded")
+    if _new_button(page, 8000):
+        EPISODES["url"] = page.url
+        return
+    _say("Log in to Supercast in the browser window (only the first time). Waiting up to 10 minutes…")
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        time.sleep(2)
+        try:
+            if "/dashboard" in page.url and "/episodes" not in page.url:
+                page.goto(url, wait_until="domcontentloaded")  # logged in, landed elsewhere: go to Episodes
+            if _new_button(page, 1500) or _episodes_link(page, 500):
+                if "/episodes" not in page.url:
+                    page.goto(url, wait_until="domcontentloaded")
+                EPISODES["url"] = page.url
+                _say("Logged in.")
+                return
+        except Exception:
+            pass
+    raise RuntimeError(f"Not logged in to Supercast after 10 minutes (screenshot: {_debug(pathlib.Path.home(), page, 'login')}).")
 
 
 def _one(page, base, root, f: pathlib.Path, title, desc, mode, email):
     import re as _re
     page.goto(EPISODES.get("url") or f"{base}/episodes", wait_until="domcontentloaded")
-    new = _first(page, [lambda p: p.get_by_role("link", name=_re.compile(r"new episode", _re.I)),
-                        lambda p: p.get_by_role("button", name=_re.compile(r"new episode", _re.I)),
-                        lambda p: p.get_by_text(_re.compile(r"^\s*new episode\s*$", _re.I))], 8000)
+    new = _new_button(page, 8000)
     if new:
         new.click()
     else:
@@ -326,7 +332,7 @@ def upload(root: pathlib.Path, sup: pathlib.Path, settings: dict, names: list, k
     site = re.sub(r"^https?://", "", site).split(".supercast")[0].strip("/")
     if not site:
         raise RuntimeError("Set the Supercast site first (the part before .supercast.com, e.g. metrixxjocelyn).")
-    base = os.environ.get("TOPICLOG_SC_BASE") or f"https://{site}.supercast.com/dashboard"  # env: a test page
+    base = os.environ.get("TOPICLOG_SC_BASE") or f"https://{site}.supercast.com/dashboard/channels"  # env: a test page
     info = {r["file"]: r for r in check(root, token)["files"]}
     try:
         from playwright.sync_api import sync_playwright
