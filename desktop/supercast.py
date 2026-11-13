@@ -111,7 +111,14 @@ def check(root: pathlib.Path, token: str) -> dict:
     for e in remote:
         by_title.setdefault(_norm(e.get("title")), e)
     rec = _record(root)
-    files = sorted((root / "audio").glob("*.mp3"), key=lambda f: f.stat().st_mtime, reverse=True)
+    try:  # list it directly: glob hides a refused folder (macOS asks each app for Desktop access)
+        names = os.listdir(root / "audio")
+    except PermissionError:
+        raise RuntimeError("macOS did not let Topic Log read the Desktop. System Settings > Privacy & Security > Files and Folders > "
+                           "Topic Log: turn on Desktop Folder (or add Topic Log under Full Disk Access), then Check again.") from None
+    except FileNotFoundError:
+        names = []
+    files = sorted((root / "audio" / n for n in names if n.lower().endswith(".mp3")), key=lambda f: f.stat().st_mtime, reverse=True)
     newest = {}
     for f in files:
         m = NAME.match(f.stem)
