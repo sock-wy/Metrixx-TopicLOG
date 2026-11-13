@@ -190,40 +190,55 @@ def _launch(p, profile):
     for ch in ("chrome", "msedge", None):
         try:
             kw = {"channel": ch} if ch else {}
-            return p.chromium.launch_persistent_context(str(profile), headless=False, viewport=None, args=["--start-maximized"], **kw)
+            return p.chromium.launch_persistent_context(str(profile), headless=False, viewport=None, args=["--start-maximized"],
+                                                        chromium_sandbox=not (hasattr(os, "geteuid") and os.geteuid() == 0), **kw)
         except Exception as e:
             errs.append(f"{ch or 'bundled'}: {str(e).splitlines()[0][:120]}")
     raise RuntimeError("Could not open a browser. Install Google Chrome (Mac) or Microsoft Edge (Windows). " + " | ".join(errs))
 
 
+EPISODES = {}  # the Episodes page URL as Supercast's own menu links it (found after login)
+
+
+def _episodes_link(page, timeout=3000):
+    return _first(page, [lambda p: p.get_by_role("link", name=re.compile(r"^\s*episodes\s*$", re.I)),
+                         lambda p: p.locator("a[href*='episodes']").filter(has_text=re.compile(r"^\s*episodes\s*$", re.I))], timeout)
+
+
 def _login(page, base, wait_s=600):
-    page.goto(f"{base}/episodes", wait_until="domcontentloaded")
-    if "/dashboard" in page.url and "sign" not in page.url and "login" not in page.url:
-        return
-    _say("Log in to Supercast in the browser window (only needed once). Waiting up to 10 minutes…")
-    deadline = time.time() + wait_s
-    while time.time() < deadline:
-        time.sleep(2)
-        try:
-            if "/dashboard" in page.url and "sign" not in page.url and "login" not in page.url:
-                _say("Logged in.")
-                page.goto(f"{base}/episodes", wait_until="domcontentloaded")
-                return
-        except Exception:
-            pass
-    raise RuntimeError("Not logged in to Supercast after 10 minutes.")
+    """Open the dashboard and wait until Supercast's menu (with Episodes) shows, i.e. we are logged in."""
+    page.goto(base, wait_until="domcontentloaded")
+    link = _episodes_link(page, 6000)
+    if not link:
+        _say("Log in to Supercast in the browser window (only needed once). Waiting up to 10 minutes…")
+        deadline = time.time() + wait_s
+        while time.time() < deadline and not link:
+            time.sleep(2)
+            link = _episodes_link(page, 1500)
+            if not link and "/dashboard" not in page.url and re.search(r"supercast\.com/?$|/(channels|podcasts)\b", page.url):
+                try:
+                    page.goto(base, wait_until="domcontentloaded")  # logged in but landed elsewhere
+                except Exception:
+                    pass
+        if not link:
+            raise RuntimeError("Not logged in to Supercast after 10 minutes (no Episodes menu found).")
+        _say("Logged in.")
+    link.click()
+    page.wait_for_load_state("domcontentloaded")
+    EPISODES["url"] = page.url
+    _say(f"  Episodes page: {page.url}")
 
 
 def _one(page, base, root, f: pathlib.Path, title, desc, mode, email):
     import re as _re
-    page.goto(f"{base}/episodes", wait_until="domcontentloaded")
+    page.goto(EPISODES.get("url") or f"{base}/episodes", wait_until="domcontentloaded")
     new = _first(page, [lambda p: p.get_by_role("link", name=_re.compile(r"new episode", _re.I)),
                         lambda p: p.get_by_role("button", name=_re.compile(r"new episode", _re.I)),
                         lambda p: p.get_by_text(_re.compile(r"^\s*new episode\s*$", _re.I))], 8000)
     if new:
         new.click()
     else:
-        page.goto(f"{base}/episodes/new", wait_until="domcontentloaded")
+        raise RuntimeError(f"No 'New Episode' button on the Episodes page (screenshot: {_debug(root, page, 'no new episode')}).")
     page.wait_for_load_state("domcontentloaded")
     t = _first(page, [lambda p: p.get_by_label(_re.compile(r"^\s*title", _re.I)),
                       lambda p: p.locator("input[name*='title' i]"),
