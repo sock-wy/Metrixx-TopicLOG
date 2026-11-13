@@ -11,6 +11,7 @@ import datetime as dt
 import json
 import os
 import pathlib
+import re
 import shutil
 import socket
 import subprocess
@@ -88,6 +89,7 @@ try:
 except Exception:  # an older bundle without the package
     mp4 = mp4util = None
 _mp4_busy = {}
+import supercast as sc  # noqa: E402  (Supercast: check what is not uploaded; upload through a browser window)
 episode.init(SUP, DATA, APP, EXE_DIR)
 
 
@@ -361,6 +363,36 @@ def scheduler():
         pull()
 
 
+def sc_scheduler():
+    """Supercast daily upload: once a day at the set Chicago time, upload the new MP3s (last 2 days) as set."""
+    while True:
+        time.sleep(60)
+        try:
+            s = load_settings()
+            now_ct = dt.datetime.now(_tz())
+            if not sc.due(s, now_ct) or sc.state["running"]:
+                continue
+            s["supercast_last_auto"] = now_ct.date().isoformat()
+            save_settings(s)
+            names = sc.auto_names(OUT, s.get("supercast_token"))
+            if names:
+                sc.run_async(OUT, SUP, s, names, auto=True)
+            else:
+                sc.state["last"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "done": [], "failed": [], "auto": True,
+                                    "note": "nothing new to upload"}
+        except Exception as e:
+            sc.state["error"] = f"scheduled upload: {e}"
+
+
+SC_FIELDS = ("supercast_token", "supercast_site", "supercast_mode", "supercast_email", "supercast_on", "supercast_time")
+
+
+def sc_view(s):
+    return {"token": bool(s.get("supercast_token")), "site": s.get("supercast_site") or "", "mode": s.get("supercast_mode") or "draft",
+            "email": bool(s.get("supercast_email")), "on": bool(s.get("supercast_on")), "time": s.get("supercast_time") or "16:00",
+            "last_auto": s.get("supercast_last_auto"), "state": sc.state, "folder": str(OUT / "audio"), "tz": TZ_NAME}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **k):
         super().__init__(*a, directory=str(WEB), **k)
@@ -376,6 +408,52 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(b)))
         self.end_headers()
         self.wfile.write(b)
+
+    # ---------------------------------------------------------------- Supercast
+    def _sc_post(self, what, body):
+        s = load_settings()
+        try:
+            if what == "settings":
+                for f in SC_FIELDS:
+                    if f not in body:
+                        continue
+                    v = body[f]
+                    if f == "supercast_token" and not str(v).strip():
+                        continue  # empty = keep the saved token
+                    if f == "supercast_time":
+                        v = str(v).strip()
+                        if v and not re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", v):
+                            return self._json({"error": "Upload time: use HH:MM (24-hour, Chicago), e.g. 16:00."}, 400)
+                    if f == "supercast_mode":
+                        v = "publish" if v == "publish" else "draft"
+                    s[f] = v.strip() if isinstance(v, str) else bool(v)
+                if body.get("supercast_on") and not body.get("keep_last"):
+                    now_ct = dt.datetime.now(_tz())  # turning it on never uploads right away for a time already passed today
+                    h, m = map(int, (s.get("supercast_time") or "16:00").split(":"))
+                    if (now_ct.hour, now_ct.minute) >= (h, m):
+                        s["supercast_last_auto"] = now_ct.date().isoformat()
+                save_settings(s)
+                return self._json(sc_view(s))
+            if what == "check":
+                if not s.get("supercast_token"):
+                    return self._json({"error": "Add the Supercast API token first (Supercast: Settings > API)."}, 400)
+                return self._json(sc.check(OUT, s["supercast_token"]))
+            if what == "upload":
+                names = [str(n) for n in body.get("files") or []]
+                if not names:
+                    return self._json({"error": "Choose at least one MP3."}, 400)
+                if not sc.run_async(OUT, SUP, s, names):
+                    return self._json({"error": "An upload is already running."}, 409)
+                return self._json(sc_view(s))
+            if what in ("skip", "unskip"):
+                sc.mark(OUT, [str(n) for n in body.get("files") or []], "skip" if what == "skip" else None)
+                return self._json({"ok": True})
+            if what == "open":
+                reveal(OUT / "supercast" if (OUT / "supercast").exists() else OUT / "audio", inside=True)
+                return self._json({"ok": True})
+        except Exception as e:
+            return self._json({"error": str(e)}, 400)
+        return self._json({"error": "not found"}, 404)
 
     # ---------------------------------------------------------------- Generating MP4
     def _mp4_keys(self):
@@ -571,6 +649,10 @@ class Handler(SimpleHTTPRequestHandler):
             if EDITION == "customer":
                 return self._json({"error": "not in this edition"}, 404)
             return self._mp4_get(self.path.split("?")[0][len("/api/mp4/"):])
+        if self.path.startswith("/api/sc/"):
+            if EDITION == "customer":
+                return self._json({"error": "not in this edition"}, 404)
+            return self._json(sc_view(load_settings()))
         if self.path.startswith("/api/ep/"):
             if EDITION == "customer":
                 return self._json({"error": "not in this edition"}, 404)
@@ -605,6 +687,10 @@ class Handler(SimpleHTTPRequestHandler):
             if EDITION == "customer":
                 return self._json({"error": "not in this edition"}, 404)
             return self._mp4_post(self.path[len("/api/mp4/"):], body)
+        if self.path.startswith("/api/sc/"):
+            if EDITION == "customer":
+                return self._json({"error": "not in this edition"}, 404)
+            return self._sc_post(self.path[len("/api/sc/"):], body)
         if self.path.startswith("/api/ep/"):
             if EDITION == "customer":
                 return self._json({"error": "not in this edition"}, 404)
@@ -692,6 +778,8 @@ def main():
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     threading.Thread(target=lambda: (migrate(), scheduler()), daemon=True).start()
+    if EDITION != "customer":
+        threading.Thread(target=sc_scheduler, daemon=True).start()
     url = f"http://127.0.0.1:{port}/"
     (SUP / "port").write_text(str(port))
     try:

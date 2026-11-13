@@ -23,6 +23,7 @@ for d in ("web", "dashboard", "scoring", "config"):
     (STAGE / d).mkdir(parents=True)
 shutil.copy(ROOT / "desktop" / "server.py", STAGE)
 shutil.copy(ROOT / "desktop" / "episode.py", STAGE)
+shutil.copy(ROOT / "desktop" / "supercast.py", STAGE)
 shutil.copy(ROOT / "desktop" / "episode_prompt.md", STAGE)
 shutil.copy(ROOT / "desktop" / "episode_prompt_teaching.md", STAGE)
 shutil.copy(WIN / "launcher.py", STAGE)
@@ -62,12 +63,13 @@ PyInstaller.__main__.run([
     "--add-data", f"{STAGE / 'mp4gen' / 'plan_prompt.md'}{sep}mp4gen",
     "--add-data", f"{STAGE / 'dashboard' / 'adanos_universe.json'}{sep}dashboard",
     "--add-data", f"{STAGE / 'dashboard' / 'catalysts.yaml'}{sep}dashboard",
-    *[a for m in ("server", "episode", "dashboard.daily", "dashboard.pipeline", "dashboard.sources", "dashboard.symbols", "dashboard.registry",
+    *[a for m in ("server", "episode", "supercast", "playwright.sync_api", "dashboard.daily", "dashboard.pipeline", "dashboard.sources", "dashboard.symbols", "dashboard.registry",
                   "dashboard.archive", "dashboard.briefing", "dashboard.digest", "dashboard.rankhist", "dashboard.report", "dashboard.providers",
                   "mp4gen", "mp4gen.pipeline", "mp4gen.align", "mp4gen.plan", "mp4gen.data", "mp4gen.charts", "mp4gen.timeline", "mp4gen.render", "mp4gen.util",
                   "scoring.scoring", "yaml", "webview", "openpyxl", "reportlab")
       for a in ("--hidden-import", m)],
     "--collect-data", "tzdata",
+    "--collect-all", "playwright",  # Supercast upload drives the installed Edge / Chrome (no browser download)
     "--collect-submodules", "reportlab", "--collect-data", "reportlab",
 ])
 print("built", OUT / "TopicLog.exe")

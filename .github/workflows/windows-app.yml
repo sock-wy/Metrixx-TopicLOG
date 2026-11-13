@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install build tools
-        run: python -m pip install --upgrade pip pyinstaller pyyaml pywebview tzdata openpyxl reportlab
+        run: python -m pip install --upgrade pip pyinstaller pyyaml pywebview tzdata openpyxl reportlab pillow playwright
       - name: Build TopicLog.exe (no Adanos key inside)
         run: python desktop/windows/build_win.py
       - name: Self-test (a real pull without an Adanos key)

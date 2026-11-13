@@ -22,7 +22,7 @@ fi
 echo "python: $PY"
 
 VENV="$SUP/venv"
-if [ ! -x "$VENV/bin/python" ] || [ ! -f "$SUP/.deps-0.3" ]; then
+if [ ! -x "$VENV/bin/python" ] || [ ! -f "$SUP/.deps-0.4" ]; then
   notify "Setting up on first launch (about a minute)…"
   rm -rf "$VENV"
   "$PY" -m venv "$VENV" || exit 1
@@ -30,7 +30,8 @@ if [ ! -x "$VENV/bin/python" ] || [ ! -f "$SUP/.deps-0.3" ]; then
   "$VENV/bin/python" -m pip install -q pyyaml || exit 1
   "$VENV/bin/python" -m pip install -q pywebview || echo "pywebview not installed; will use a browser window"
   "$VENV/bin/python" -m pip install -q openpyxl reportlab pillow || echo "openpyxl/reportlab/pillow not installed; PDF / Excel export off"
-  touch "$SUP/.deps-0.3"
+  "$VENV/bin/python" -m pip install -q playwright || echo "playwright not installed; Supercast upload off"
+  touch "$SUP/.deps-0.4"
 fi
 
 # already running? just bring the window back
