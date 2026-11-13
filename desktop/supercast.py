@@ -180,6 +180,7 @@ def _debug(root, page, what):
     f = d / f"debug_{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}_{re.sub(r'[^a-z]+', '-', what.lower())[:30]}.png"
     try:
         page.screenshot(path=str(f), full_page=True)
+        f.with_suffix(".html").write_text(page.content(), encoding="utf-8")  # to fix the selectors from
         return f
     except Exception:
         return None
@@ -246,50 +247,26 @@ def _login(page, base, wait_s=600):
     raise RuntimeError(f"Not logged in to Supercast after 10 minutes (screenshot: {_debug(pathlib.Path.home(), page, 'login')}).")
 
 
-def _one(page, base, root, f: pathlib.Path, title, desc, mode, email):
-    import re as _re
-    page.goto(EPISODES.get("url") or f"{base}/episodes", wait_until="domcontentloaded")
-    new = _new_button(page, 8000)
-    if new:
-        new.click()
-    else:
-        raise RuntimeError(f"No 'New Episode' button on the Episodes page (screenshot: {_debug(root, page, 'no new episode')}).")
-    page.wait_for_load_state("domcontentloaded")
-    t = _first(page, [lambda p: p.get_by_label(_re.compile(r"^\s*title", _re.I)),
-                      lambda p: p.locator("input[name*='title' i]"),
-                      lambda p: p.get_by_placeholder(_re.compile(r"title", _re.I))], 10000)
-    if not t:
-        raise RuntimeError(f"No Title field on the New Episode page (screenshot: {_debug(root, page, 'no title field')}).")
-    t.fill(title)
-    if desc:
-        d = _first(page, [lambda p: p.get_by_label(_re.compile(r"description|summary|show notes", _re.I)),
-                          lambda p: p.locator("textarea[name*='description' i], textarea[name*='summary' i]"),
-                          lambda p: p.locator("trix-editor, [contenteditable='true']")], 3000)
-        if d:
-            try:
-                d.fill(desc)
-            except Exception:
-                try:
-                    d.click()
-                    page.keyboard.type(desc)
-                except Exception:
-                    pass
+def _title_field(page, timeout):
+    return _first(page, [lambda p: p.get_by_label(re.compile(r"^\s*(episode\s+)?title", re.I)),
+                         lambda p: p.locator("input[name*='title' i], input[id*='title' i]"),
+                         lambda p: p.get_by_placeholder(re.compile(r"title", re.I))], timeout)
+
+
+def _audio_input(page):
     inputs = page.locator("input[type=file]")
-    pick = None
     for i in range(inputs.count()):
         acc = (inputs.nth(i).get_attribute("accept") or "").lower()
-        if any(k in acc for k in ("audio", "mp3", "mpeg")):
-            pick = inputs.nth(i)
-            break
-    if pick is None and inputs.count():
-        pick = inputs.first
-    if pick is None:
-        raise RuntimeError(f"No audio upload field (screenshot: {_debug(root, page, 'no audio field')}).")
-    pick.set_input_files(str(f))
-    _say(f"  uploading {f.name} ({f.stat().st_size / 1e6:.1f} MB)…")
+        if any(k in acc for k in ("audio", "mp3", "mpeg", "wav")):
+            return inputs.nth(i)
+    return inputs.first if inputs.count() else None
+
+
+def _wait_upload(page, minutes=20):
+    """Until no 'uploading' / percentage text is left on the page."""
     time.sleep(3)
-    deadline = time.time() + 20 * 60
-    while time.time() < deadline:  # wait for the upload to finish: no "uploading" / percentage text left on the page
+    deadline = time.time() + minutes * 60
+    while time.time() < deadline:
         try:
             txt = page.locator("body").inner_text(timeout=5000).lower()
         except Exception:
@@ -301,35 +278,97 @@ def _one(page, base, root, f: pathlib.Path, title, desc, mode, email):
         page.wait_for_load_state("networkidle", timeout=60000)
     except Exception:
         pass
+
+
+def _click(page, names, timeout=8000):
+    """Click the first visible, enabled button or link whose text matches one of the patterns (in order)."""
+    for n in names:
+        rx = re.compile(n, re.I)
+        b = _first(page, [lambda p: p.get_by_role("button", name=rx), lambda p: p.get_by_role("link", name=rx)], timeout)
+        if b:
+            try:
+                b.click()
+                return True
+            except Exception:
+                continue
+        timeout = 1500
+    return False
+
+
+def _one(page, base, root, f: pathlib.Path, title, desc, mode, email):
+    """New Episode -> (upload box first, as Supercast does now) the MP3 -> title, description -> publish or draft."""
+    page.goto(EPISODES.get("url") or f"{base}/episodes", wait_until="domcontentloaded")
+    new = _new_button(page, 8000)
+    if not new:
+        raise RuntimeError(f"No 'New Episode' button on the Episodes page (screenshot: {_debug(root, page, 'no new episode')}).")
+    new.click()
+    page.wait_for_load_state("domcontentloaded")
+    time.sleep(1.5)
+    t = _title_field(page, 2500)
+    if not t:  # the "Drag and drop media to upload · Select file" box comes first: give it the MP3
+        inp = _audio_input(page)
+        if inp is None:
+            raise RuntimeError(f"No upload box after New Episode (screenshot: {_debug(root, page, 'no upload box')}).")
+        inp.set_input_files(str(f))
+        _say(f"  uploading {f.name} ({f.stat().st_size / 1e6:.1f} MB)…")
+        deadline = time.time() + 20 * 60
+        while time.time() < deadline and not t:  # the episode form opens when the upload is done
+            t = _title_field(page, 3000)
+            if not t:
+                _click(page, [r"^\s*(next|continue)\s*$"], 500)
+        if not t:
+            raise RuntimeError(f"The episode form did not open after the upload (screenshot: {_debug(root, page, 'no form after upload')}).")
+        uploaded = True
+    else:
+        uploaded = False
+    t.fill(title)
+    if desc:
+        d = _first(page, [lambda p: p.get_by_label(re.compile(r"description|summary|show notes", re.I)),
+                          lambda p: p.locator("textarea[name*='description' i], textarea[name*='summary' i]"),
+                          lambda p: p.locator("trix-editor, .ProseMirror, .ql-editor, [contenteditable='true']")], 3000)
+        if d:
+            try:
+                d.fill(desc)
+            except Exception:
+                try:
+                    d.click()
+                    page.keyboard.type(desc)
+                except Exception:
+                    pass
+    if not uploaded:  # the older form: title and audio on one page
+        inp = _audio_input(page)
+        if inp is None:
+            raise RuntimeError(f"No audio upload field (screenshot: {_debug(root, page, 'no audio field')}).")
+        inp.set_input_files(str(f))
+        _say(f"  uploading {f.name} ({f.stat().st_size / 1e6:.1f} MB)…")
+    _wait_upload(page)
     if mode == "publish":
-        b = _first(page, [lambda p: p.get_by_role("button", name=_re.compile(r"publish\s*/\s*schedule", _re.I)),
-                          lambda p: p.get_by_role("button", name=_re.compile(r"^\s*publish", _re.I))], 8000)
-        if not b:
+        if not _click(page, [r"publish\s*/\s*schedule", r"^\s*publish\s*$", r"^\s*publish"]):
             raise RuntimeError(f"No 'Publish / Schedule' button (screenshot: {_debug(root, page, 'no publish button')}).")
-        b.click()
-        box = _first(page, [lambda p: p.get_by_label(_re.compile(r"email subscribers", _re.I))], 4000)
+        time.sleep(1.5)
+        now = _first(page, [lambda p: p.get_by_label(re.compile(r"(publish\s+)?(now|immediately)", re.I))], 1500)
+        if now:
+            try:
+                now.check()
+            except Exception:
+                pass
+        box = _first(page, [lambda p: p.get_by_label(re.compile(r"email subscribers", re.I))], 2000)
         if box:
             try:
                 box.set_checked(bool(email))
             except Exception:
                 pass
-        go = _first(page, [lambda p: p.get_by_role("button", name=_re.compile(r"publish episode", _re.I))], 8000)
-        if not go:
+        if not _click(page, [r"publish episode", r"^\s*publish( now)?\s*$", r"^\s*confirm\s*$"], 6000):
             raise RuntimeError(f"No 'Publish Episode' button (screenshot: {_debug(root, page, 'no publish episode')}).")
-        go.click()
     else:
-        b = _first(page, [lambda p: p.get_by_role("button", name=_re.compile(r"save as draft", _re.I)),
-                          lambda p: p.get_by_text(_re.compile(r"^\s*save as draft\s*$", _re.I)),
-                          lambda p: p.get_by_role("button", name=_re.compile(r"^\s*save", _re.I))], 8000)
-        if not b:
+        if not _click(page, [r"save as draft", r"^\s*save( draft)?\s*$", r"^\s*save"]):
             raise RuntimeError(f"No 'Save as draft' button (screenshot: {_debug(root, page, 'no draft button')}).")
-        b.click()
     try:
         page.wait_for_load_state("networkidle", timeout=60000)
     except Exception:
         pass
     time.sleep(2)
-    err = _first(page, [lambda p: p.locator(".alert-danger, .error, [role=alert]").filter(has_text=_re.compile(r"error|can't|cannot|required|invalid", _re.I))], 1500)
+    err = _first(page, [lambda p: p.locator(".alert-danger, .error, [role=alert]").filter(has_text=re.compile(r"error|can't|cannot|required|invalid", re.I))], 1500)
     if err:
         raise RuntimeError(f"Supercast showed an error: {err.inner_text()[:200]} (screenshot: {_debug(root, page, 'error after save')}).")
 
