@@ -21,7 +21,7 @@
     const j = await r.json(); if (j.error) throw new Error(j.error); return j;
   };
   const fmt = (iso) => iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–';
-  const LABEL = { pending: 'Not uploaded', published: 'Published', draft: 'Draft on Supercast', uploaded: 'Uploaded by Topic Log',
+  const LABEL = { pending: 'Not uploaded', published: 'Published', draft: 'Draft on Supercast (Upload publishes it)', uploaded: 'Uploaded by Topic Log',
                   skipped: 'Skipped', 'older version': 'Older version' };
 
   // ---------------------------------------------------------------- tab + page
@@ -102,12 +102,12 @@
   }
   function drawList() {
     if (!list) { put(listBox, h('p', { class: 'tl-note' }, 'Press Check to see which MP3s are not on Supercast yet.')); return; }
-    const rows = list.files.filter((r) => showAll || r.status === 'pending');
+    const rows = list.files.filter((r) => showAll || r.status === 'pending' || r.status === 'draft');
     if (!rows.length) { put(listBox, h('p', { class: 'tl-note' }, showAll ? `No MP3s in ${list.folder}.` : 'Everything is on Supercast.')); return; }
     put(listBox, h('table', { class: 'sc-table' },
       h('thead', null, h('tr', null, h('th', null, ''), h('th', null, 'Title'), h('th', null, 'File'), h('th', null, 'Date'), h('th', null, 'MB'), h('th', null, 'Status'))),
       h('tbody', null, rows.map((r) => h('tr', { class: 'st-' + r.status.replace(/\s/g, '-') },
-        h('td', null, h('input', { type: 'checkbox', value: r.file, checked: r.status === 'pending', 'aria-label': r.title })),
+        h('td', null, h('input', { type: 'checkbox', value: r.file, checked: r.status === 'pending' || (r.status === 'draft' && cfg && cfg.mode === 'publish'), 'aria-label': r.title })),
         h('td', null, r.title), h('td', null, h('code', null, r.file)), h('td', null, r.date), h('td', null, r.size_mb),
         h('td', null, LABEL[r.status] || r.status, r.status === 'skipped' ? h('button', { class: 'btn sc-mini', type: 'button',
           onclick: async () => { await api('unskip', { files: [r.file] }); check(); } }, 'Undo') : null))))));

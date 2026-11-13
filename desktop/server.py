@@ -374,7 +374,7 @@ def sc_scheduler():
                 continue
             s["supercast_last_auto"] = now_ct.date().isoformat()
             save_settings(s)
-            names = sc.auto_names(OUT, s.get("supercast_token"))
+            names = sc.auto_names(OUT, s.get("supercast_token"), publish=s.get("supercast_mode") == "publish")
             if names:
                 sc.run_async(OUT, SUP, s, names, auto=True)
             else:

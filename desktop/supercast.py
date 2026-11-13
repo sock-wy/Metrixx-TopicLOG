@@ -342,27 +342,50 @@ def _one(page, base, root, f: pathlib.Path, title, desc, mode, email):
         inp.set_input_files(str(f))
         _say(f"  uploading {f.name} ({f.stat().st_size / 1e6:.1f} MB)…")
     _wait_upload(page)
-    if mode == "publish":
-        if not _click(page, [r"publish\s*/\s*schedule", r"^\s*publish\s*$", r"^\s*publish"]):
-            raise RuntimeError(f"No 'Publish / Schedule' button (screenshot: {_debug(root, page, 'no publish button')}).")
-        time.sleep(1.5)
-        now = _first(page, [lambda p: p.get_by_label(re.compile(r"(publish\s+)?(now|immediately)", re.I))], 1500)
-        if now:
+    _finish(page, root, mode, email)
+
+
+def _finish(page, root, mode, email):
+    """The episode form is open with the audio in. Supercast autosaves it as a draft ("Saved as draft"), so a
+    draft only needs the form closed; publishing is "Next: Publish & Notify", then the publish step."""
+    time.sleep(3)  # let the autosave take the title / description
+    if mode != "publish":
+        if not _click(page, [r"save as draft", r"^\s*save( draft)?\s*$"], 2500):
             try:
-                now.check()
+                page.keyboard.press("Escape")
             except Exception:
                 pass
-        box = _first(page, [lambda p: p.get_by_label(re.compile(r"email subscribers", re.I))], 2000)
+        return
+    if not _click(page, [r"next:?\s*publish", r"publish\s*/\s*schedule", r"^\s*publish\s*$"]):
+        raise RuntimeError(f"No 'Next: Publish & Notify' button (screenshot: {_debug(root, page, 'no publish button')}).")
+    try:
+        page.wait_for_load_state("networkidle", timeout=30000)
+    except Exception:
+        pass
+    time.sleep(2)
+    _debug(root, page, "publish step")  # kept: shows the publish step as Supercast draws it
+    now = _first(page, [lambda p: p.get_by_label(re.compile(r"(publish\s+)?(now|immediately)", re.I))], 1500)
+    if now:
+        try:
+            now.check()
+        except Exception:
+            pass
+    for rx in (r"email|notify", r"send .*(email|notification)"):
+        box = _first(page, [lambda p: p.get_by_role("checkbox", name=re.compile(rx, re.I)),
+                            lambda p: p.get_by_role("switch", name=re.compile(rx, re.I))], 1200)
         if box:
             try:
                 box.set_checked(bool(email))
             except Exception:
-                pass
-        if not _click(page, [r"publish episode", r"^\s*publish( now)?\s*$", r"^\s*confirm\s*$"], 6000):
-            raise RuntimeError(f"No 'Publish Episode' button (screenshot: {_debug(root, page, 'no publish episode')}).")
-    else:
-        if not _click(page, [r"save as draft", r"^\s*save( draft)?\s*$", r"^\s*save"]):
-            raise RuntimeError(f"No 'Save as draft' button (screenshot: {_debug(root, page, 'no draft button')}).")
+                try:
+                    if box.is_checked() != bool(email):
+                        box.click()
+                except Exception:
+                    pass
+            break
+    if not _click(page, [r"publish episode", r"^\s*publish( now)?\s*$", r"publish\s*(&|and)\s*notify\s*$", r"^\s*publish",
+                         r"^\s*confirm\s*$"], 8000):
+        raise RuntimeError(f"No final Publish button (screenshot: {_debug(root, page, 'no final publish')}).")
     try:
         page.wait_for_load_state("networkidle", timeout=60000)
     except Exception:
@@ -371,6 +394,19 @@ def _one(page, base, root, f: pathlib.Path, title, desc, mode, email):
     err = _first(page, [lambda p: p.locator(".alert-danger, .error, [role=alert]").filter(has_text=re.compile(r"error|can't|cannot|required|invalid", re.I))], 1500)
     if err:
         raise RuntimeError(f"Supercast showed an error: {err.inner_text()[:200]} (screenshot: {_debug(root, page, 'error after save')}).")
+
+
+def _publish_draft(page, base, root, title, email):
+    """Open a draft already on Supercast (by its title in the Episodes list) and publish it."""
+    page.goto(EPISODES.get("url") or f"{base}/episodes", wait_until="domcontentloaded")
+    row = _first(page, [lambda p: p.get_by_role("link", name=title, exact=True), lambda p: p.get_by_text(title, exact=True)], 8000)
+    if not row:
+        raise RuntimeError(f"Draft '{title}' not found on the Episodes page (screenshot: {_debug(root, page, 'draft not found')}).")
+    row.click()
+    page.wait_for_load_state("domcontentloaded")
+    if not _first(page, [lambda p: p.get_by_role("button", name=re.compile(r"next:?\s*publish|publish", re.I))], 10000):
+        raise RuntimeError(f"The draft did not open (screenshot: {_debug(root, page, 'draft not open')}).")
+    _finish(page, root, "publish", email)
 
 
 def upload(root: pathlib.Path, sup: pathlib.Path, settings: dict, names: list, keep_open_on_error=True):
@@ -401,9 +437,19 @@ def upload(root: pathlib.Path, sup: pathlib.Path, settings: dict, names: list, k
                     continue
                 r = info.get(f.name) or {}
                 title = r.get("title") or default_title(f.stem)
-                _say(f"→ {title}  ({'draft' if mode != 'publish' else 'publish now'})")
+                remote = r.get("remote") or {}
+                if r.get("status") == "published":
+                    _say(f"• {title}: already published on Supercast, skipped")
+                    continue
+                if remote and mode != "publish":
+                    _say(f"• {title}: already a draft on Supercast, skipped")
+                    continue
+                _say(f"→ {title}  ({'draft' if mode != 'publish' else 'publish now'}{', the draft already on Supercast' if remote else ''})")
                 try:
-                    _one(page, base, root, f, title, r.get("description") or "", mode, email)
+                    if remote:  # a draft is already there (e.g. an earlier run): publish it, do not upload again
+                        _publish_draft(page, base, root, remote.get("title") or title, email)
+                    else:
+                        _one(page, base, root, f, title, r.get("description") or "", mode, email)
                     rec = _record(root)
                     rec[f.name] = {"status": "uploaded", "at": _now(), "title": title, "mode": mode}
                     _save_record(root, rec)
@@ -467,7 +513,9 @@ def due(settings, now_ct: dt.datetime) -> bool:
     return settings.get("supercast_last_auto") != now_ct.date().isoformat()
 
 
-def auto_names(root, token, days=2):
+def auto_names(root, token, days=2, publish=False):
     """What a scheduled upload sends: pending MP3s dated within the last `days` days (older ones need a click)."""
     cut = (dt.date.today() - dt.timedelta(days=days)).isoformat()
-    return [r["file"] for r in check(root, token)["files"] if r["status"] == "pending" and r["date"] >= cut]
+    rows = check(root, token)["files"]
+    want = ("pending", "draft") if publish else ("pending",)
+    return [r["file"] for r in rows if r["status"] in want and r["date"] >= cut]
