@@ -60,7 +60,7 @@ MAX_SLOTS, MIN_GAP_MIN = 6, 30
 DEFAULT_SETTINGS = {"adanos_key": "", "schedule": DEFAULT_SCHEDULE, "weekdays_only": False, "schedule_set_at": None}
 INTERVAL_V = 4  # v4: the schedule replaces the interval menu; older settings move to the default schedule once
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
