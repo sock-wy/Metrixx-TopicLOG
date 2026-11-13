@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="theme.css">
+<script src="apexcharts.min.js"></script>
+<script src="dxchart.min.js"></script>
+<script src="plan.js"></script>
+<script src="data.js"></script>
+</head>
+<body><div class="frame" id="frame"></div><div class="src" id="src"></div>
+<script>
+// One MYCAST scene, drawn from PLAN.scenes[n] (n = ?n= in the URL). Types: title, cards, bars, range, price, list, quote, signoff.
+const n = +(new URLSearchParams(location.search).get('n') || 0);
+const S = PLAN.scenes[n], F = document.getElementById('frame');
+const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const emph = (s) => esc(s).replace(/\*(.+?)\*/g, '<em>$1</em>');   // *text* = amber
+const head = () => `<div class="kicker">${esc(S.kicker || '')}</div><div class="rule"></div>${S.title ? `<h1>${emph(S.title)}</h1>` : ''}`;
+const APEX = { background: 'transparent', foreColor: '#9AA0AA', fontFamily: 'system-ui, sans-serif', toolbar: { show: false }, animations: { enabled: false } };
+const TONE = { up: '#34D399', down: '#F05252', amber: '#E8B84B', blue: '#8AB4F8', neutral: '#4B5160' };
+const fmt = (v, p) => (p.prefix || '') + (typeof v === 'number' ? v.toLocaleString('en-US', { maximumFractionDigits: p.decimals ?? 2, minimumFractionDigits: p.decimals ?? 0 }) : v) + (p.suffix || '');
+document.getElementById('src').textContent = (S.source ? 'Source: ' + S.source + ' · ' : '') + 'Not investment advice';
+
+if (S.type === 'title') {
+  F.className += ' title';
+  F.innerHTML = `<div class="kicker">MYCAST</div><div class="rule"></div><div class="tick">${esc(S.ticker || '')}</div>
+    <div class="tags">${(S.tags || []).map(esc).join('  ·  ')}</div><div class="hl">${emph(S.title)}</div>`;
+} else if (S.type === 'cards') {
+  const vsize = (v) => { const L = String(v).length; return L <= 5 ? 100 : L <= 7 ? 84 : L <= 10 ? 66 : 52; };
+  const cards = (S.cards || []).map((c) => `<div class="card ${c.tone || ''}">${c.value != null ? `<div class="v" style="font-size:${vsize(c.value)}px">${esc(c.value)}</div>` : ''}
+      <div class="l" ${c.value == null ? 'style="color:#F2F2F0;font-size:40px;font-weight:600;margin:0"' : ''}>${esc(c.label)}</div>${c.badge ? `<div class="badge">${esc(c.badge)}</div>` : ''}</div>`);
+  F.innerHTML = head() + `<div class="body"><div class="cards">${S.arrow && cards.length === 2 ? cards[0] + '<div class="arrow">→</div>' + cards[1] : cards.join('')}</div></div>`;
+} else if (S.type === 'bars') {
+  const panels = S.panels || [];
+  F.innerHTML = head() + `<div class="body"><div class="${panels.length > 1 ? 'two' : 'one'}">` +
+    panels.map((p, i) => `<div class="panel"><h2>${esc(p.title || '')}</h2>${p.note ? `<div class="note" style="margin:0 0 6px">${esc(p.note)}</div>` : ''}<div class="c" id="p${i}"></div></div>`).join('') + '</div></div>';
+  panels.forEach((p, i) => new ApexCharts(document.getElementById('p' + i), {
+    chart: { ...APEX, type: 'bar', height: '100%' }, theme: { mode: 'dark' },
+    series: [{ name: p.title || '', data: p.bars.map((b) => b.value) }],
+    xaxis: { categories: p.bars.map((b) => b.label), labels: { trim: false, hideOverlappingLabels: false, style: { fontSize: p.bars.length > 3 ? '20px' : '24px' } } },
+    yaxis: { show: false, min: 0, max: Math.max(...p.bars.map((b) => b.value)) * 1.22 }, grid: { show: false }, legend: { show: false },
+    colors: p.bars.map((b) => TONE[b.tone] || TONE.neutral),
+    plotOptions: { bar: { distributed: true, columnWidth: '55%', borderRadius: 8, dataLabels: { position: 'top' } } },
+    dataLabels: { enabled: true, formatter: (v) => fmt(v, p), offsetY: -48, style: { fontSize: '40px', fontFamily: 'ui-monospace, monospace', colors: ['#F2F2F0'] } },
+  }).render());
+} else if (S.type === 'range') {
+  F.innerHTML = head() + `<div class="body"><div class="panel" style="height:100%"><div class="c" id="g"></div></div></div>`;
+  const lo = Math.min(S.low, S.marker), hi = Math.max(S.high, S.marker), pad = (hi - lo) * 0.6 || 1;
+  new ApexCharts(document.getElementById('g'), {
+    chart: { ...APEX, type: 'rangeBar', height: '100%' }, theme: { mode: 'dark' },
+    series: [{ name: S.label || 'Range', data: [{ x: S.label || 'Range', y: [S.low, S.high], fillColor: '#E8B84B' }] }],
+    plotOptions: { bar: { horizontal: true, barHeight: '30%', borderRadius: 8 } },
+    xaxis: { min: lo - pad, max: hi + pad, tickAmount: 8, labels: { formatter: (v) => fmt(+(+v).toFixed(S.decimals ?? 2), S), style: { fontSize: '22px' } } },
+    yaxis: { labels: { maxWidth: 420, style: { fontSize: '24px' } } }, grid: { borderColor: '#2A2E3A' },
+    dataLabels: { enabled: true, formatter: () => `${fmt(S.low, S)} – ${fmt(S.high, S)}`, style: { fontSize: '34px', colors: ['#14161D'], fontFamily: 'ui-monospace, monospace' } },
+    annotations: { xaxis: [{ x: S.marker, borderColor: '#F05252', borderWidth: 4,
+      label: { text: (S.marker_label || '') + ' ' + fmt(S.marker, S), orientation: 'horizontal', borderColor: '#F05252', style: { background: '#F05252', color: '#14161D', fontSize: '26px' } } }] },
+  }).render();
+} else if (S.type === 'price') {
+  F.innerHTML = head() + `<div class="body"><div id="chart" style="position:absolute; inset:0"></div><div class="tag"><b id="tm"></b><span id="ts"></span></div></div>`;
+  const chart = DXChart.createChart(document.getElementById('chart'), {
+    components: { chart: { type: 'candle' }, volumes: { visible: true, showSeparately: true }, crossTool: { type: 'none' }, waterMark: { visible: false } },
+    colors: { chartAreaTheme: { backgroundColor: '#14161D', gridColor: '#2A2E3A' }, candleTheme: { upColor: '#34D399', downColor: '#F05252', upWickColor: '#34D399', downWickColor: '#F05252' } },
+  });
+  const P = (DATA.prices || {})[S.ticker] || { candles: [], facts: {} };
+  chart.setData({ candles: P.candles, instrument: { symbol: S.ticker, priceIncrements: [0.01] } });
+  if (P.candles.length) chart.data.setTimestampRange(P.candles[Math.max(0, P.candles.length - (S.days || 130))].timestamp, P.candles[P.candles.length - 1].timestamp + 3 * 864e5, true);
+  const f = P.facts || {};
+  document.getElementById('tm').textContent = f.move_pct != null ? `${f.move_pct > 0 ? '+' : ''}${f.move_pct}%` : '';
+  document.getElementById('tm').style.color = (f.move_pct || 0) < 0 ? '#F05252' : '#34D399';
+  document.getElementById('ts').textContent = S.tag || (f.date ? `${f.date} · close $${f.close} · volume ${f.volume_vs_20d}× normal` : '');
+} else if (S.type === 'list') {
+  F.innerHTML = head() + `<div class="body list">` + (S.items || []).map((it) => `<div class="row"><div class="k">${esc(it.k)}</div><div class="t">${esc(it.t)}</div></div>`).join('') + '</div>';
+} else if (S.type === 'quote') {
+  F.innerHTML = head() + `<div class="body"><div class="big">${emph(S.text)}</div></div>`;
+} else if (S.type === 'signoff') {
+  F.className += ' sign';
+  F.innerHTML = `<div class="hl">Listen to the markets.<br><em>Learn the play.</em></div><div class="disc">${esc(S.text || '')}</div>`;
+}
+document.title = 'ready';
+</script></body></html>

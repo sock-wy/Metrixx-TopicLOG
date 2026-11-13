@@ -286,10 +286,47 @@ def crypto_daily(sym, primary, kraken_pair=None, days=31):
     return []
 
 
-def pull_all(today: dt.date):
+def _new_source(name, fn):
+    t0 = time.time()
+    try:
+        rows = fn()
+        return rows, _status(name, rows, t0)
+    except Exception as e:
+        return [], _status(name, [], t0, e)
+
+
+def pull_all(today: dt.date, keys=None):
+    """keys: {"benzinga_key": ...}. With a Benzinga key, movers and the earnings calendar come from Benzinga (Yahoo and
+    Nasdaq stay as the fallback when Benzinga fails). The stock list falls back from Nasdaq to SEC (names only)."""
+    from . import providers
+    keys = keys or {}
+    bz = keys.get("benzinga_key")
+
+    def stocks():
+        rows, st = nasdaq_screener()
+        if rows:
+            return rows, st
+        rows2, st2 = _new_source("sec_tickers", lambda: providers.sec_tickers(keys.get("sec_contact")))
+        st2["fallback_for"] = "nasdaq_screener"
+        return (rows2, st2) if rows2 else (rows, st)
+
+    def earnings():
+        if bz:
+            rows, st = _new_source("benzinga_earnings", lambda: providers.benzinga_earnings(today, bz))
+            if rows:
+                return rows, st
+        return nasdaq_earnings(today)
+
+    def movers():
+        if bz:
+            rows, st = _new_source("benzinga_movers", lambda: providers.benzinga_movers(bz))
+            if rows:
+                return rows, st
+        return yahoo_movers()
+
     out, statuses = {}, []
-    for name, fn in (("us_stocks", nasdaq_screener), ("earnings_calendar", lambda: nasdaq_earnings(today)),
-                     ("us_movers", yahoo_movers), ("polymarket", polymarket), ("crypto_spot", crypto_spot)):
+    for name, fn in (("us_stocks", stocks), ("earnings_calendar", earnings),
+                     ("us_movers", movers), ("polymarket", polymarket), ("crypto_spot", crypto_spot)):
         rows, st = fn()
         st["dataset"] = name
         out[name] = rows

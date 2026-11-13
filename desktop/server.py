@@ -82,6 +82,12 @@ if (APP / "seed").exists() and (not any(DATA.glob("*.json")) or _last_ts(APP / "
 _ver.write_text(VERSION)
 
 import episode  # noqa: E402  (MYCAST episodes: draft -> approve -> MP3)
+try:
+    from mp4gen import pipeline as mp4  # noqa: E402  (Generating MP4: script + MP3 -> scene images -> Shotstack -> MP4)
+    from mp4gen import util as mp4util  # noqa: E402
+except Exception:  # an older bundle without the package
+    mp4 = mp4util = None
+_mp4_busy = {}
 episode.init(SUP, DATA, APP, EXE_DIR)
 
 
@@ -257,7 +263,8 @@ def pull():
     try:
         from dashboard import pipeline
         s = load_settings()
-        row = pipeline.run(DATA, DATA, adanos_key=s.get("adanos_key") or None)
+        row = pipeline.run(DATA, DATA, adanos_key=s.get("adanos_key") or None,
+                           keys={k: s.get(k) for k in ("benzinga_key", "bigdata_key", "sec_contact") if s.get(k)})
         save_outputs(row)
         state.update(last_ok=dt.datetime.now(dt.timezone.utc).isoformat(), summary=row)
     except Exception as e:
@@ -370,6 +377,115 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b)
 
+    # ---------------------------------------------------------------- Generating MP4
+    def _mp4_keys(self):
+        k = dict(episode.load_keys())
+        s = load_settings()
+        for f in ("bigdata_key", "benzinga_key"):
+            if s.get(f):
+                k[f] = s[f]
+        if not k.get("shotstack_api_key"):  # the Shotstack CLI's saved key, if this computer has one
+            k.update({a: b for a, b in mp4util.load_keys().items() if a.startswith("shotstack")})
+        k["shotstack_env"] = k.get("shotstack_env") or "stage"
+        return k
+
+    def _mp4_job(self, name):
+        name = pathlib.Path(str(name or "")).name
+        d = out_dir("episodes") / name
+        if not name or not (d / "job.json").exists():
+            raise ValueError("No such job")
+        return d
+
+    def _mp4_run(self, key, fn):
+        if _mp4_busy.get(key):
+            return False
+
+        def go():
+            try:
+                fn()
+            finally:
+                _mp4_busy.pop(key, None)
+        _mp4_busy[key] = True
+        threading.Thread(target=go, daemon=True).start()
+        return True
+
+    def _mp4_get(self, rest):
+        if mp4 is None:
+            return self._json({"error": "Generating MP4 is not in this build"}, 404)
+        if rest == "jobs":
+            js = mp4.jobs(out_dir("episodes"))
+            k = self._mp4_keys()
+            return self._json({"jobs": js[:40], "busy": list(_mp4_busy), "root": str(out_dir("episodes")),
+                               "keys": {"anthropic": bool(k.get("anthropic_api_key")), "elevenlabs": bool(k.get("elevenlabs_api_key")),
+                                        "shotstack": bool(k.get("shotstack_api_key")), "shotstack_env": k.get("shotstack_env"),
+                                        "prices": "Bigdata.com" if k.get("bigdata_key") else "Benzinga" if k.get("benzinga_key") else "Yahoo"},
+                               "episodes": [e for e in episode.listing() if e.get("has_audio")][:30]})
+        if rest.startswith("file/"):  # /api/mp4/file/<job>/<path>: images and the video for the page
+            _, job, *path = rest.split("/")
+            try:
+                d = self._mp4_job(job)
+            except ValueError:
+                return self._json({"error": "no job"}, 404)
+            f = (d / "/".join(path)).resolve()
+            if d.resolve() not in f.parents or not f.is_file():
+                return self._json({"error": "no file"}, 404)
+            b = f.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", {".png": "image/png", ".mp4": "video/mp4", ".json": "application/json"}.get(f.suffix, "application/octet-stream"))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+            return None
+        return self._json({"error": "unknown"}, 404)
+
+    def _mp4_post(self, rest, body):
+        if mp4 is None:
+            return self._json({"error": "Generating MP4 is not in this build"}, 404)
+        keys = self._mp4_keys()
+        digest = None
+        try:
+            digest = json.loads((DATA / "claude_digest.json").read_text())
+        except Exception:
+            pass
+        try:
+            if rest == "start":  # from an episode (its approved script + MP3) or from uploaded files
+                if body.get("episode"):
+                    ep = episode.load(body["episode"])
+                    v = ep["versions"][-1]
+                    audio = episode.audio_path(body["episode"])
+                    if not (audio and audio.exists()):
+                        raise ValueError("That episode has no audio yet.")
+                    script, mp3, name = v["script"], audio.read_bytes(), f"Episode {ep.get('topic') or ''} {ep.get('date') or ''}".strip()
+                else:
+                    import base64
+                    script, name = str(body.get("script") or ""), str(body.get("script_name") or "script")
+                    mp3 = base64.b64decode(str(body.get("audio_b64") or "").split(",")[-1] or b"")
+                    if len(script.strip()) < 40 or len(mp3) < 1000:
+                        raise ValueError("Choose the MP3 and the script (.md or .txt) first.")
+                job = mp4.create(out_dir("episodes"), script, mp3, name)
+                self._mp4_run(job.name, lambda: mp4.prepare(job, keys, digest))
+                return self._json({"job": job.name})
+            d = self._mp4_job(body.get("job"))
+            if rest == "revise":
+                ok = self._mp4_run(d.name, lambda: mp4.prepare(d, keys, digest, note=str(body.get("note") or "").strip()))
+                return self._json({"ok": ok})
+            if rest == "retry":
+                ok = self._mp4_run(d.name, lambda: mp4.prepare(d, keys, digest))
+                return self._json({"ok": ok})
+            if rest == "render":
+                if not keys.get("shotstack_api_key"):
+                    raise ValueError("No Shotstack key: add it with Episode keys… in the app bar.")
+                ok = self._mp4_run(d.name, lambda: mp4.finish(d, keys))
+                return self._json({"ok": ok})
+            if rest == "open":
+                st = json.loads((d / "job.json").read_text())
+                reveal(d / st["video"] if body.get("what") == "video" and st.get("video") else d, inside=body.get("what") != "video")
+                return self._json({"ok": True})
+        except (ValueError, KeyError, IndexError) as e:
+            return self._json({"error": str(e)}, 400)
+        return self._json({"error": "unknown"}, 404)
+
     def _ep_get(self, rest):
         try:
             if rest == "list":
@@ -451,6 +567,10 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b)
             return
+        if self.path.startswith("/api/mp4/"):
+            if EDITION == "customer":
+                return self._json({"error": "not in this edition"}, 404)
+            return self._mp4_get(self.path.split("?")[0][len("/api/mp4/"):])
         if self.path.startswith("/api/ep/"):
             if EDITION == "customer":
                 return self._json({"error": "not in this edition"}, 404)
@@ -473,13 +593,18 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({**state, "next_run": nxt.isoformat() if nxt else state["next_run"],
                                "schedule": clean_schedule(s.get("schedule")), "weekdays_only": bool(s.get("weekdays_only")),
                                "pick_slot": PICK_SLOT, "tz": TZ_NAME, "max_slots": MAX_SLOTS, "min_gap": MIN_GAP_MIN,
-                               "has_key": bool(s.get("adanos_key")), "data_dir": str(DATA), "out_dir": str(OUT),
+                               "has_key": bool(s.get("adanos_key")),
+                               "keys": {k: bool(s.get(k)) for k in ("adanos_key", "bigdata_key", "benzinga_key", "helius_key")}, "data_dir": str(DATA), "out_dir": str(OUT),
                                "version": VERSION, "edition": EDITION})
         return super().do_GET()
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}")
+        if self.path.startswith("/api/mp4/"):
+            if EDITION == "customer":
+                return self._json({"error": "not in this edition"}, 404)
+            return self._mp4_post(self.path[len("/api/mp4/"):], body)
         if self.path.startswith("/api/ep/"):
             if EDITION == "customer":
                 return self._json({"error": "not in this edition"}, 404)
@@ -490,8 +615,9 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path == "/api/settings":
             s = load_settings()
             s["interval_v"] = INTERVAL_V
-            if body.get("adanos_key"):
-                s["adanos_key"] = str(body["adanos_key"]).strip()
+            for f in ("adanos_key", "benzinga_key", "bigdata_key", "helius_key", "sec_contact"):
+                if body.get(f):
+                    s[f] = str(body[f]).strip()
             save_settings(s)
             wake.set() if body.get("refresh") else None
             return self._json({"ok": True})

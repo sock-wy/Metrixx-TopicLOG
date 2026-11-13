@@ -22,7 +22,7 @@ import urllib.request
 SUP = DATA = APP = EXE_DIR = None
 OUT_DIR = None  # set by server.py: kind -> folder in ~/Desktop/Topic Log Data/
 EPI = KEYS = None
-KEY_FIELDS = ("anthropic_api_key", "elevenlabs_api_key", "elevenlabs_voice_id")
+KEY_FIELDS = ("anthropic_api_key", "elevenlabs_api_key", "elevenlabs_voice_id", "shotstack_api_key")
 DEFAULT_KEYS = {"anthropic_api_key": "", "elevenlabs_api_key": "", "elevenlabs_voice_id": "",
                 "claude_model": "claude-sonnet-5-5", "elevenlabs_model": "eleven_multilingual_v2"}
 CLAUDE_MODEL = "claude-sonnet-5-5"  # scripts are always written with Sonnet (Nov 3), whatever an older keys.json says
@@ -68,7 +68,7 @@ def load_keys():
 
 def save_keys(new):
     k = load_keys()
-    for f in (*KEY_FIELDS, "claude_model", "elevenlabs_model"):
+    for f in (*KEY_FIELDS, "claude_model", "elevenlabs_model", "shotstack_env"):
         v = new.get(f)
         if isinstance(v, str) and v.strip():
             k[f] = v.strip()
@@ -82,6 +82,7 @@ def save_keys(new):
 def keys_status():
     k = load_keys()
     return {f: bool(k.get(f)) for f in KEY_FIELDS} | {"claude_model": k["claude_model"], "elevenlabs_model": k["elevenlabs_model"],
+                                                      "shotstack_env": k.get("shotstack_env") or "stage",
                                                       "path": str(KEYS)}
 
 

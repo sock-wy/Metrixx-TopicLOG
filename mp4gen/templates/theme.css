@@ -1,0 +1,42 @@
+/* MYCAST scene: 1920x1080. Content stays above y=840 so the captions (y 868-978) and footer (y 1000) never cover it. */
+:root { --bg: #14161D; --panel: #1B1E27; --fg: #F2F2F0; --muted: #9AA0AA; --line: #2A2E3A;
+        --amber: #E8B84B; --up: #34D399; --down: #F05252; --blue: #8AB4F8; }
+html, body { margin: 0; width: 1920px; height: 1080px; background: var(--bg); color: var(--fg);
+             font-family: "IBM Plex Sans", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+.frame { position: absolute; left: 110px; right: 110px; top: 66px; height: 752px; display: flex; flex-direction: column; }
+.kicker { font: 700 26px ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .14em; color: var(--amber); text-transform: uppercase; }
+.rule { width: 96px; height: 4px; background: var(--amber); margin: 14px 0 0; }
+h1 { font: 800 62px "Montserrat", "Archivo", system-ui, sans-serif; margin: 18px 0 26px; line-height: 1.08; }
+h1 em, .big em { font-style: normal; color: var(--amber); }
+.body { flex: 1; position: relative; min-height: 0; }
+.src { position: absolute; right: 110px; top: 830px; font: 18px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+.cards { display: flex; gap: 36px; height: 100%; align-items: stretch; }
+.card { flex: 1; background: var(--panel); border-radius: 16px; padding: 40px 40px; border-top: 6px solid var(--line); display: flex; flex-direction: column; justify-content: center; }
+.card .v { font: 800 100px ui-monospace, Menlo, Consolas, monospace; line-height: 1; }
+.card .l { font-size: 32px; color: var(--muted); margin-top: 18px; line-height: 1.3; }
+.card.up { border-top-color: var(--up); } .card.up .v { color: var(--up); }
+.card.down { border-top-color: var(--down); } .card.down .v { color: var(--down); }
+.card.amber { border-top-color: var(--amber); } .card.amber .v { color: var(--amber); }
+.card.blue { border-top-color: var(--blue); } .card.blue .v { color: var(--blue); }
+.arrow { align-self: center; font-size: 90px; color: var(--amber); }
+.badge { display: inline-block; align-self: flex-start; margin-top: 20px; padding: 8px 16px; border-radius: 8px; font: 600 24px ui-monospace, Menlo, monospace; background: #3a2f12; color: var(--amber); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; height: 100%; }
+.one { display: grid; grid-template-columns: 1fr; height: 100%; }
+.panel { background: var(--panel); border-radius: 16px; padding: 22px 28px; display: flex; flex-direction: column; min-height: 0; }
+.panel h2 { margin: 0 0 6px; font: 600 30px system-ui, sans-serif; }
+.panel .c { flex: 1; min-height: 0; }
+.note { font-size: 22px; color: var(--muted); margin-top: 8px; }
+.list .row { display: flex; gap: 36px; align-items: baseline; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.list .k { font: 800 54px "Montserrat", system-ui, sans-serif; color: var(--amber); min-width: 260px; }
+.list .t { font-size: 44px; font-weight: 600; line-height: 1.25; }
+.title .tick { font: 800 34px ui-monospace, Menlo, monospace; color: var(--up); letter-spacing: .06em; margin-top: 70px; }
+.title .tags { font-size: 30px; color: var(--muted); margin-top: 10px; }
+.title .hl { font: 800 92px "Montserrat", system-ui, sans-serif; line-height: 1.08; margin-top: 50px; }
+.title .hl em { font-style: normal; color: var(--amber); display: block; font-size: 112px; }
+.big { font: 800 80px "Montserrat", system-ui, sans-serif; line-height: 1.25; margin-top: 60px; }
+.sign .hl { text-align: center; font: 800 100px "Montserrat", system-ui, sans-serif; margin-top: 90px; line-height: 1.2; }
+.sign .hl em { font-style: normal; color: var(--amber); }
+.sign .disc { text-align: center; font-size: 34px; color: var(--fg); opacity: .85; margin: 70px auto 0; max-width: 1400px; line-height: 1.45; }
+.tag { position: absolute; left: 30px; top: 30px; background: var(--panel); border: 2px solid var(--amber); border-radius: 10px; padding: 14px 20px; z-index: 5; }
+.tag b { display: block; font: 800 48px ui-monospace, Menlo, monospace; }
+.tag span { font-size: 22px; color: var(--muted); }

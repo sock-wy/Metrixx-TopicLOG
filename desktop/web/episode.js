@@ -204,14 +204,16 @@
   // ---------------------------------------------------------------- keys in the app bar
   const bar = document.querySelector('.app-bar');
   const quit = document.getElementById('ab-quit');
-  const kBtn = h('button', { type: 'button', title: 'Anthropic and ElevenLabs keys for MYCAST episodes' }, 'Episode keys…');
+  const kBtn = h('button', { type: 'button', title: 'Anthropic, ElevenLabs and Shotstack keys for MYCAST episodes and videos' }, 'Episode keys…');
   const inp = (ph, label) => h('input', { type: 'password', placeholder: ph, 'aria-label': label, size: '16' });
   const kA = inp('Anthropic sk-ant-…', 'Anthropic API key'), kE = inp('ElevenLabs key', 'ElevenLabs API key'), kV = inp('Voice ID', 'ElevenLabs voice ID');
   kV.type = 'text';
+  const kS = inp('Shotstack key', 'Shotstack API key');
+  const kSE = h('select', { 'aria-label': 'Shotstack environment' }, h('option', { value: 'stage' }, 'Shotstack stage'), h('option', { value: 'v1' }, 'Shotstack production'));
   const kMsg = h('span');
-  const kForm = h('span', { id: 'ab-keysform', hidden: true }, kA, kE, kV, h('button', { type: 'button', onclick: async () => {
-    const body = { anthropic_api_key: kA.value, elevenlabs_api_key: kE.value, elevenlabs_voice_id: kV.value };
-    try { keys = await api('keys', body); kA.value = kE.value = kV.value = ''; kForm.hidden = true; refresh(); if (cur) render(); } catch (e) { kMsg.textContent = e.message; }
+  const kForm = h('span', { id: 'ab-keysform', hidden: true }, kA, kE, kV, kS, kSE, h('button', { type: 'button', onclick: async () => {
+    const body = { anthropic_api_key: kA.value, elevenlabs_api_key: kE.value, elevenlabs_voice_id: kV.value, shotstack_api_key: kS.value, shotstack_env: kSE.value };
+    try { keys = await api('keys', body); kA.value = kE.value = kV.value = kS.value = ''; kForm.hidden = true; refresh(); if (cur) render(); } catch (e) { kMsg.textContent = e.message; }
   } }, 'Save'), kMsg);
   kBtn.addEventListener('click', async () => {
     kForm.hidden = !kForm.hidden;
@@ -220,6 +222,8 @@
       kA.placeholder = keys.anthropic_api_key ? 'Anthropic key set (type to replace)' : 'Anthropic sk-ant-…';
       kE.placeholder = keys.elevenlabs_api_key ? 'ElevenLabs key set' : 'ElevenLabs key';
       kV.placeholder = keys.elevenlabs_voice_id ? 'Voice ID set' : 'Voice ID';
+      kS.placeholder = keys.shotstack_api_key ? 'Shotstack key set' : 'Shotstack key';
+      kSE.value = keys.shotstack_env || 'stage';
       kMsg.textContent = keys.path ? `Stored in ${keys.path}` : '';
       kA.focus();
     }

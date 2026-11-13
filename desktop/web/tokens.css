@@ -63,3 +63,12 @@ html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); fon
 .sched-panel button:disabled { opacity: .45; cursor: default; }
 .sched-actions { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
 .sched-actions label { display: flex; align-items: center; gap: 4px; }
+
+/* data keys form */
+#ab-keyform { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#ab-keyform[hidden] { display: none; }
+#ab-keyform .keyrow { display: inline-flex; gap: 4px; align-items: center; border: 1px solid var(--color-border-line); border-radius: 6px; padding: 2px 6px; }
+#ab-keyform .keyrow.off { opacity: .45; }
+#ab-keyform .keyrow.off:focus-within { opacity: 1; }
+#ab-keyform .keyrow b { font-weight: 600; font-size: 12px; }
+#ab-keyform .keyrow.on b::after { content: " ✓"; color: #2BB673; }

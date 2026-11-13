@@ -28,13 +28,19 @@ shutil.copy(ROOT / "desktop" / "episode_prompt_teaching.md", STAGE)
 shutil.copy(WIN / "launcher.py", STAGE)
 for f in (ROOT / "desktop" / "web").iterdir():
     shutil.copy(f, STAGE / "web")
-for f in ("__init__.py", "pipeline.py", "sources.py", "symbols.py", "registry.py", "archive.py", "briefing.py", "digest.py", "daily.py", "rankhist.py", "report.py",
+for f in ("__init__.py", "pipeline.py", "sources.py", "symbols.py", "registry.py", "archive.py", "briefing.py", "digest.py", "daily.py", "rankhist.py", "report.py", "providers.py",
           "adanos_universe.json", "catalysts.yaml"):
     shutil.copy(ROOT / "dashboard" / f, STAGE / "dashboard")
 for f in ("__init__.py", "scoring.py"):
     shutil.copy(ROOT / "scoring" / f, STAGE / "scoring")
 shutil.copy(ROOT / "config" / "weights_w0.yaml", STAGE / "config")
 shutil.copy(ROOT / "dashboard" / "backfill" / "rank_seed.json", STAGE)
+(STAGE / "mp4gen" / "templates").mkdir(parents=True, exist_ok=True)
+for f in (ROOT / "mp4gen").iterdir():
+    if f.is_file():
+        shutil.copy(f, STAGE / "mp4gen")
+for f in (ROOT / "mp4gen" / "templates").iterdir():
+    shutil.copy(f, STAGE / "mp4gen" / "templates")
 urllib.request.urlretrieve("https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js", STAGE / "web" / "d3.min.js")
 page = (ROOT / "dashboard" / "page" / "index.html").read_text(encoding="utf-8")
 shell = (ROOT / "desktop" / "web" / "shell.html").read_text(encoding="utf-8")
@@ -52,10 +58,13 @@ PyInstaller.__main__.run([
     "--add-data", f"{STAGE / 'episode_prompt.md'}{sep}.",
     "--add-data", f"{STAGE / 'episode_prompt_teaching.md'}{sep}.",
     "--add-data", f"{STAGE / 'rank_seed.json'}{sep}.",
+    "--add-data", f"{STAGE / 'mp4gen' / 'templates'}{sep}mp4gen/templates",
+    "--add-data", f"{STAGE / 'mp4gen' / 'plan_prompt.md'}{sep}mp4gen",
     "--add-data", f"{STAGE / 'dashboard' / 'adanos_universe.json'}{sep}dashboard",
     "--add-data", f"{STAGE / 'dashboard' / 'catalysts.yaml'}{sep}dashboard",
     *[a for m in ("server", "episode", "dashboard.daily", "dashboard.pipeline", "dashboard.sources", "dashboard.symbols", "dashboard.registry",
-                  "dashboard.archive", "dashboard.briefing", "dashboard.digest", "dashboard.rankhist", "dashboard.report",
+                  "dashboard.archive", "dashboard.briefing", "dashboard.digest", "dashboard.rankhist", "dashboard.report", "dashboard.providers",
+                  "mp4gen", "mp4gen.pipeline", "mp4gen.align", "mp4gen.plan", "mp4gen.data", "mp4gen.charts", "mp4gen.timeline", "mp4gen.render", "mp4gen.util",
                   "scoring.scoring", "yaml", "webview", "openpyxl", "reportlab")
       for a in ("--hidden-import", m)],
     "--collect-data", "tzdata",

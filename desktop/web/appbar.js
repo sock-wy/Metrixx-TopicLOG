@@ -13,7 +13,8 @@
       status = s;
       const on = (s.schedule || []).filter((x) => x.on).map((x) => x.t);
       $('ab-sched-sum').textContent = on.join(' · ') + ' CT' + (s.weekdays_only ? ' (weekdays)' : '');
-      $('ab-key').textContent = s.has_key ? 'Adanos key set' : 'No Adanos key';
+      $('ab-key').textContent = s.has_key ? '' : 'No Adanos key';
+      if (!$('ab-keyform').hidden || !$('ab-keyform').dataset.built) drawKeys(s);
       $('ab-key').className = s.has_key ? 'key-ok' : 'key-missing';
       if (s.last_ok && s.last_ok !== lastSeen && !s.running) { if (lastSeen !== null) window.TLDATA.load(); lastSeen = s.last_ok; }
     } catch (e) {
@@ -64,11 +65,30 @@
   });
   $('ab-folder').addEventListener('click', () => post('/api/open-folder', {}));
   $('ab-reload').addEventListener('click', () => { window.TLDATA.load(); const b = $('ab-reload'); b.textContent = 'Refreshed'; setTimeout(() => { b.textContent = 'Refresh view'; }, 1200); });
-  $('ab-keybtn').addEventListener('click', () => { const f = $('ab-keyform'); f.hidden = !f.hidden; if (!f.hidden) $('ab-keyinput').focus(); });
-  $('ab-keysave').addEventListener('click', async () => {
-    const v = $('ab-keyinput').value.trim(); if (!v) return;
-    await post('/api/settings', { adanos_key: v, refresh: true }); $('ab-keyinput').value = ''; $('ab-keyform').hidden = true; poll();
-  });
+  // ---- data keys: one row per keyed source; a source without a key is grey and not pulled
+  const SRC = [['adanos_key', 'Adanos', 'social attention (needed)'], ['bigdata_key', 'Bigdata.com', 'US stock & ETF prices'],
+               ['benzinga_key', 'Benzinga', 'prices, movers, earnings'], ['helius_key', 'Helius', 'Solana on-chain (not used yet)']];
+  function drawKeys(s) {
+    const f = $('ab-keyform'); f.dataset.built = '1'; f.replaceChildren();
+    const has = s.keys || {};
+    for (const [k, name, what] of SRC) {
+      const row = document.createElement('span'); row.className = 'keyrow' + (has[k] ? ' on' : ' off');
+      row.title = has[k] ? `${name}: key saved, pulled with every pull` : `${name}: no key, not pulled`;
+      const inp = document.createElement('input'); inp.type = 'password'; inp.size = 12; inp.dataset.k = k;
+      inp.placeholder = has[k] ? '•••• saved' : 'API key'; inp.setAttribute('aria-label', name + ' API key');
+      row.append(Object.assign(document.createElement('b'), { textContent: name }), inp);
+      f.append(row);
+    }
+    const save = document.createElement('button'); save.type = 'button'; save.textContent = 'Save';
+    save.addEventListener('click', async () => {
+      const body = {}; f.querySelectorAll('input').forEach((i) => { if (i.value.trim()) body[i.dataset.k] = i.value.trim(); });
+      if (!Object.keys(body).length) return;
+      body.refresh = !!body.adanos_key; await post('/api/settings', body); f.hidden = true; poll();
+    });
+    f.append(save);
+  }
+  $('ab-keybtn').addEventListener('click', () => { const f = $('ab-keyform'); f.hidden = !f.hidden; if (!f.hidden) poll(); });
+;
   $('ab-quit').addEventListener('click', async () => { await post('/api/quit'); document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">Topic Log has quit. You can close this window.</p>'; });
   poll(); setInterval(poll, 5000);
 })();

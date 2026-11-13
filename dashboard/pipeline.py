@@ -576,7 +576,7 @@ def prior_pull(history, now, hours=24, tol=3.5):
 
 
 # ------------------------------------------------------------------ run
-def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
+def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None, keys=None):
     t0 = time.time()
     now = now or dt.datetime.now(UTC)
     now_et = now.astimezone(ET)
@@ -597,7 +597,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
     EXTRA.clear()
 
     # 1 · raw sources (registry first needs the stock and coin lists)
-    raw, raw_status = sources.pull_all(today)
+    raw, raw_status = sources.pull_all(today, keys)
     coins = {c["symbol"]: c for c in raw["crypto_spot"]}
     us = {r["symbol"].strip().upper(): r for r in raw["us_stocks"] if r.get("symbol")}
     reg = Registry(raw["us_stocks"], list(coins))
@@ -690,7 +690,31 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
 
     # 5 · prices: Yahoo for listed non-crypto, source-of-record venue for crypto
     ysyms = {i["price_symbol"] for i in infos.values() if i["price_symbol"] and i["asset_class"] != "crypto"}
-    px = yahoo_prices(ysyms)
+    # US stocks and ETFs: Bigdata.com, then Benzinga (whichever keys are set); Yahoo for the rest and anything they missed
+    px, px_src = {}, {}
+    keys = keys or {}
+    from . import providers
+    if keys.get("bigdata_key"):
+        ids = load(state / "bigdata_ids.json", {})
+        try:
+            got = providers.bigdata_hourly(ysyms, keys["bigdata_key"], ids)
+            px.update(got)
+            px_src.update({s: "bigdata" for s in got})
+        except Exception as e:
+            steps["bigdata_prices_error"] = f"{type(e).__name__}: {e}"[:200]
+        (out / "bigdata_ids.json").write_text(json.dumps(ids))
+    if keys.get("benzinga_key") and ysyms - set(px):
+        try:
+            got = providers.benzinga_hourly(ysyms - set(px), keys["benzinga_key"])
+            px.update(got)
+            px_src.update({s: "benzinga" for s in got})
+        except Exception as e:
+            steps["benzinga_prices_error"] = f"{type(e).__name__}: {e}"[:200]
+    rest = ysyms - set(px)
+    if rest:
+        yp = yahoo_prices(rest)
+        px.update(yp)
+        px_src.update({s: "yahoo" for s in yp})
     pstats = {}
     for t, i in infos.items():
         if i["asset_class"] == "crypto":
@@ -704,9 +728,10 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         elif i["price_symbol"] in px:
             pstats[t] = price_stats(px[i["price_symbol"]], now)
             if pstats[t]:
-                pstats[t]["price_source"] = "yahoo"
+                pstats[t]["price_source"] = px_src.get(i["price_symbol"], "yahoo")
                 pstats[t]["vol_abn"] = volume_abn(px[i["price_symbol"]], now)
-    steps["prices"] = dict(status="ok" if pstats else "error", symbols=sum(1 for v in pstats.values() if v))
+    steps["prices"] = dict(status="ok" if pstats else "error", symbols=sum(1 for v in pstats.values() if v),
+                           by_source={k: sum(1 for v in px_src.values() if v == k) for k in set(px_src.values())})
 
     # 6 · catalysts: macro calendar, Kalshi KPI markets, Nasdaq earnings
     earn = {}
@@ -884,7 +909,7 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None):
         if ps:
             i = infos[t]
             mkt.append(dict(topic=t, name=i["name"], asset_class=i["asset_class"],
-                            symbol=i["price_symbol"] if ps.get("price_source") == "yahoo" else f"{t} ({ps.get('price_source')})",
+                            symbol=i["price_symbol"] if ps.get("price_source") in ("yahoo", "benzinga", "bigdata") else f"{t} ({ps.get('price_source')})",
                             price=rnd(ps["price"], 6), price_ts=ps["price_ts"], chg_24h=rnd(ps["chg_24h"]), chg_5d=rnd(ps["chg_5d"]),
                             vol_daily=rnd(ps["vol_daily"]), abnormal_move=rnd(ps["abnormal_move"], 2),
                             kalshi_volume_24h=round((kfeat.get(t) or {}).get("k_vol") or 0),
