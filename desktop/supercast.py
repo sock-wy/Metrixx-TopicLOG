@@ -220,18 +220,27 @@ def _login(page, base, wait_s=600):
         EPISODES["url"] = page.url
         return
     _say("Log in to Supercast in the browser window (only the first time). Waiting up to 10 minutes…")
-    deadline = time.time() + wait_s
+    deadline, last_try = time.time() + wait_s, time.time()
     while time.time() < deadline:
         time.sleep(2)
         try:
-            if "/dashboard" in page.url and "/episodes" not in page.url:
-                page.goto(url, wait_until="domcontentloaded")  # logged in, landed elsewhere: go to Episodes
-            if _new_button(page, 1500) or _episodes_link(page, 500):
-                if "/episodes" not in page.url:
-                    page.goto(url, wait_until="domcontentloaded")
+            if _new_button(page, 1000):
                 EPISODES["url"] = page.url
                 _say("Logged in.")
                 return
+            # wherever the login sent us (dashboard, account page, home), once no login form is showing,
+            # go back to Episodes every 8 seconds and look again
+            typing = page.locator("input[type=password]:visible, input[type=email]:visible").count() > 0
+            if not typing:  # a "Login" link (Supercast shows 404 + Login when logged out): open the login form
+                lk = _first(page, [lambda p: p.get_by_role("link", name=re.compile(r"^\s*(log ?in|sign ?in)\s*$", re.I))], 500)
+                if lk:
+                    lk.click()
+                    page.wait_for_load_state("domcontentloaded")
+                    last_try = time.time()
+                    continue
+            if not typing and time.time() - last_try > 8:
+                last_try = time.time()
+                page.goto(url, wait_until="domcontentloaded")
         except Exception:
             pass
     raise RuntimeError(f"Not logged in to Supercast after 10 minutes (screenshot: {_debug(pathlib.Path.home(), page, 'login')}).")
