@@ -646,19 +646,16 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(b)
             return
         if self.path.startswith("/api/mp4/"):
-            if EDITION == "customer":
-                return self._json({"error": "not in this edition"}, 404)
             return self._mp4_get(self.path.split("?")[0][len("/api/mp4/"):])
         if self.path.startswith("/api/sc/"):
             if EDITION == "customer":
                 return self._json({"error": "not in this edition"}, 404)
             return self._json(sc_view(load_settings()))
         if self.path.startswith("/api/ep/"):
-            if EDITION == "customer":
-                return self._json({"error": "not in this edition"}, 404)
             return self._ep_get(self.path.split("?")[0][len("/api/ep/"):])
         if self.path.split("?")[0] in ("/", "/index.html") and EDITION == "customer":
-            b = (WEB / "index.html").read_text(encoding="utf-8").replace('<html lang="en">', '<html lang="en" data-edition="customer">', 1).replace("<title>Topic Log</title>", "<title>Topic Log Pro</title>", 1).replace('<span class="name">Topic Log</span>', '<span class="name">Topic Log Pro</span>', 1).encode()
+            b = (WEB / "index.html").read_text(encoding="utf-8").replace('<html lang="en">', '<html lang="en" data-edition="customer">', 1).replace("<title>Topic Log</title>", "<title>Topic Log Pro</title>", 1).replace('<span class="name">Topic Log</span>', '<span class="name"><img src="metrixx-logo.svg" alt="Metrixx">Topic Log Pro</span>', 1).replace(
+                '</head>', '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap"></head>', 1).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
@@ -684,16 +681,12 @@ class Handler(SimpleHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}")
         if self.path.startswith("/api/mp4/"):
-            if EDITION == "customer":
-                return self._json({"error": "not in this edition"}, 404)
             return self._mp4_post(self.path[len("/api/mp4/"):], body)
         if self.path.startswith("/api/sc/"):
             if EDITION == "customer":
                 return self._json({"error": "not in this edition"}, 404)
             return self._sc_post(self.path[len("/api/sc/"):], body)
         if self.path.startswith("/api/ep/"):
-            if EDITION == "customer":
-                return self._json({"error": "not in this edition"}, 404)
             return self._ep_post(self.path[len("/api/ep/"):], body)
         if self.path == "/api/refresh":
             wake.set()

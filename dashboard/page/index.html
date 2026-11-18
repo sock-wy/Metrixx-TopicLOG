@@ -19,6 +19,7 @@
 [data-edition="customer"] #dash-root #card-detail, [data-edition="customer"] #dash-root #card-scatter,
 [data-edition="customer"] #dash-root #rk-table th:nth-child(2), [data-edition="customer"] #dash-root #rk-table td:nth-child(2),[data-edition="customer"] #dash-root #rk-table th:nth-child(6), [data-edition="customer"] #dash-root #rk-table td:nth-child(6),[data-edition="customer"] #dash-root #rk-table th:nth-child(7), [data-edition="customer"] #dash-root #rk-table td:nth-child(7),[data-edition="customer"] #dash-root #rk-table th:nth-child(9), [data-edition="customer"] #dash-root #rk-table td:nth-child(9),[data-edition="customer"] #dash-root #rk-table th:nth-child(10), [data-edition="customer"] #dash-root #rk-table td:nth-child(10),[data-edition="customer"] #dash-root #rk-table th:nth-child(11), [data-edition="customer"] #dash-root #rk-table td:nth-child(11),[data-edition="customer"] #dash-root #rk-table th:nth-child(12), [data-edition="customer"] #dash-root #rk-table td:nth-child(12),[data-edition="customer"] #dash-root #rk-table th:nth-child(13), [data-edition="customer"] #dash-root #rk-table td:nth-child(13),[data-edition="customer"] #dash-root #rk-table th:nth-child(14), [data-edition="customer"] #dash-root #rk-table td:nth-child(14),[data-edition="customer"] #dash-root #rk-table th:nth-child(15), [data-edition="customer"] #dash-root #rk-table td:nth-child(15),[data-edition="customer"] #dash-root #rk-table th:nth-child(16), [data-edition="customer"] #dash-root #rk-table td:nth-child(16),[data-edition="customer"] #dash-root #rk-table th:nth-child(17), [data-edition="customer"] #dash-root #rk-table td:nth-child(17),[data-edition="customer"] #dash-root #rk-table th:nth-child(18), [data-edition="customer"] #dash-root #rk-table td:nth-child(18),[data-edition="customer"] #dash-root #rk-table th:nth-child(19), [data-edition="customer"] #dash-root #rk-table td:nth-child(19) { display: none !important; }
 [data-edition="customer"] #dash-root .wb-out { grid-column: auto !important; }
+[data-edition="customer"] #dash-root .tl-group[data-group="workbench"], [data-edition="customer"] #dash-root #tab-ranking, [data-edition="customer"] #dash-root #ranking { display: none !important; }
 #dash-root .tl-groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 #dash-root .tl-group { font: inherit; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); background: none; border: 1px solid var(--color-border-line); border-radius: 999px; padding: 5px 16px; color: var(--color-fg-muted); cursor: pointer; }
 #dash-root .tl-group[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
@@ -1726,6 +1727,9 @@ window.TL = (() => {
     drawAll();
   }
   document.querySelectorAll('.tl-tab').forEach((b) => b.addEventListener('click', () => go(b.dataset.page, true)));
+  if (document.documentElement.dataset.edition === 'customer') {  // customer edition: no Workbench, start on Market
+    document.getElementById('tab-ranking').remove();
+  }
   document.getElementById('tp-search').addEventListener('input', (e) => { state.tpQ = e.target.value; drawTopics(); });
   document.getElementById('tp-new').addEventListener('click', () => { state.tpNew = !state.tpNew; drawTopics(); });
   document.querySelector('#tp-table tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-key]'); if (tr) { state.evTopic = tr.dataset.key; drawTopics(); drawEvents(); } });
@@ -1748,7 +1752,9 @@ window.TL = (() => {
     drawRaw(); drawDaily(); drawRanks(); drawRuns(); drawMarket(); drawSymbols(); drawBrief(); drawVenues();
   }
   const first = location.hash.slice(1);
-  if (PAGES.includes(first)) go(first, false);
+  const CUSTOMER = document.documentElement.dataset.edition === 'customer';
+  if (CUSTOMER && (!PAGES.includes(first) || first === 'ranking')) go('brief', false);
+  else if (PAGES.includes(first)) go(first, false);
   return { drawAll };
 })();
 dash.onData(() => window.TL.drawAll());

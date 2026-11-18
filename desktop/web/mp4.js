@@ -1,7 +1,6 @@
 // Generating MP4 tab (desktop app, Apps section): MP3 + script -> scene images -> review -> Shotstack -> MP4.
 // Talks to the local server under /api/mp4/. Each video is a folder in Topic Log Data/episodes/.
 (function () {
-  if (document.documentElement.dataset.edition === 'customer') return;
   const root = document.getElementById('dash-root');
   const tabs = root && root.querySelector('.tl-tabs');
   if (!tabs) return;

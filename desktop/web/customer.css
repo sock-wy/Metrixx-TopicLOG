@@ -1,0 +1,68 @@
+/* Customer edition (Topic Log Pro): the Metrixx house look from the Market Playbook and the Metrixx Week work order.
+   Dark cover bar, light paper body, plum accent, Newsreader for titles, IBM Plex Mono for labels and figures.
+   One committed look: it does not follow the system dark mode. */
+:root[data-edition="customer"] {
+  color-scheme: light;
+  --mx-cover: #292A2C; --mx-cover-deep: #1D1E20; --mx-cover-ink: #F3F0F5; --mx-cover-muted: #B9B7BF;
+  --mx-paper: #FBFAF8; --mx-ink: #292A2C; --mx-muted: #5E5E63; --mx-rule: #D9D6DE;
+  --mx-plum: #96519E; --mx-plum-ink: #7A3F82; --mx-plum-soft: #F0E6F2; --mx-plum-dark: #CE98D5;
+  --mx-green: #0BC26C; --mx-ok: #077A45;
+  --mx-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --mx-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  --font-anthropic-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-anthropic-serif: var(--mx-serif);
+  --color-fg: var(--mx-ink); --color-fg-muted: var(--mx-muted); --color-bg: var(--mx-paper); --color-panel: #ffffff;
+  --color-border-line: var(--mx-rule); --color-ok: var(--mx-ok); --color-warn: #A3620C; --color-bad: #B3392F;
+  --cds-chart-muted: #DCD8E0; --cds-chart-grid: #ECEAEF; --cds-chart-axis: #B9B7BF; --cds-chart-reference: #8C8A92;
+  --cds-surface-popover: #ffffff; --cds-border: var(--mx-rule); --cds-text-secondary: var(--mx-muted);
+  --cds-shadow-popover: 0 18px 40px -20px rgba(29, 30, 32, .45);
+}
+[data-edition="customer"] body { background: var(--mx-paper); color: var(--mx-ink); }
+
+/* app bar = the dark Metrixx cover */
+[data-edition="customer"] .app-bar { background: var(--mx-cover); color: var(--mx-cover-ink); border-bottom: 0; padding-block: 12px; }
+[data-edition="customer"] .app-bar .name { display: inline-flex; align-items: center; gap: 12px; font-family: var(--mx-mono); font-weight: 500;
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--mx-cover-muted); }
+[data-edition="customer"] .app-bar .name img { width: 112px; height: auto; display: block; }
+[data-edition="customer"] .app-bar .status, [data-edition="customer"] .app-bar label { color: var(--mx-cover-muted); }
+[data-edition="customer"] .app-bar .dot { background: var(--mx-green); }
+[data-edition="customer"] .app-bar button, [data-edition="customer"] .app-bar select, [data-edition="customer"] .app-bar input {
+  background: transparent; color: var(--mx-cover-ink); border-color: #4A4B4F; border-radius: 999px; padding: 5px 14px; }
+[data-edition="customer"] .app-bar button:hover { border-color: var(--mx-plum-dark); }
+[data-edition="customer"] .app-bar button.primary { background: var(--mx-plum); border-color: var(--mx-plum); color: #fff; }
+[data-edition="customer"] .app-bar button.primary:hover { background: var(--mx-plum-ink); }
+[data-edition="customer"] .app-bar button:focus-visible { outline: 2px solid var(--mx-plum-dark); outline-offset: 2px; }
+/* keys ship inside this edition */
+[data-edition="customer"] #ab-epkeys { display: none !important; }
+
+/* page header */
+[data-edition="customer"] #dash-root { padding: 28px clamp(16px, 4vw, 56px) 48px; }
+[data-edition="customer"] #dash-root .tl-head { padding-bottom: 6px; }
+[data-edition="customer"] #dash-root .tl-title { font-family: var(--mx-serif); font-weight: 500; font-size: 40px; line-height: 1.1;
+  letter-spacing: -.01em; margin: 0 0 8px; }
+[data-edition="customer"] #dash-root .tl-take { font-family: var(--mx-serif); font-size: 19px; color: var(--mx-muted); }
+[data-edition="customer"] #dash-root .tl-take b { color: var(--mx-ink); font-weight: 600; }
+
+/* sections and sub-tabs */
+[data-edition="customer"] #dash-root .tl-group { border-color: var(--mx-rule); color: var(--mx-ink); padding: 7px 18px; }
+[data-edition="customer"] #dash-root .tl-group:hover { border-color: var(--mx-plum); }
+[data-edition="customer"] #dash-root .tl-group[aria-pressed="true"] { background: var(--mx-plum); border-color: var(--mx-plum); color: #fff; }
+[data-edition="customer"] #dash-root .tl-tab { font-family: var(--mx-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+[data-edition="customer"] #dash-root .tl-tab[aria-selected="true"] { color: var(--mx-plum-ink); border-bottom-color: var(--mx-plum); box-shadow: inset 0 -2px 0 var(--mx-plum); }
+
+/* cards, headings, labels, figures */
+[data-edition="customer"] #dash-root .tl-card { border-color: var(--mx-rule); border-radius: 12px; }
+[data-edition="customer"] #dash-root h3 { font-family: var(--mx-serif); font-weight: 500; font-size: 22px; letter-spacing: -.005em; }
+[data-edition="customer"] #dash-root th { font-family: var(--mx-mono); font-weight: 500; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--mx-muted); }
+[data-edition="customer"] #dash-root td { font-variant-numeric: tabular-nums; }
+[data-edition="customer"] #dash-root a { color: var(--mx-plum-ink); }
+[data-edition="customer"] #dash-root .btn.primary, [data-edition="customer"] #dash-root button.primary {
+  background: var(--mx-plum); border-color: var(--mx-plum); color: #fff; border-radius: 999px; }
+[data-edition="customer"] #dash-root .btn { border-radius: 999px; }
+[data-edition="customer"] #dash-root :focus-visible { outline: 2px solid var(--mx-plum-dark); outline-offset: 2px; }
+
+/* footer note every customer page carries */
+[data-edition="customer"] #dash-root::after { content: "Metrixx Topic Log Pro · data from public market and social sources · not investment advice";
+  display: block; margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--mx-rule);
+  font-family: var(--mx-mono); font-size: 11px; letter-spacing: .06em; color: var(--mx-muted); }

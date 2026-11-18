@@ -1,7 +1,6 @@
 // Episode tab (desktop app only): pick a topic -> Claude drafts a MYCAST script (with web search) ->
 // edit / regenerate -> approve -> ElevenLabs MP3. Talks to the local server under /api/ep/.
 (function () {
-  if (document.documentElement.dataset.edition === 'customer') return;  // customer edition: no Episode tab
   const root = document.getElementById('dash-root');
   const tabs = root.querySelector('.tl-tabs');
   const pages = () => [...root.querySelectorAll('.tl-page')];
@@ -204,7 +203,7 @@
   // ---------------------------------------------------------------- keys in the app bar
   const bar = document.querySelector('.app-bar');
   const quit = document.getElementById('ab-quit');
-  const kBtn = h('button', { type: 'button', title: 'Anthropic, ElevenLabs and Shotstack keys for MYCAST episodes and videos' }, 'Episode keys…');
+  const kBtn = h('button', { type: 'button', id: 'ab-epkeys', title: 'Anthropic, ElevenLabs and Shotstack keys for MYCAST episodes and videos' }, 'Episode keys…');
   const inp = (ph, label) => h('input', { type: 'password', placeholder: ph, 'aria-label': label, size: '16' });
   const kA = inp('Anthropic sk-ant-…', 'Anthropic API key'), kE = inp('ElevenLabs key', 'ElevenLabs API key'), kV = inp('Voice ID', 'ElevenLabs voice ID');
   kV.type = 'text';
