@@ -19,6 +19,7 @@ import sys
 import threading
 import time
 import traceback
+import urllib.parse
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
@@ -64,7 +65,7 @@ MAX_SLOTS, MIN_GAP_MIN = 6, 30
 DEFAULT_SETTINGS = {"adanos_key": "", "schedule": DEFAULT_SCHEDULE, "weekdays_only": False, "schedule_set_at": None}
 INTERVAL_V = 4  # v4: the schedule replaces the interval menu; older settings move to the default schedule once
 
-VERSION = "1.2.1"
+VERSION = "1.3"
 
 DATA.mkdir(parents=True, exist_ok=True)
 _ver = SUP / "version"
@@ -362,8 +363,10 @@ def scheduler():
             if wake.wait(timeout=min(due, 60)):
                 wake.clear()
                 pull()
+                drive_wake.set()
             continue
         pull()
+        drive_wake.set()
 
 
 def sc_scheduler():
@@ -674,6 +677,18 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b)
             return
+        if self.path.startswith("/api/exports/"):  # server: download an exported file
+            f = out_dir("exports") / pathlib.Path(urllib.parse.unquote(self.path.split("?")[0][len("/api/exports/"):])).name
+            if not f.is_file():
+                return self._json({"error": "not found"}, 404)
+            b = f.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf" if f.suffix == ".pdf" else "application/octet-stream")
+            self.send_header("Content-Disposition", f'attachment; filename="{f.name}"')
+            self.send_header("Content-Length", str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+            return
         if self.path.startswith("/api/mp4/"):
             return self._mp4_get(self.path.split("?")[0][len("/api/mp4/"):])
         if self.path.startswith("/api/sc/"):
@@ -683,8 +698,7 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path.startswith("/api/ep/"):
             return self._ep_get(self.path.split("?")[0][len("/api/ep/"):])
         if self.path.split("?")[0] in ("/", "/index.html") and EDITION == "customer":
-            b = (WEB / "index.html").read_text(encoding="utf-8").replace('<html lang="en">', '<html lang="en" data-edition="customer">', 1).replace("<title>Topic Log</title>", "<title>Topic Log Pro</title>", 1).replace('<span class="name">Topic Log</span>', '<span class="name"><img src="metrixx-logo.svg" alt="Metrixx">Topic Log Pro</span>', 1).replace(
-                '</head>', '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap"></head>', 1).encode()
+            b = (WEB / "index.html").read_text(encoding="utf-8").replace('<html lang="en">', '<html lang="en" data-edition="customer">', 1).replace("<title>Topic Log</title>", "<title>Topic Log Pro</title>", 1).replace('Topic Log</span>', 'Topic Log Pro</span>', 1).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
@@ -750,6 +764,15 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json({"error": f"{e}"}, 400)
             reveal(path)
             return self._json({"path": str(path)})
+        if self.path == "/api/export-table":  # any table on the page as a PDF, into Topic Log Data/exports/
+            try:
+                from dashboard import report
+                path = report.table_pdf(str(body.get("title") or "Table"), str(body.get("note") or ""), body.get("header") or [],
+                                        body.get("rows") or [], out_dir("exports"))
+            except Exception as e:
+                return self._json({"error": f"{e}"}, 400)
+            reveal(path)
+            return self._json({"path": str(path), "url": f"/api/exports/{path.name}" if SERVER else None})
         if self.path == "/api/open-folder":
             reveal(out_dir(body.get("kind")) if body.get("kind") in SUBDIRS else OUT, inside=True)
             return self._json({"ok": True, "path": str(OUT)})
@@ -821,6 +844,7 @@ def seed_from_env():
 
 
 DRIVE_TEAM = "0AP4jreJP2ZohUk9PVA"  # the TopicLog shared drive
+drive_wake = threading.Event()  # set after each pull: sync then
 
 
 def _rclone():
@@ -834,7 +858,7 @@ def _rclone():
 def drive_sync():
     """Copy Topic Log Data to the TopicLog Google shared drive every few minutes with rclone. The Google token comes from
     RCLONE_CONFIG_GDRIVE_TOKEN (server) or the drive_token setting (desktop). Copy only: nothing on the drive is deleted."""
-    every = max(1, int(os.environ.get("DRIVE_SYNC_MIN", "5"))) * 60
+    every = max(5, int(os.environ.get("DRIVE_SYNC_MIN", "360"))) * 60  # after every pull, and every 6 hours
     time.sleep(20)
     while True:
         s = load_settings()
@@ -855,7 +879,8 @@ def drive_sync():
                 state["drive_sync"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "ok": False, "error": str(e)}
         elif token and not rc:
             state["drive_sync"] = {"at": None, "ok": False, "error": "rclone not found (Mac: brew install rclone)"}
-        time.sleep(every)
+        drive_wake.wait(timeout=every)
+        drive_wake.clear()
 
 
 def serve():
@@ -879,8 +904,6 @@ def main():
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     threading.Thread(target=lambda: (migrate(), scheduler()), daemon=True).start()
-    if EDITION != "customer":
-        threading.Thread(target=sc_scheduler, daemon=True).start()
     threading.Thread(target=drive_sync, daemon=True).start()
     url = f"http://127.0.0.1:{port}/"
     (SUP / "port").write_text(str(port))

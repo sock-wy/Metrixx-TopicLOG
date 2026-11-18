@@ -1,0 +1,76 @@
+/* The Metrixx house look for every edition (internal Mac / Windows and Topic Log Pro): the dark Metrixx cover from the
+   Market Playbook and the Metrixx AI workspace, plum accent, Newsreader for titles, IBM Plex Mono for labels and figures.
+   One committed dark look: it does not follow the system light / dark setting. */
+:root{
+  color-scheme: dark;
+  --mx-cover: #1D1E20; --mx-cover-deep: #141517; --mx-cover-ink: #F3F0F5; --mx-cover-muted: #B9B7BF;
+  --mx-paper: #18191B; --mx-panel: #222326; --mx-ink: #F3F0F5; --mx-muted: #A9A7B0; --mx-rule: #36373C;
+  --mx-plum: #96519E; --mx-plum-ink: #CE98D5; --mx-plum-soft: #3A2A3D; --mx-plum-dark: #CE98D5;
+  --mx-green: #0BC26C; --mx-ok: #2FCB80;
+  --mx-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --mx-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  --font-anthropic-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-anthropic-serif: var(--mx-serif);
+  --color-fg: var(--mx-ink); --color-fg-muted: var(--mx-muted); --color-bg: var(--mx-paper); --color-panel: var(--mx-panel);
+  --color-border-line: var(--mx-rule); --color-ok: var(--mx-ok); --color-warn: #E0A54A; --color-bad: #EE7B70;
+  --cds-chart-muted: #3A3B40; --cds-chart-grid: #2C2D31; --cds-chart-axis: #55565C; --cds-chart-reference: #8C8A92;
+  --cds-surface-popover: #26272B; --cds-border: var(--mx-rule); --cds-text-secondary: var(--mx-muted);
+  --cds-shadow-popover: 0 18px 40px -20px rgba(0, 0, 0, .7);
+}
+body { background: var(--mx-paper); color: var(--mx-ink); }
+
+/* app bar = the dark Metrixx cover */
+.app-bar { background: var(--mx-cover); color: var(--mx-cover-ink); border-bottom: 1px solid var(--mx-rule); padding-block: 12px; }
+.app-bar .name { display: inline-flex; align-items: center; gap: 12px; font-family: var(--mx-mono); font-weight: 500;
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--mx-cover-muted); }
+.app-bar .name img { width: 112px; height: auto; display: block; }
+.app-bar .status, .app-bar label { color: var(--mx-cover-muted); }
+.app-bar .dot { background: var(--mx-green); }
+.app-bar button, .app-bar select, .app-bar input {
+  background: transparent; color: var(--mx-cover-ink); border-color: #4A4B4F; border-radius: 999px; padding: 5px 14px; }
+.app-bar button:hover { border-color: var(--mx-plum-dark); }
+.app-bar button.primary { background: var(--mx-plum); border-color: var(--mx-plum); color: #fff; }
+.app-bar button.primary:hover { background: var(--mx-plum-ink); }
+.app-bar button:focus-visible { outline: 2px solid var(--mx-plum-dark); outline-offset: 2px; }
+/* keys ship inside this edition */
+[data-edition="customer"] #ab-epkeys { display: none !important; }
+
+/* page header */
+html #dash-root { padding: 28px clamp(16px, 4vw, 56px) 48px; }
+html #dash-root .tl-head { padding-bottom: 6px; }
+html #dash-root .tl-title { font-family: var(--mx-serif); font-weight: 500; font-size: 40px; line-height: 1.1;
+  letter-spacing: -.01em; margin: 0 0 8px; }
+html #dash-root .tl-take { font-family: var(--mx-serif); font-size: 19px; color: var(--mx-muted); }
+html #dash-root .tl-take b { color: var(--mx-ink); font-weight: 600; }
+
+/* sections and sub-tabs */
+html #dash-root .tl-group { border-color: var(--mx-rule); color: var(--mx-ink); padding: 7px 18px; background: transparent; }
+html #dash-root .tl-group:hover { border-color: var(--mx-plum); }
+html #dash-root .tl-group[aria-pressed="true"] { background: var(--mx-plum); border-color: var(--mx-plum); color: #fff; }
+html #dash-root .tl-tab { font-family: var(--mx-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+html #dash-root .tl-tab { color: var(--mx-muted); }
+html #dash-root .tl-tab[aria-selected="true"] { color: var(--mx-plum-ink); border-bottom-color: var(--mx-plum); box-shadow: inset 0 -2px 0 var(--mx-plum); }
+
+/* cards, headings, labels, figures */
+html #dash-root .tl-card { border-color: var(--mx-rule); border-radius: 12px; background: var(--mx-panel); }
+html #dash-root h3 { font-family: var(--mx-serif); font-weight: 500; font-size: 22px; letter-spacing: -.005em; }
+html #dash-root th { font-family: var(--mx-mono); font-weight: 500; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--mx-muted); }
+html #dash-root td { font-variant-numeric: tabular-nums; }
+html #dash-root a { color: var(--mx-plum-ink); }
+html #dash-root .btn.primary, html #dash-root button.primary {
+  background: var(--mx-plum); border-color: var(--mx-plum); color: #fff; border-radius: 999px; }
+html #dash-root .btn { border-radius: 999px; }
+html #dash-root :focus-visible { outline: 2px solid var(--mx-plum-dark); outline-offset: 2px; }
+
+/* footer note every customer page carries */
+[data-edition="customer"] #dash-root::after { content: "Metrixx Topic Log Pro · data from public market and social sources · not investment advice";
+  display: block; margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--mx-rule);
+  font-family: var(--mx-mono); font-size: 11px; letter-spacing: .06em; color: var(--mx-muted); }
+
+/* inputs, chips and tables on the dark page */
+html #dash-root input, html #dash-root select, html #dash-root textarea { background: var(--mx-paper); color: var(--mx-ink); border-color: var(--mx-rule); }
+html #dash-root .tl-chip, html #dash-root .tl-btn, html #dash-root .btn { background: transparent; color: var(--mx-ink); border-color: var(--mx-rule); }
+html #dash-root .tl-chip[aria-pressed="true"], html #dash-root .tl-btn.on { background: var(--mx-plum); border-color: var(--mx-plum); color: #fff; }
+html #dash-root tr:hover td { background: rgba(255, 255, 255, .03); }
+html #dash-root .src, html #dash-root .alg { background: var(--mx-panel); border-color: var(--mx-rule); }

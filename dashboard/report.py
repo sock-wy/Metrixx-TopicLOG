@@ -204,3 +204,48 @@ def export(data_dir: pathlib.Path, out_dir: pathlib.Path, fmt: str) -> pathlib.P
     except ImportError as e:
         raise RuntimeError(f"Export needs {'openpyxl' if fmt == 'xlsx' else 'reportlab'}; reopen the app once online to install it ({e}).")
     return path
+
+
+def table_pdf(title: str, note: str, header: list, rows: list, out_dir: pathlib.Path) -> pathlib.Path:
+    """Any table on the page as a PDF (the Export PDF buttons under Raw data, Market data, Daily picks...)."""
+    import datetime as dt
+    import re
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import landscape, letter
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except Exception as e:
+        raise RuntimeError(f"Export needs reportlab; reopen the app once online to install it ({e}).")
+    from xml.sax.saxutils import escape
+    ss = getSampleStyleSheet()
+    small = ss["BodyText"].clone("small", fontSize=7.5, leading=9.5)
+    cell = ss["BodyText"].clone("cell", fontSize=6.8, leading=8.2)
+    headc = cell.clone("headc", textColor=colors.white, fontName="Helvetica-Bold")
+    rows = [[str(v) for v in r[: len(header)]] for r in rows[:3000]]
+    p = lambda v, st=cell: Paragraph(escape(str(v)), st)
+    tb = Table([[p(h, headc) for h in header]] + [[p(v) for v in r] for r in rows], repeatRows=1)
+    tb.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#292A2C")),
+                            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f4f2f6")]),
+                            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#d9d6de")), ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                            ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2)]))
+
+    def foot(c, d):
+        c.saveState()
+        c.setFont("Helvetica", 7)
+        c.setFillColor(colors.HexColor("#6b7280"))
+        c.drawString(0.5 * inch, 0.35 * inch, DISCLAIMER)
+        c.restoreState()
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = dt.datetime.now().strftime("%Y-%m-%d_%H%M")
+    path = out_dir / f"{re.sub(r'[^A-Za-z0-9]+', '_', title).strip('_').lower()[:50] or 'table'}_{stamp}.pdf"
+    doc = SimpleDocTemplate(str(path), pagesize=landscape(letter), leftMargin=0.5 * inch, rightMargin=0.5 * inch,
+                            topMargin=0.5 * inch, bottomMargin=0.55 * inch, title=title)
+    s = [Paragraph(escape(title), ss["Title"])]
+    if note:
+        s.append(Paragraph(escape(note), small))
+    s += [Paragraph(f"{len(rows)} rows · exported {dt.datetime.now().strftime('%Y-%m-%d %H:%M')}", small), Spacer(1, 6), tb]
+    doc.build(s, onFirstPage=foot, onLaterPages=foot)
+    return path

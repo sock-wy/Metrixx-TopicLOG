@@ -9,6 +9,7 @@ an error on the dashboard and the run carries on.
 from __future__ import annotations
 
 import datetime as dt
+import gzip
 import json
 import time
 import urllib.parse
@@ -45,9 +46,13 @@ def _get(url, headers=None, timeout=40, tries=3):
     base = HOST_HEADERS.get(host) or {**UA, "Accept": "application/json"}
     for i in range(tries):
         try:
-            req = urllib.request.Request(url, headers={**base, **(headers or {})})
+            # gzip: Polymarket's /events refuses pages over 50 without it (HTTP 406 "gzip_required", Nov 2026)
+            req = urllib.request.Request(url, headers={**base, "Accept-Encoding": "gzip", **(headers or {})})
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.load(r)
+                raw = r.read()
+                if r.headers.get("Content-Encoding") == "gzip" or raw[:2] == b"\x1f\x8b":
+                    raw = gzip.decompress(raw)
+                return json.loads(raw)
         except Exception as e:
             err = e
             time.sleep(2 * (i + 1))

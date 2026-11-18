@@ -20,6 +20,15 @@
 [data-edition="customer"] #dash-root #rk-table th:nth-child(2), [data-edition="customer"] #dash-root #rk-table td:nth-child(2),[data-edition="customer"] #dash-root #rk-table th:nth-child(6), [data-edition="customer"] #dash-root #rk-table td:nth-child(6),[data-edition="customer"] #dash-root #rk-table th:nth-child(7), [data-edition="customer"] #dash-root #rk-table td:nth-child(7),[data-edition="customer"] #dash-root #rk-table th:nth-child(9), [data-edition="customer"] #dash-root #rk-table td:nth-child(9),[data-edition="customer"] #dash-root #rk-table th:nth-child(10), [data-edition="customer"] #dash-root #rk-table td:nth-child(10),[data-edition="customer"] #dash-root #rk-table th:nth-child(11), [data-edition="customer"] #dash-root #rk-table td:nth-child(11),[data-edition="customer"] #dash-root #rk-table th:nth-child(12), [data-edition="customer"] #dash-root #rk-table td:nth-child(12),[data-edition="customer"] #dash-root #rk-table th:nth-child(13), [data-edition="customer"] #dash-root #rk-table td:nth-child(13),[data-edition="customer"] #dash-root #rk-table th:nth-child(14), [data-edition="customer"] #dash-root #rk-table td:nth-child(14),[data-edition="customer"] #dash-root #rk-table th:nth-child(15), [data-edition="customer"] #dash-root #rk-table td:nth-child(15),[data-edition="customer"] #dash-root #rk-table th:nth-child(16), [data-edition="customer"] #dash-root #rk-table td:nth-child(16),[data-edition="customer"] #dash-root #rk-table th:nth-child(17), [data-edition="customer"] #dash-root #rk-table td:nth-child(17),[data-edition="customer"] #dash-root #rk-table th:nth-child(18), [data-edition="customer"] #dash-root #rk-table td:nth-child(18),[data-edition="customer"] #dash-root #rk-table th:nth-child(19), [data-edition="customer"] #dash-root #rk-table td:nth-child(19) { display: none !important; }
 [data-edition="customer"] #dash-root .wb-out { grid-column: auto !important; }
 [data-edition="customer"] #dash-root .tl-group[data-group="workbench"], [data-edition="customer"] #dash-root #tab-ranking, [data-edition="customer"] #dash-root #ranking { display: none !important; }
+#dash-root .src-group { margin: 14px 0 6px; font-size: var(--cds-font-size-caption); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--color-fg-muted); }
+#dash-root .src-group span { text-transform: none; letter-spacing: 0; font-weight: 400; }
+#dash-root .sbadge { margin-left: 8px; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--color-border-line); color: var(--color-fg-muted); vertical-align: 1px; white-space: nowrap; }
+#dash-root .sbadge.on { border-color: var(--color-ok); color: var(--color-ok); }
+#dash-root .tbl-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+#dash-root details.presets { margin: 8px 0 4px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 6px 10px; font-size: var(--cds-font-size-caption); }
+#dash-root details.presets summary { cursor: pointer; font-weight: 600; }
+#dash-root details.presets dt { font-weight: 600; margin-top: 8px; }
+#dash-root details.presets dd { margin: 2px 0 0; color: var(--color-fg-muted); line-height: 1.45; }
 #dash-root .tl-groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 #dash-root .tl-group { font: inherit; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); background: none; border: 1px solid var(--color-border-line); border-radius: 999px; padding: 5px 16px; color: var(--color-fg-muted); cursor: pointer; }
 #dash-root .tl-group[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
@@ -207,47 +216,48 @@
       <!-- 1 · data sources -->
       <div class="wb-col" id="wb-sources">
         <div class="wb-colhead"><h3>Data sources</h3><span class="wb-step">1 · in</span></div>
+        <p class="src-group">Main sources</p>
 
         <div class="src" id="src-kalshi">
-          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="kalshi"></span>Kalshi</span>
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="kalshi"></span>Kalshi</span><span class="sbadge on" title="Feeds the score">Scored</span>
             <label class="tg" title="Use Kalshi in the score"><input type="checkbox" id="p-src_kalshi" aria-label="Use Kalshi in the score"><span></span></label></div>
           <span class="src-sub"><span data-source="latest_run" data-field="kalshi_markets">—</span> open markets · <span data-source="latest_run" data-field="topics_kalshi">—</span> topics</span>
           <span class="src-feeds">money flow · money stock · market move · gates G2 / G3</span>
         </div>
         <div class="src" id="src-polymarket">
-          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="polymarket_status"></span>Polymarket</span>
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="polymarket_status"></span>Polymarket</span><span class="sbadge on" title="Feeds the score">Scored</span>
             <span class="src-ctl"><button class="tl-chip" data-raw="polymarket" type="button">View</button>
             <label class="tg" title="Use Polymarket in the score"><input type="checkbox" id="p-src_polymarket" aria-label="Use Polymarket in the score"><span></span></label></span></div>
           <span class="src-sub"><span data-source="latest_run" data-field="polymarket_rows">—</span> events · <span data-source="latest_run" data-field="topics_polymarket">—</span> topics</span>
           <span class="src-feeds">money flow (24h vs 1-week average) · money stock · market move</span>
         </div>
         <div class="src" id="src-adanos">
-          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="adanos"></span>Adanos</span>
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="adanos"></span>Adanos</span><span class="sbadge on" title="Feeds the score">Scored</span>
             <span class="src-ctl"><button class="tl-chip" data-flag="src_reddit" type="button">Reddit</button><button class="tl-chip" data-flag="src_x" type="button">X</button><button class="tl-chip" data-flag="src_news" type="button">News</button></span></div>
           <span class="src-sub">Status <span data-source="latest_run" data-field="adanos">—</span> · <span data-source="latest_run" data-field="adanos_calls">—</span> calls · <span data-source="latest_run" data-field="topics_adanos">—</span> trending topics</span>
           <span class="src-feeds">attention · activity · sentiment, averaged over the platforms switched on (crypto: Reddit only)</span>
         </div>
         <div class="src" id="src-prices">
-          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="prices"></span>Prices</span>
+          <div class="src-top"><span class="src-name"><span class="tl-dot" data-k="prices"></span>Prices</span><span class="sbadge on" title="Feeds the score">Scored</span>
             <span class="src-ctl"><button class="tl-chip" data-raw="crypto_spot" type="button">View</button>
             <label class="tg" title="Use momentum in the score"><input type="checkbox" id="p-src_momentum" aria-label="Use momentum in the score"><span></span></label></span></div>
           <span class="src-sub"><span data-source="latest_run" data-field="priced">—</span> topics priced</span>
-          <span class="src-feeds">momentum. Yahoo for stocks, indices, FX, commodities, rates; Binance, then Coinbase, then Kraken for crypto</span>
+          <span class="src-feeds">momentum · volume. Bigdata.com for US stocks and ETFs; Binance, then Coinbase, then Kraken for crypto; Yahoo for indices, FX, commodities, rates and anything Bigdata.com misses</span>
         </div>
 
-        <p class="tl-note" style="margin-top:4px">Supporting sources: add topics, catalysts and names, not scored directly.</p>
-        <div class="src" id="src-raw-us_movers"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_movers_status"></span>Yahoo · US movers</span><button class="tl-chip" data-raw="us_movers" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="topics_movers">—</span> topics from top gainers, losers, most active</span></div>
-        <div class="src" id="src-raw-earnings_calendar"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="earnings_calendar_status"></span>Nasdaq · earnings</span><button class="tl-chip" data-raw="earnings_calendar" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="earnings_calendar_rows">—</span> reports in 10 trading days · T1 catalysts</span></div>
-        <div class="src" id="src-raw-us_stocks"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_stocks_status"></span>Nasdaq · US stocks</span><button class="tl-chip" data-raw="us_stocks" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="us_stocks_rows">—</span> tickers and names used to match text to topics</span></div>
-        <div class="src" id="src-raw-crypto_spot"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="crypto_spot_status"></span>Binance · Coinbase · Kraken</span><button class="tl-chip" data-raw="crypto_spot" type="button">View</button></div>
-          <span class="src-sub"><span data-source="latest_run" data-field="crypto_spot_rows">—</span> coins · <span data-source="latest_run" data-field="coinbase_usd_pairs">—</span> on Coinbase · <span data-source="latest_run" data-field="kraken_usd_pairs">—</span> on Kraken</span></div>
-        <div class="src" id="src-raw-kalshi_perps"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="perps"></span>Kalshi perps</span><button class="tl-chip" data-raw="kalshi_perps" type="button">View</button></div>
+        <div class="src" id="src-raw-crypto_spot"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="crypto_spot_status"></span>Binance · Coinbase · Kraken</span><span class="sbadge" title="Adds topics, names or catalysts; not in the score">Not scored</span><button class="tl-chip" data-raw="crypto_spot" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="crypto_spot_rows">—</span> coins · <span data-source="latest_run" data-field="coinbase_usd_pairs">—</span> on Coinbase · <span data-source="latest_run" data-field="kraken_usd_pairs">—</span> on Kraken · public market data, no key</span></div>
+        <div class="src" id="src-raw-kalshi_perps"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="perps"></span>Kalshi perps</span><span class="sbadge" title="Adds topics, names or catalysts; not in the score">Not scored</span><button class="tl-chip" data-raw="kalshi_perps" type="button">View</button></div>
           <span class="src-sub"><span data-source="latest_run" data-field="perps_rows">—</span> perpetual futures · price, OI, funding · shown in the venue appendix, not scored</span></div>
-        <div class="src ph"><span class="src-name">eToro</span><span class="src-feeds">Live trades and trader portfolios. Needs the API key.</span></div>
-        <div class="src ph"><span class="src-name">Metrixx AI upload</span><span class="src-feeds">Market data upload (agenda 2). Not linked yet.</span></div>
+        <p class="src-group">Backup sources <span>free, unofficial; used until a paid source replaces them</span></p>
+        <div class="src" id="src-raw-us_movers"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_movers_status"></span>Yahoo · US movers</span><span class="sbadge" title="Adds topics, names or catalysts; not in the score">Not scored</span><button class="tl-chip" data-raw="us_movers" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="topics_movers">—</span> topics from today's top US gainers, losers and most active stocks; each one becomes a topic candidate</span></div>
+        <div class="src" id="src-raw-earnings_calendar"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="earnings_calendar_status"></span>Nasdaq · earnings</span><span class="sbadge" title="Adds topics, names or catalysts; not in the score">Not scored</span><button class="tl-chip" data-raw="earnings_calendar" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="earnings_calendar_rows">—</span> reports in 10 trading days · T1 catalysts</span></div>
+        <div class="src" id="src-raw-us_stocks"><div class="src-top"><span class="src-name"><span class="tl-dot" data-k="us_stocks_status"></span>Nasdaq · US stocks</span><span class="sbadge" title="Adds topics, names or catalysts; not in the score">Not scored</span><button class="tl-chip" data-raw="us_stocks" type="button">View</button></div>
+          <span class="src-sub"><span data-source="latest_run" data-field="us_stocks_rows">—</span> tickers and names used to match text to topics</span></div>
+        <p class="src-group">Planned <span>not connected yet</span></p>
+        <div class="src ph"><span class="src-name">Benzinga</span><span class="src-feeds">Prices, US movers, earnings and news. Will replace Yahoo and Nasdaq once its key is added (Data keys…).</span></div>
 
         <div class="alg" id="universe">
           <h4>Universe <small>which topics compete</small></h4>
@@ -275,6 +285,14 @@
           <button class="btn" id="btn-w0" type="button" title="The playbook's original weights and inputs">Load w0</button>
           <button class="btn" id="btn-yaml" type="button" aria-expanded="false">Export as YAML</button>
         </div>
+        <details class="presets">
+          <summary>What w0, w1 and w2 are</summary>
+          <dl>
+            <dt>w2 · the default</dt><dd>From backtest study v3. Attention level on all platforms (0.35) and on X (0.35), abnormal trading volume (0.125), momentum (0.125), open interest vs its normal (0.05). Everything else 0. Tiers are labels; no quality multiplier.</dd>
+            <dt>w1 · previous default</dt><dd>From backtest study broad_v2. Attention as the abnormal level (0.30), momentum (0.25), money flow (0.15), activity over 3 days (0.10), money stock (0.10), market move (0.10). No sentiment, no quality multiplier; a missing input counts as the median.</dd>
+            <dt>w0 · the playbook's original</dt><dd>config/weights_w0.yaml. Day-over-day changes: attention Δ1d (0.25), money flow (0.20), market move (0.20), sentiment (0.15), activity (0.10), money stock (0.10). Quality multiplier on, topics ranked by priority tier. The stored daily run (the "w0 #" column) still uses it, so you can compare.</dd>
+          </dl>
+        </details>
         <div id="yaml-box" hidden>
           <pre class="yaml" id="yaml"></pre>
           <div class="btns" style="margin-top:6px"><button class="btn primary" id="btn-copy" type="button">Copy</button><span class="tl-note" id="copy-msg"></span></div>
@@ -341,11 +359,6 @@
           </div>
         </div>
 
-        <div class="tl-card" id="card-scatter">
-          <h3>Your score vs momentum</h3>
-          <p class="tl-note">Right = higher score with your settings; up = bigger abnormal price move. Top-right topics are picked by both.</p>
-          <div class="tl-chart" id="scatter" data-source="topic_log"></div>
-        </div>
       </div>
     </div>
   </section>
@@ -414,6 +427,7 @@
           <tbody></tbody>
         </table>
       </div>
+      <div class="tbl-actions"><button type="button" class="tl-btn tbl-export" data-target="#daily-table">Export PDF</button><span class="tl-note tbl-msg"></span></div>
     </div>
   </section>
 
@@ -424,6 +438,14 @@
         <div>
           <h3>What changed, and why</h3>
           <p class="tl-note" id="rk-summary">Loading…</p>
+          <details class="presets">
+            <summary>What "Changes" shows</summary>
+            <dl>
+              <dt>Topic changes</dt><dd>How each topic's place in the ranking moved between two moments: today vs the day before (the 15:15 CT pick-of-record pulls), or the latest pull vs the one before it.</dd>
+              <dt>What you see</dt><dd>New in the top 10 and dropped out of it · the biggest climbers and fallers · which angle drove each move: attention (social mentions), price and volume, or money in prediction markets · the four angles side by side · each day's #1 pick and where it ranked the next day.</dd>
+              <dt>Why it matters</dt><dd>A topic that jumps on attention alone is a story people are starting to talk about; one that moves on money or price is a story the market is already trading.</dd>
+            </dl>
+          </details>
         </div>
         <div class="rk-seg" role="group" aria-label="Compare">
           <button type="button" class="tl-btn on" data-cmp="day">Today vs the day before</button>
@@ -510,15 +532,12 @@
       </div>
       <div class="tl-scroll" id="raw-box"></div>
       <p class="tl-note" id="raw-count"></p>
+      <div class="tbl-actions"><button type="button" class="tl-btn tbl-export" data-target="#raw-box table">Export PDF</button><span class="tl-note tbl-msg"></span></div>
     </div>
   </section>
 
   <!-- ============================== Market data -->
   <section class="tl-page" id="market" role="tabpanel" aria-labelledby="tab-market" hidden>
-    <div class="tl-placeholder" id="metrixx-upload">
-      <span><b>Metrixx AI upload</b> · not linked yet</span>
-      <span>Agenda item 2. This tab currently reads Yahoo Finance prices for every topic that has a listed symbol. Once the Metrixx market-data upload exists, it replaces or joins this source.</span>
-    </div>
     <div class="tl-card" id="card-market-chart">
       <h3>Biggest abnormal moves, last 24h</h3>
       <p class="tl-note">24h price change divided by the month's daily volatility. This is the momentum input shown next to demand_score.</p>
@@ -544,6 +563,7 @@
           <tbody></tbody>
         </table>
       </div>
+      <div class="tbl-actions"><button type="button" class="tl-btn tbl-export" data-target="#mk-table">Export PDF</button><span class="tl-note tbl-msg"></span></div>
     </div>
   </section>
 
@@ -573,6 +593,7 @@
           <tbody></tbody>
         </table>
       </div>
+      <div class="tbl-actions"><button type="button" class="tl-btn tbl-export" data-target="#tp-table">Export PDF</button><span class="tl-note tbl-msg"></span></div>
       <p class="tl-note" id="tp-count"></p>
     </div>
     <div class="tl-card" id="card-events">
@@ -599,6 +620,7 @@
           <tbody></tbody>
         </table>
       </div>
+      <div class="tbl-actions"><button type="button" class="tl-btn tbl-export" data-target="#ev-table">Export PDF</button><span class="tl-note tbl-msg"></span></div>
       <p class="tl-note" id="ev-count"></p>
     </div>
     <div class="tl-card" id="card-venues">
@@ -1145,7 +1167,7 @@ window.TL = (() => {
   }
   function drawScatter() {
     const box = document.getElementById('scatter');
-    if (state.page !== 'ranking' || !box.clientWidth) return;
+    if (!box || state.page !== 'ranking' || !box.clientWidth) return;
     box.replaceChildren();
     const data = result.live.filter((r) => r.my_score != null && r.abnormal_move != null);
     if (!data.length) return;
@@ -1759,3 +1781,26 @@ window.TL = (() => {
 })();
 dash.onData(() => window.TL.drawAll());
 </script>
+<script>
+// Export PDF under any table: sends the table as shown (header + visible rows) to the app, which writes Topic Log Data/exports/.
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('.tbl-export'); if (!b) return;
+  const card = b.closest('.tl-card'); const msg = b.parentElement.querySelector('.tbl-msg');
+  const t = document.querySelector(b.dataset.target);
+  if (!t) { msg.textContent = 'Nothing to export yet.'; return; }
+  const txt = (el) => el.textContent.replace(/\s+/g, ' ').trim();
+  const header = [...t.querySelectorAll('thead th')].filter((th) => th.offsetParent !== null).map(txt);
+  const rows = [...t.querySelectorAll('tbody tr')].filter((tr) => tr.offsetParent !== null)
+    .map((tr) => [...tr.children].filter((td) => td.offsetParent !== null).map(txt));
+  const title = card.querySelector('h3') ? txt(card.querySelector('h3')) : 'Table';
+  const note = card.querySelector('.tl-note') ? txt(card.querySelector('.tl-note')) : '';
+  msg.textContent = 'Exporting…';
+  try {
+    const r = await (await fetch('/api/export-table', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, note, header, rows }) })).json();
+    if (r.error) throw new Error(r.error);
+    if (r.url) { const a = document.createElement('a'); a.href = r.url; a.download = ''; document.body.append(a); a.click(); a.remove(); msg.textContent = 'Downloaded.'; }
+    else msg.textContent = 'Saved to ' + r.path;
+  } catch (err) { msg.textContent = String(err.message || err); }
+});
+</script>
+
