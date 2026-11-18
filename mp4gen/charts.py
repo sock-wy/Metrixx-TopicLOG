@@ -47,8 +47,27 @@ def render(job: pathlib.Path, plan: dict, data: dict, only=None) -> list:
     d = prepare(job, plan, data)
     idx = [i for i in range(len(plan["scenes"])) if only is None or i in only]
     outs = [d / f"scene_{i + 1:02d}.png" for i in range(len(plan["scenes"]))]
+    use_pw = True
     try:
         from playwright.sync_api import sync_playwright
+    except ImportError:
+        use_pw = False
+    if use_pw:
+        try:
+            _pw_render(d, idx, outs)
+        except Exception as e:  # Playwright installed but its browser is missing: fall back to Chrome / Edge
+            if not _browser():
+                raise StepError(f"Playwright could not start ({str(e).splitlines()[0]}). Install Google Chrome, or run: python3 -m playwright install chromium")
+            use_pw = False
+    if not use_pw:
+        _chrome_render(d, idx, outs)
+    contact(job, outs)
+    return outs
+
+
+def _pw_render(d, idx, outs):
+    from playwright.sync_api import sync_playwright
+    if True:
         with sync_playwright() as p:
             b = p.chromium.launch()
             pg = b.new_page(viewport={"width": 1920, "height": 1080})
@@ -57,7 +76,10 @@ def render(job: pathlib.Path, plan: dict, data: dict, only=None) -> list:
                 pg.wait_for_timeout(1200)
                 pg.screenshot(path=str(outs[i]))
             b.close()
-    except ImportError:
+
+
+def _chrome_render(d, idx, outs):
+    if True:
         exe = _browser()
         if not exe:
             raise StepError("No renderer: install Google Chrome or Microsoft Edge (or the playwright package).")
@@ -70,8 +92,6 @@ def render(job: pathlib.Path, plan: dict, data: dict, only=None) -> list:
                 subprocess.run(cmd, check=False, capture_output=True, timeout=120)
                 if not outs[i].exists():
                     raise StepError(f"The browser did not draw scene {i + 1}.")
-    contact(job, outs)
-    return outs
 
 
 def contact(job: pathlib.Path, outs: list):
