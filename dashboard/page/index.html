@@ -19,7 +19,6 @@
 [data-edition="customer"] #dash-root #card-detail, [data-edition="customer"] #dash-root #card-scatter,
 [data-edition="customer"] #dash-root #rk-table th:nth-child(2), [data-edition="customer"] #dash-root #rk-table td:nth-child(2),[data-edition="customer"] #dash-root #rk-table th:nth-child(6), [data-edition="customer"] #dash-root #rk-table td:nth-child(6),[data-edition="customer"] #dash-root #rk-table th:nth-child(7), [data-edition="customer"] #dash-root #rk-table td:nth-child(7),[data-edition="customer"] #dash-root #rk-table th:nth-child(9), [data-edition="customer"] #dash-root #rk-table td:nth-child(9),[data-edition="customer"] #dash-root #rk-table th:nth-child(10), [data-edition="customer"] #dash-root #rk-table td:nth-child(10),[data-edition="customer"] #dash-root #rk-table th:nth-child(11), [data-edition="customer"] #dash-root #rk-table td:nth-child(11),[data-edition="customer"] #dash-root #rk-table th:nth-child(12), [data-edition="customer"] #dash-root #rk-table td:nth-child(12),[data-edition="customer"] #dash-root #rk-table th:nth-child(13), [data-edition="customer"] #dash-root #rk-table td:nth-child(13),[data-edition="customer"] #dash-root #rk-table th:nth-child(14), [data-edition="customer"] #dash-root #rk-table td:nth-child(14),[data-edition="customer"] #dash-root #rk-table th:nth-child(15), [data-edition="customer"] #dash-root #rk-table td:nth-child(15),[data-edition="customer"] #dash-root #rk-table th:nth-child(16), [data-edition="customer"] #dash-root #rk-table td:nth-child(16),[data-edition="customer"] #dash-root #rk-table th:nth-child(17), [data-edition="customer"] #dash-root #rk-table td:nth-child(17),[data-edition="customer"] #dash-root #rk-table th:nth-child(18), [data-edition="customer"] #dash-root #rk-table td:nth-child(18),[data-edition="customer"] #dash-root #rk-table th:nth-child(19), [data-edition="customer"] #dash-root #rk-table td:nth-child(19) { display: none !important; }
 [data-edition="customer"] #dash-root .wb-out { grid-column: auto !important; }
-[data-edition="customer"] #dash-root .tl-group[data-group="workbench"], [data-edition="customer"] #dash-root #tab-ranking, [data-edition="customer"] #dash-root #ranking { display: none !important; }
 #dash-root .src-group { margin: 14px 0 6px; font-size: var(--cds-font-size-caption); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--color-fg-muted); }
 #dash-root .src-group span { text-transform: none; letter-spacing: 0; font-weight: 400; }
 #dash-root .sbadge { margin-left: 8px; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--color-border-line); color: var(--color-fg-muted); vertical-align: 1px; white-space: nowrap; }
@@ -1772,8 +1771,9 @@ window.TL = (() => {
     drawAll();
   }
   document.querySelectorAll('.tl-tab').forEach((b) => b.addEventListener('click', () => go(b.dataset.page, true)));
-  if (document.documentElement.dataset.edition === 'customer') {  // customer edition: no Workbench, start on Market
-    document.getElementById('tab-ranking').remove();
+  if (document.documentElement.dataset.edition === 'customer') {  // customer edition: the Workbench shows only its Output column
+    document.querySelector('.tl-group[data-group="workbench"]').textContent = 'Output';
+    document.getElementById('tab-ranking').textContent = 'Output';
   }
   document.getElementById('tp-search').addEventListener('input', (e) => { state.tpQ = e.target.value; drawTopics(); });
   document.getElementById('tp-new').addEventListener('click', () => { state.tpNew = !state.tpNew; drawTopics(); });
@@ -1798,8 +1798,7 @@ window.TL = (() => {
   }
   const first = location.hash.slice(1);
   const CUSTOMER = document.documentElement.dataset.edition === 'customer';
-  if (CUSTOMER && (!PAGES.includes(first) || first === 'ranking')) go('brief', false);
-  else if (PAGES.includes(first)) go(first, false);
+  if (PAGES.includes(first)) go(first, false);
   return { drawAll };
 })();
 dash.onData(() => window.TL.drawAll());
