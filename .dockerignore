@@ -1,0 +1,6 @@
+.git
+desktop/dist
+desktop/windows/dist
+backtest
+**/__pycache__
+*.zip

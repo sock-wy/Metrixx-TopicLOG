@@ -10,6 +10,7 @@
       $('ab-text').textContent = s.running ? 'Pulling Kalshi, Adanos, prices and free sources…'
         : s.error ? `Last pull failed: ${s.error}` : `Last pull ${fmt(s.last_ok)} · next ${fmt(s.next_run)}`;
       $('ab-refresh').disabled = s.running;
+      if (s.server) { $('ab-quit').hidden = true; $('ab-folder').hidden = true; }  // on the server: nothing to quit, files are in the shared drive
       status = s;
       const on = (s.schedule || []).filter((x) => x.on).map((x) => x.t);
       $('ab-sched-sum').textContent = on.join(' · ') + ' CT' + (s.weekdays_only ? ' (weekdays)' : '');

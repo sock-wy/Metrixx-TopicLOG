@@ -26,7 +26,10 @@ APP = pathlib.Path(__file__).resolve().parent  # inside TopicLog.exe this is the
 sys.path.insert(0, str(APP))
 WINDOWS = sys.platform == "win32"
 EXE_DIR = pathlib.Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else APP
-if WINDOWS:
+SERVER = os.environ.get("TOPICLOG_SERVER") == "1"  # running on a server (Coolify / Docker): no window, password, Drive sync
+if SERVER:
+    SUP = pathlib.Path(os.environ.get("TOPICLOG_HOME", "/data/app"))
+elif WINDOWS:
     SUP = pathlib.Path(os.environ.get("APPDATA") or pathlib.Path.home() / "AppData" / "Roaming") / "TopicLog"
 else:
     SUP = pathlib.Path.home() / "Library" / "Application Support" / "TopicLog"
@@ -142,7 +145,7 @@ def _desktop():
     return home
 
 
-OUT = _desktop() / "Topic Log Data"  # everything Topic Log produces, by kind; never inside the app's folder
+OUT = pathlib.Path(os.environ.get("TOPICLOG_OUT", "/data/Topic Log Data")) if SERVER else _desktop() / "Topic Log Data"  # everything Topic Log produces, by kind; never inside the app's folder
 SUBDIRS = ("daily", "rank_history", "digests", "audio", "scripts", "exports")
 OLD_DESKTOP = _desktop() / "TopicLog"  # v0.9 copied the daily files to ~/Desktop/TopicLog/daily/
 
@@ -393,7 +396,29 @@ def sc_view(s):
             "last_auto": s.get("supercast_last_auto"), "state": sc.state, "folder": str(OUT / "audio"), "tz": TZ_NAME}
 
 
+PASSWORD = os.environ.get("TOPICLOG_PASSWORD", "") if SERVER else ""
+
+
 class Handler(SimpleHTTPRequestHandler):
+    def _authed(self):
+        """Server mode: HTTP Basic auth (any user name, the TOPICLOG_PASSWORD password)."""
+        if not PASSWORD or self.path == "/api/health":
+            return True
+        import base64
+        import hmac
+        h = self.headers.get("Authorization") or ""
+        try:
+            pw = base64.b64decode(h.split(" ", 1)[1]).decode().split(":", 1)[1] if h.startswith("Basic ") else ""
+        except Exception:
+            pw = ""
+        if hmac.compare_digest(pw.encode(), PASSWORD.encode()):
+            return True
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="Topic Log"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     def __init__(self, *a, **k):
         super().__init__(*a, directory=str(WEB), **k)
 
@@ -632,6 +657,10 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": f"{type(e).__name__}: {e}"}, 400)
 
     def do_GET(self):
+        if self.path == "/api/health":
+            return self._json({"ok": True})
+        if not self._authed():
+            return
         if self.path.startswith("/api/data/"):
             name = self.path.split("/")[-1].split("?")[0]
             if name not in DATASETS:
@@ -674,10 +703,12 @@ class Handler(SimpleHTTPRequestHandler):
                                "pick_slot": PICK_SLOT, "tz": TZ_NAME, "max_slots": MAX_SLOTS, "min_gap": MIN_GAP_MIN,
                                "has_key": bool(s.get("adanos_key")),
                                "keys": {k: bool(s.get(k)) for k in ("adanos_key", "bigdata_key", "benzinga_key", "helius_key")}, "data_dir": str(DATA), "out_dir": str(OUT),
-                               "version": VERSION, "edition": EDITION})
+                               "version": VERSION, "edition": EDITION, "server": SERVER})
         return super().do_GET()
 
     def do_POST(self):
+        if not self._authed():
+            return
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}")
         if self.path.startswith("/api/mp4/"):
@@ -740,6 +771,8 @@ class Handler(SimpleHTTPRequestHandler):
                 pass
             return self._json({"path": str(folder / name), "copied": copied})
         if self.path == "/api/quit":
+            if SERVER:
+                return self._json({"error": "The server keeps running; close the browser tab instead."}, 400)
             self._json({"ok": True})
             threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start()
             return
@@ -748,6 +781,8 @@ class Handler(SimpleHTTPRequestHandler):
 
 def reveal(path, inside=False):
     """Show a file (or open a folder) in Finder / Explorer."""
+    if SERVER:
+        return  # nothing to show on a server; the files are in the TopicLog shared drive
     try:
         path = pathlib.Path(path)
         if inside or path.is_dir():
@@ -766,7 +801,60 @@ def free_port(start=8765):
     raise SystemExit("no free port")
 
 
+ENV_SETTINGS = {"ADANOS_KEY": "adanos_key", "BIGDATA_KEY": "bigdata_key", "BENZINGA_KEY": "benzinga_key", "HELIUS_KEY": "helius_key",
+                "SEC_CONTACT": "sec_contact", "SUPERCAST_TOKEN": "supercast_token", "SUPERCAST_SITE": "supercast_site"}
+ENV_KEYS = {"ANTHROPIC_API_KEY": "anthropic_api_key", "ELEVENLABS_API_KEY": "elevenlabs_api_key", "ELEVENLABS_VOICE_ID": "elevenlabs_voice_id",
+            "SHOTSTACK_API_KEY": "shotstack_api_key", "SHOTSTACK_ENV": "shotstack_env"}
+
+
+def seed_from_env():
+    """Server mode: keys come from the environment (Coolify variables); a key set in the app later wins."""
+    s = load_settings()
+    new = {a: os.environ[e] for e, a in ENV_SETTINGS.items() if os.environ.get(e) and not s.get(a)}
+    if new:
+        s.update(new)
+        save_settings(s)
+    k = episode.load_keys()
+    newk = {a: os.environ[e] for e, a in ENV_KEYS.items() if os.environ.get(e) and not k.get(a)}
+    if newk:
+        episode.save_keys({**k, **newk})
+
+
+def drive_sync():
+    """Server mode: copy Topic Log Data to the Google shared drive every DRIVE_SYNC_MIN minutes (rclone, remote "gdrive"
+    configured through RCLONE_CONFIG_GDRIVE_* variables). Copy only: nothing on the drive is ever deleted."""
+    if not (shutil.which("rclone") and os.environ.get("RCLONE_CONFIG_GDRIVE_TOKEN")):
+        return
+    dest = "gdrive:" + os.environ.get("DRIVE_FOLDER", "Topic Log Data")
+    every = max(1, int(os.environ.get("DRIVE_SYNC_MIN", "5"))) * 60
+    while True:
+        try:
+            r = subprocess.run(["rclone", "copy", str(OUT), dest, "--update", "--transfers", "4", "--exclude", ".DS_Store"],
+                               capture_output=True, text=True, timeout=1800)
+            state["drive_sync"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "ok": r.returncode == 0,
+                                   "error": (r.stderr or "")[-300:] if r.returncode else ""}
+        except Exception as e:
+            state["drive_sync"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "ok": False, "error": str(e)}
+        time.sleep(every)
+
+
+def serve():
+    """Server mode: listen on all interfaces, no window, run until the container stops."""
+    OUT.mkdir(parents=True, exist_ok=True)
+    for k in SUBDIRS:
+        out_dir(k)
+    seed_from_env()
+    port = int(os.environ.get("PORT", "8765"))
+    srv = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    threading.Thread(target=lambda: (migrate(), scheduler()), daemon=True).start()
+    threading.Thread(target=drive_sync, daemon=True).start()
+    print(f"Topic Log server on :{port} (password {'on' if PASSWORD else 'OFF'}), data in {OUT}", flush=True)
+    srv.serve_forever()
+
+
 def main():
+    if SERVER:
+        return serve()
     port = free_port()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
