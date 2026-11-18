@@ -24,6 +24,12 @@
 #dash-root .src-group span { text-transform: none; letter-spacing: 0; font-weight: 400; }
 #dash-root .sbadge { margin-left: 8px; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--color-border-line); color: var(--color-fg-muted); vertical-align: 1px; white-space: nowrap; }
 #dash-root .sbadge.on { border-color: var(--color-ok); color: var(--color-ok); }
+#dash-root .jflag { color: var(--color-warn); font-weight: 600; }
+#dash-root .jbox { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--color-border-line); white-space: nowrap; }
+#dash-root .jbox.longs-adding { color: var(--color-ok); border-color: var(--color-ok); }
+#dash-root .jbox.shorts-adding { color: var(--color-bad); border-color: var(--color-bad); }
+#dash-root .jbox.shorts-covering { color: var(--color-ok); }
+#dash-root .jbox.longs-exiting { color: var(--color-bad); }
 #dash-root .tbl-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 #dash-root details.presets { margin: 8px 0 4px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 6px 10px; font-size: var(--cds-font-size-caption); }
 #dash-root details.presets summary { cursor: pointer; font-weight: 600; }
@@ -572,7 +578,7 @@
     <div class="tl-tiles" id="topic-tiles" data-source="topic_classes"></div>
     <div class="tl-card" id="card-topics">
       <h3>Topics</h3>
-      <p class="tl-note">Every topic in this pull, the sources it came from, how it was matched (rule, ticker, name, or new when nothing matched) and how many events sit under it. Click a topic to see its events below.</p>
+      <p class="tl-note">Every topic in this pull, the sources it came from, how it was matched (rule, ticker, name, or new when nothing matched) and how many events sit under it. Click a topic to see its events below.<br>Jim's columns: <b>Topic rank</b> = place in today's ranking · <b>σ move</b> = 24h price move in standard deviations of its usual daily move (amber at 2σ or more) · <b>Kalshi vol</b> = contracts traded in 24h and the change vs the previous pull (amber when volume at least doubles) · <b>Perps</b> = Kalshi perp positioning from price and open interest vs the previous pull: longs adding, shorts adding, shorts covering or longs exiting.</p>
       <div class="tl-controls">
         <input class="tl-search" id="tp-search" type="search" placeholder="Search topic or name" aria-label="Search topics">
         <span id="tp-classes"></span>
@@ -587,7 +593,11 @@
             <th class="l" data-field="origin"><button class="tl-th-btn" data-sort="origin">Sources</button></th>
             <th class="l" data-field="match"><button class="tl-th-btn" data-sort="match">Matched by</button></th>
             <th data-field="n_events"><button class="tl-th-btn" data-sort="n_events">Events</button></th>
-            <th data-field="rank"><button class="tl-th-btn" data-sort="rank">w0 #</button></th>
+            <th data-field="pick_rank" title="Topic rank: place in today's ranking (w2)"><button class="tl-th-btn" data-sort="pick_rank">Topic rank</button></th>
+            <th data-field="sigma" title="24h price move in standard deviations of its usual daily move; flagged at 2σ or more"><button class="tl-th-btn" data-sort="sigma">σ move</button></th>
+            <th data-field="k_vol" title="Kalshi contracts traded in 24h and the change vs the previous pull; flagged when volume at least doubles"><button class="tl-th-btn" data-sort="k_vol">Kalshi vol</button></th>
+            <th class="l" data-field="perp_box" title="Kalshi perp positioning from price and open interest vs the previous pull"><button class="tl-th-btn" data-sort="perp_box">Perps</button></th>
+            <th data-field="rank" class="ed-internal"><button class="tl-th-btn" data-sort="rank">w0 #</button></th>
             <th class="l" data-field="gate"><button class="tl-th-btn" data-sort="gate">Gate</button></th>
           </tr></thead>
           <tbody></tbody>
@@ -1369,8 +1379,13 @@ window.TL = (() => {
       }));
     }
     const tbody = document.querySelector('#tp-table tbody');
-    if (!ok('topic_log')) { emptyRow(tbody, 8, 'Loading…'); return; }
-    const all = rows('topic_log');
+    if (!ok('topic_log')) { emptyRow(tbody, 12, 'Loading…'); return; }
+    const venue = new Map((ok('venue_appendix') ? rows('venue_appendix') : []).map((v) => [v.topic, v]));
+    const all = rows('topic_log').map((r) => {
+      const v = venue.get(r.topic) || {};
+      const sig = r.abnormal_move == null ? null : Math.abs(r.abnormal_move) * Math.sign(r.chg_24h || 1);
+      return { ...r, sigma: sig, perp_box: v.perp_box || null, perp_funding: v.perp_funding, perp: v.perp };
+    });
     chips('tp-classes', [...new Set(all.map((r) => r.asset_class))].sort(), state.tpClasses, drawTopics);
     document.getElementById('tp-new').setAttribute('aria-pressed', state.tpNew ? 'true' : 'false');
     const q = state.tpQ.toLowerCase();
@@ -1382,12 +1397,20 @@ window.TL = (() => {
       const tr = el('tr'); tr.dataset.key = r.topic; if (r.topic === state.evTopic) tr.classList.add('sel');
       const td = (c, cls) => { const t = el('td', cls); if (c instanceof Node) t.append(c); else t.textContent = c ?? '–'; tr.append(t); };
       const tc = el('span', null, r.topic); if (r.is_new) tc.append(el('span', 'tl-new', 'new')); td(tc, 'l');
-      td(r.name, 'l tl-clip'); td(r.asset_class, 'l'); td(origins(r.origin), 'l'); td(r.match, 'l'); td(String(r.n_events)); td(r.rank == null ? '–' : String(r.rank));
+      td(r.name, 'l tl-clip'); td(r.asset_class, 'l'); td(origins(r.origin), 'l'); td(r.match, 'l'); td(String(r.n_events));
+      td(r.pick_rank == null ? '–' : String(r.pick_rank));
+      { const sg = r.sigma; const sp = el('span', null, sg == null ? '–' : `${sg > 0 ? '+' : ''}${sg.toFixed(1)}σ`);
+        if (sg != null && Math.abs(sg) >= 2) sp.className = 'jflag'; td(sp); }
+      { const sp = el('span', null, r.k_vol == null ? '–' : d3.format('.3~s')(r.k_vol) + (r.k_flow == null ? '' : ` · ${r.k_flow > 0 ? '+' : ''}${Math.round(r.k_flow * 100)}%`));
+        if (r.k_flow != null && r.k_flow >= 1 && (r.k_vol || 0) >= 100) sp.className = 'jflag'; td(sp); }
+      { const box = r.perp_box; const sp = el('span', box ? 'jbox ' + box.replace(/\s/g, '-') : 'tl-muted', box || (r.perp ? 'needs 2 pulls' : '–'));
+        if (r.perp_funding != null) sp.title = `${r.perp} · funding ${(r.perp_funding * 100).toFixed(4)}% per 8h`; td(sp, 'l'); }
+      { const t = el('td', 'ed-internal'); t.textContent = r.rank == null ? '–' : String(r.rank); tr.append(t); }
       td(r.gate ? el('span', 'tl-gate', r.gate) : el('span', 'tl-muted', '–'), 'l');
       frag.append(tr);
     }
     tbody.replaceChildren(frag);
-    if (!out.length) emptyRow(tbody, 8, 'No topic matches.');
+    if (!out.length) emptyRow(tbody, 12, 'No topic matches.');
     document.getElementById('tp-count').textContent = `${Math.min(600, out.length)} of ${out.length} topics shown · ${all.filter((r) => r.is_new).length} new this pull`;
   }
   function drawEvents() {

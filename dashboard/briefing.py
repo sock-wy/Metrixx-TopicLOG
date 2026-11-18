@@ -73,6 +73,26 @@ def perps_rows(perps: dict, ensure):
     return sorted(rows, key=lambda r: -(r["volume_24h_usd"] or 0))
 
 
+def perps_box(rows, prev, flat=0.005):
+    """Positioning from price and open interest vs the previous pull (Jim's four-box):
+    price up + OI up = longs adding · price down + OI up = shorts adding ·
+    price up + OI down = shorts covering · price down + OI down = longs exiting. Moves under 0.5% count as flat."""
+    for r in rows:
+        p = prev.get(r["ticker"]) or {}
+        px0, oi0 = p.get("price"), p.get("open_interest_usd")
+        r["px_chg"] = round(r["price"] / px0 - 1, 5) if r.get("price") and px0 else None
+        r["oi_chg"] = round(r["open_interest_usd"] / oi0 - 1, 5) if r.get("open_interest_usd") and oi0 else None
+        if r["px_chg"] is None or r["oi_chg"] is None:
+            r["box"] = None
+        elif abs(r["px_chg"]) < flat and abs(r["oi_chg"]) < flat:
+            r["box"] = "flat"
+        elif r["oi_chg"] >= 0:
+            r["box"] = "longs adding" if r["px_chg"] >= 0 else "shorts adding"
+        else:
+            r["box"] = "shorts covering" if r["px_chg"] >= 0 else "longs exiting"
+    return rows
+
+
 # ------------------------------------------------------------------ venue appendix
 def venue_appendix(topic_rows, events, perps, coins, infos):
     by_ev = {}
@@ -98,6 +118,7 @@ def venue_appendix(topic_rows, events, perps, coins, infos):
                    kalshi_events=ev.get("kalshi", 0), kalshi_vol_24h=r.get("k_vol"), kalshi_oi=r.get("k_oi"),
                    perp=p["ticker"] if p else None, perp_oi_usd=p["open_interest_usd"] if p else None,
                    perp_vol_24h_usd=p["volume_24h_usd"] if p else None, perp_funding=p["funding_rate"] if p else None,
+                   perp_box=p.get("box") if p else None, perp_oi_chg=p.get("oi_chg") if p else None,
                    polymarket_events=ev.get("polymarket", 0), polymarket_vol_24h=r.get("p_vol"),
                    adanos=i.get("adanos_symbol") and f"{i.get('adanos_kind')}:{i.get('adanos_symbol')}",
                    adanos_platforms=",".join(ad_pl) or None,

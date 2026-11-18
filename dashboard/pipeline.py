@@ -950,6 +950,11 @@ def run(state: pathlib.Path, out: pathlib.Path, adanos_key=None, now=None, keys=
     br_stat = {}
     try:
         extra["kalshi_perps"] = briefing.perps_rows(perps_raw if perps_st == "ok" else None, lambda t, c: ensure(t, c))
+        try:  # Jim's perps four-box: price and open interest vs the previous pull
+            prev = {r["ticker"]: r for r in json.loads((out / "kalshi_perps.json").read_text())}
+        except Exception:
+            prev = {}
+        briefing.perps_box(extra["kalshi_perps"], prev)
         extra["venue_appendix"] = briefing.venue_appendix(out_rows, ev_rows, extra["kalshi_perps"], coins, infos)
         if adanos_key:
             extra["sectors"] = briefing.sectors(adanos_key, d1, d2, br_stat)
