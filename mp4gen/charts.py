@@ -27,7 +27,11 @@ def prepare(job: pathlib.Path, plan: dict, data: dict) -> pathlib.Path:
     d = job / "charts"
     d.mkdir(exist_ok=True)
     for f in TPL.iterdir():
-        shutil.copy(f, d / f.name)
+        t = d / f.name
+        if t.exists():  # a copy from the read-only app bundle can't be overwritten on Retry
+            t.chmod(0o644)
+            t.unlink()
+        shutil.copyfile(f, t)  # content only: don't carry the bundle's read-only mode
     (d / "plan.js").write_text("const PLAN = " + json.dumps(plan, ensure_ascii=False) + ";\n", encoding="utf-8")
     (d / "data.js").write_text("const DATA = " + json.dumps(data) + ";\n", encoding="utf-8")
     return d
