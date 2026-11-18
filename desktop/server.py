@@ -820,21 +820,41 @@ def seed_from_env():
         episode.save_keys({**k, **newk})
 
 
+DRIVE_TEAM = "0AP4jreJP2ZohUk9PVA"  # the TopicLog shared drive
+
+
+def _rclone():
+    for c in (shutil.which("rclone"), "/opt/homebrew/bin/rclone", "/usr/local/bin/rclone", "/usr/bin/rclone",
+              str(pathlib.Path.home() / "bin" / "rclone")):
+        if c and pathlib.Path(c).is_file():
+            return c
+    return None
+
+
 def drive_sync():
-    """Server mode: copy Topic Log Data to the Google shared drive every DRIVE_SYNC_MIN minutes (rclone, remote "gdrive"
-    configured through RCLONE_CONFIG_GDRIVE_* variables). Copy only: nothing on the drive is ever deleted."""
-    if not (shutil.which("rclone") and os.environ.get("RCLONE_CONFIG_GDRIVE_TOKEN")):
-        return
-    dest = "gdrive:" + os.environ.get("DRIVE_FOLDER", "Topic Log Data")
+    """Copy Topic Log Data to the TopicLog Google shared drive every few minutes with rclone. The Google token comes from
+    RCLONE_CONFIG_GDRIVE_TOKEN (server) or the drive_token setting (desktop). Copy only: nothing on the drive is deleted."""
     every = max(1, int(os.environ.get("DRIVE_SYNC_MIN", "5"))) * 60
+    time.sleep(20)
     while True:
-        try:
-            r = subprocess.run(["rclone", "copy", str(OUT), dest, "--update", "--transfers", "4", "--exclude", ".DS_Store"],
-                               capture_output=True, text=True, timeout=1800)
-            state["drive_sync"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "ok": r.returncode == 0,
-                                   "error": (r.stderr or "")[-300:] if r.returncode else ""}
-        except Exception as e:
-            state["drive_sync"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "ok": False, "error": str(e)}
+        s = load_settings()
+        token = os.environ.get("RCLONE_CONFIG_GDRIVE_TOKEN") or s.get("drive_token")
+        rc = _rclone()
+        if token and rc and not s.get("drive_off"):
+            token = token if isinstance(token, str) else json.dumps(token)
+            env = {**os.environ, "RCLONE_CONFIG_GDRIVE_TYPE": "drive", "RCLONE_CONFIG_GDRIVE_SCOPE": "drive",
+                   "RCLONE_CONFIG_GDRIVE_TOKEN": token,
+                   "RCLONE_CONFIG_GDRIVE_TEAM_DRIVE": os.environ.get("DRIVE_TEAM") or s.get("drive_team") or DRIVE_TEAM}
+            dest = "gdrive:" + (os.environ.get("DRIVE_FOLDER") or s.get("drive_folder") or "Topic Log Data")
+            try:
+                r = subprocess.run([rc, "copy", str(OUT), dest, "--update", "--transfers", "4", "--exclude", ".DS_Store",
+                                    "--retries", "5", "--low-level-retries", "20"], capture_output=True, text=True, timeout=1800, env=env)
+                state["drive_sync"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "ok": r.returncode == 0,
+                                       "error": (r.stderr or "").strip()[-300:] if r.returncode else ""}
+            except Exception as e:
+                state["drive_sync"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "ok": False, "error": str(e)}
+        elif token and not rc:
+            state["drive_sync"] = {"at": None, "ok": False, "error": "rclone not found (Mac: brew install rclone)"}
         time.sleep(every)
 
 
@@ -861,6 +881,7 @@ def main():
     threading.Thread(target=lambda: (migrate(), scheduler()), daemon=True).start()
     if EDITION != "customer":
         threading.Thread(target=sc_scheduler, daemon=True).start()
+    threading.Thread(target=drive_sync, daemon=True).start()
     url = f"http://127.0.0.1:{port}/"
     (SUP / "port").write_text(str(port))
     try:
